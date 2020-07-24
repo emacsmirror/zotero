@@ -1,0 +1,10 @@
+# Compiled
+*.elc
+
+# Backup files and locks
+*~
+.#*
+\#*\#
+
+# PDF tools
+pdftools*
