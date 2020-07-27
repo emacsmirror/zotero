@@ -150,7 +150,8 @@ The cache is created both in memory and on the hard drive."
   "Return non-nil if PLIST1 and PLIST2 can be merged without conflicts.
 Two plists are considered mergable when the same keys don't have different values."
   (loop for (key val) on plist1 by 'cddr
-        always (or (eq val :json-false)
+        always (or (not (plist-member plist2 key))
+                   (eq val :json-false)
                    (eq val :json-empty)
                    (eq (plist-get plist2 key) :json-false)
                    (eq (plist-get plist2 key) :json-empty)
