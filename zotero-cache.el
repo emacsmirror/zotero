@@ -90,7 +90,7 @@ The saved data can be restored with `zotero-cache-unserialize'."
   (setq zotero-cache-cache (zotero-cache-unserialize zotero-cache-cache-file)))
 
 ;; TODO: add cache timer
-(defun zotero-cache--initialize-cache ()
+(defun zotero-cache--maybe-initialize-cache ()
   "Initialize the cache if needed."
   (unless zotero-cache-cache
     (setq zotero-cache-cache
@@ -120,6 +120,7 @@ RESOURCE is one of
  'collections
  'items
  'searches."
+  (zotero-cache--maybe-initialize-cache)
   (plist-get zotero-cache-cache resource))
 
 (defun zotero-cache--cache-remove-key (resource &rest keys)
