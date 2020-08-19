@@ -56,24 +56,6 @@
 (defconst zotero-lib-api-version 3
   "API version. Version 3 is currently the default and recommended version.")
 
-;; The Client Key and Client Secret for use during all future OAuth handshakes between emacs-zotero and zotero.org.
-(defconst zotero-lib-client-key "28b59774b8e3e022a296"
-  "The key issued by Zotero.")
-(defconst zotero-lib-client-secret "ed094e305ae7305ebbbc"
-  "The secret issued by Zotero.")
-
-;; The OAuth endpoints for access to the Zotero API:
-(defconst zotero-lib-request-token-endpoint "https://www.zotero.org/oauth/request"
-  "Temporary Credential Request.")
-(defconst zotero-lib-access-token-endpoint "https://www.zotero.org/oauth/access"
-  "Token Request URI.")
-(defconst zotero-lib-authorize-endpoint "https://www.zotero.org/oauth/authorize"
-  "Resource Owner Authorization URI.")
-
-(defstruct (zotero-lib-access-token (:include oauth-t))
-  "Specialized token of `oauth-t' including the extra slots `userid' and `username'."
-  userid username)
-
 ;; (defvar zotero-lib-status-codes '(;; The request completed. See the response JSON for status of individual writes.
 ;;                                   (200 . (lambda (&rest _) (message "OK")))
 ;;  	                          ;; The item was successfully updated.
@@ -320,80 +302,6 @@ Strip the leading \":\" from the keyword."
   "Convert a string to a keyword.
 Add a leading \":\" to the string."
   (intern (concat ":" string)))
-
-;;;;; Authorization
-
-(defun zotero-lib--fetch-token (arg)
-  "Advice replacing `oauth-fetch-token' in package `oauth.el'.
-Fetch an access token, secret, user ID and username from the service provider."
-  (with-current-buffer (oauth-do-request arg)
-    ;; Move beyond blank line at end of headers.
-    (goto-char (point-min))
-    (while (progn
-             (forward-line 1)
-             (not (looking-at "^\r?\n"))))
-    (forward-line 1)
-    (let ((token (make-zotero-lib-access-token))
-          (pairs (url-parse-query-string (buffer-substring (point) (point-max)))))
-      (dolist (pair pairs)
-        (cond
-         ((equal (car pair) "oauth_token")
-          (setf (zotero-lib-access-token-token token) (cadr pair)))
-         ((equal (car pair) "oauth_token_secret")
-          (setf (zotero-lib-access-token-token-secret token) (cadr pair)))
-         ((equal (car pair) "userID")
-          (setf (zotero-lib-access-token-userid token) (cadr pair)))
-         ((equal (car pair) "username")
-          (setf (zotero-lib-access-token-username token) (cadr pair)))))
-      token)))
-
-(defun zotero-lib--before-authorize-function ()
-  "Function to be run before an OAuth authorization request."
-  (advice-add #'oauth-fetch-token :override #'zotero-lib--fetch-token))
-
-(defun zotero-lib--after-authorize-function ()
-  "Function to be run after an OAuth authorization request."
-  (advice-remove #'oauth-fetch-token #'zotero-lib--fetch-token))
-
-(defun zotero-lib--save-access-token (access-token)
-  "Save the acces token for future sessions and return it."
-  (customize-save-variable 'zotero-lib-access-token access-token))
-
-;; TODO: is this function necessary?
-(defun zotero-lib--access-token (&optional force)
-  "Return the access token.
-If optional argument FORCE is non-nil, authorize Zotero and
-obtain new token info."
-  (if (or (null zotero-lib-access-token) force)
-      ;; Not authorized or forcing: authorize Zotero
-      (zotero-lib-authorize)
-    ;; Already authorized: return access token
-    zotero-lib-access-token))
-
-;; TODO: is this function necessary?
-(defun zotero-lib--access-token-valid-p (access-token)
-  "Return t if the access token is valid, else return nil.
-  An access token is considered valid if it is a struct type called ‘zotero-lib-access-token’ that contains at least the two slots \"userID\" (the user ID) and \"oauth_token_secret\" (the API key)."
-  (when (and (zotero-lib-access-token-p access-token) (zotero-lib-access-token-token-secret access-token) (zotero-lib-access-token-userid access-token)) t))
-
-;; TODO: is this function necessary?
-(defun zotero-lib--api-key (access-token)
-  "Return the Zotero API key.
-In Zotero's case the token and secret are just the same Zotero
-API key."
-  (zotero-lib-access-token-token-secret access-token))
-
-;; TODO: is this function necessary?
-(defun zotero-lib--userid (access-token)
-  "Return the Zotero user ID.
-Zotero will send the userID associated with the key along too."
-  (zotero-lib-access-token-userid access-token))
-
-;; TODO: is this function necessary?
-(defun zotero-lib--username (access-token)
-  "Return the Zotero username.
-Zotero will send the username associated with the key along too."
-  (zotero-lib-access-token-username access-token))
 
 ;;;;; Parser functions
 
@@ -923,8 +831,8 @@ at <https://www.zotero.org/groups/>."
 (defun zotero-lib--authorize (handle)
   "Reauthorize Zotero and return a new request handle."
   (if (y-or-n-p (format "Invalid API key. Authorize Zotero and retry? "))
-      (when-let ((access-token (zotero-lib-authorize))
-                 (api-key (zotero-lib--api-key access-token)))
+      (when-let ((token (zotero-auth-authorize))
+                 (api-key (zotero-auth--api-key token)))
         (plist-put handle :api-key api-key))
     (user-error "Invalid API key")))
 
@@ -1354,26 +1262,6 @@ omitted."
 
 ;;;;; Methods
 
-(defun zotero-lib-authorize ()
-  "Redirect user to Zotero to authorize.
-Also, save the access token info for future sessions and return it.
-
-The access token is an alist containing the keys \"username\",
-\"userID\", \"oauth_token_secret\", and \"oauth_token\".
-
-Rather than using OAuth to sign each request, OAuth should be
-used to obtain a key for subsequent requests. The key will be
-valid indefinitely, unless it is revoked by the user manually, so
-keys should be considered sensitive."
-  (zotero-lib--before-authorize-function)
-  (let* ((response (oauth-authorize-app zotero-lib-client-key
-                                        zotero-lib-client-secret
-                                        zotero-lib-request-token-endpoint
-                                        zotero-lib-access-token-endpoint
-                                        zotero-lib-authorize-endpoint))
-         (access-token (oauth-access-token-auth-t response)))
-    (zotero-lib--after-authorize-function)
-    (zotero-lib--save-access-token access-token)))
 
 (cl-defun zotero-lib-get-collections (&key user group format api-key)
   "Collections in the library.
