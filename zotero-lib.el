@@ -291,35 +291,129 @@ the `:alternate', `:last', `:next', `:prev', and `:first' links."
         (setq pos (match-end 0)))
       (nreverse matches))))
 
-(defun zotero-lib--file-attributes (file)
-  "Get the file attributes."
-  (when (file-readable-p file)
-    (let* ((md5 (with-temp-buffer
-                  (insert-file-contents file)
-                  (secure-hash 'md5 (current-buffer))))
-           (attributes (file-attributes file))
-           ;; (approximate) time of last modification in milliseconds
-           (mtime (thread-last
-                      ;; mtime as a Lisp timestamp
-                      (file-attribute-modification-time attributes)
-                    ;; convert to seconds since the epoch
-                    (format-time-string "%s")
-                    ;; convert to number
-                    (string-to-number)
-                    ;; and multiply by 1000
-                    (* 1000)))
-           (accessdate (thread-last
-                           (file-attribute-access-time attributes)
-                         ;; convert to ISO 8601 date format
-                         (format-time-string "%F")))
-           ;; filename without its directory
-           (filename (file-name-nondirectory file))
-           ;; filesize in bytes
-           (filesize (file-attribute-size attributes))
-           (contenttype (or (mailcap-file-name-to-mime-type filename) "application/octet-stream")))
-      `(:filename ,filename :filesize ,filesize :contenttype ,contenttype :md5 ,md5 :mtime ,mtime :accessdate ,accessdate))))
+;;;;; JSON parsing
 
+(defun json-read-object--empty-object (orig-fun)
+  "Advice around `json-read' to read `:json-empty' as JSON empty object (\"{}\").
 
+Both \"null\" and \"{}\" are parsed as `nil', so there's no
+convenient way to differentiate between an empty value or an
+empty object. However, a \"null\" instead of \"{}\" for an empty
+object will return a \"400 Bad Request\" error. The advices
+around `json-read' and `json-encode' use the value `:json-empty'
+when reading or writing a JSON empty object."
+  (let ((beg (point)))
+    ;; Skip over the "{"
+    (json-advance)
+    (json-skip-whitespace)
+    (if (= (json-peek) ?})
+        (progn
+          ;; Skip over the "}"
+          (json-advance)
+          :json-empty)
+      (goto-char beg)
+      (funcall orig-fun))))
+
+(defun json-encode--empty-object (orig-fun arg)
+  "Advice around `json-encode' to write `:json-empty' as JSON empty object (\"{}\").
+
+Both \"null\" and \"{}\" are parsed as `nil', so there's no
+convenient way to differentiate between an empty value or an
+empty object. However, a \"null\" instead of \"{}\" for an empty
+object will return a \"400 Bad Request\" error. The advices
+around `json-read' and `json-encode' use the value `:json-empty'
+when reading or writing a JSON empty object."
+  (if (eq arg :json-empty)
+      "{}"
+    (funcall orig-fun arg)))
+
+(defun zotero-lib--before-read-function ()
+  "Function to be run before a JSON read."
+  (advice-add #'json-read-object :around #'json-read-object--empty-object))
+
+(defun zotero-lib--after-read-function ()
+  "Function to be run after a JSON read."
+  (advice-remove #'json-read-object #'json-read-object--empty-object))
+
+(defun zotero-lib--before-write-function ()
+  "Function to be run before a JSON write."
+  (advice-add #'json-encode :around #'json-encode--empty-object))
+
+(defun zotero-lib--after-write-function ()
+  "Function to be run after a JSON write."
+  (advice-remove #'json-encode #'json-encode--empty-object))
+
+(defun zotero-lib--read-json (object)
+  "Convert the JSON OBJECT to Lisp data, else return nil.
+  A JSON Object will be converted to a plist. A JSON array of
+  objects wil be converted to a vector of plists.
+
+  OBJECT may be: a buffer (read one Lisp expression from the
+                                beginning) a function (call it with no arguments) a file (read
+                                one Lisp expression from the beginning) a string (takes text
+                                from string, starting at the beginning)."
+  (zotero-lib--before-read-function)
+  (let* ((json-object-type 'plist)
+         (data (cond ((bufferp object)
+                      (with-current-buffer object
+                        (save-excursion
+                          (goto-char (point-min))
+                          (json-read))))
+                     ((functionp object) (json-read-from-string (funcall object)))
+                     ((stringp object)
+                      (if (file-readable-p object)
+                          (json-read-file object)
+                        (json-read-from-string object))))))
+    (zotero-lib--after-read-function)
+    (when (or (json-plist-p data) (vectorp data)) data)))
+
+(defun zotero-lib--read (object)
+  "Read Lisp data from OBJECT, else return nil.
+  The OBJECT should return a plist or a vector of plists.
+
+  OBJECT may be:
+  a plist
+  a buffer (read one Lisp expression from the beginning)
+  a function (call it with no arguments)
+  a file (read one Lisp expression from the beginning)
+  a string (takes text from string, starting at the beginning)."
+  (zotero-lib--before-read-function)
+  (let ((data (cond ((consp object) object)
+                    ((bufferp object)
+                     (with-current-buffer object
+                       (save-excursion
+                         (goto-char (point-min))
+                         (read (current-buffer)))))
+                    ((functionp object) (read object))
+                    ((stringp object)
+                     (if (file-readable-p object)
+                         (with-temp-buffer
+                           (insert-file-contents object)
+                           (goto-char (point-min))
+                           (read (current-buffer))))
+                     (read object)))))
+    (prog1
+        data
+      (zotero-lib--after-read-function))))
+
+(defun zotero-lib--encode-object (&rest objects)
+  "Return a JSON array with OBJECTS.
+  OBJECTS should be a list of objects, each of which may be:
+  a cons cell
+  a buffer (read one Lisp expression from the beginning)
+  a function (call it with no arguments)
+  a file (read one Lisp expression from the beginning)
+  a string (takes text from string, starting at the beginning)."
+  (zotero-lib--before-write-function)
+  (let (result)
+    (dolist (object objects result)
+      (let ((plist (zotero-lib--read object)))
+        (if plist
+            (push plist result)
+          (user-error "Object %S doesn't return a property list" object))))
+    (let ((json (json-encode-array (vconcat (nreverse result)))))
+      (zotero-lib--after-write-function)
+      json)))
 
 ;;;;; Resources
 
@@ -882,131 +976,6 @@ libraries, the ID can be found by opening the group's page at
          (handle `(:url ,url :method ,method :data ,data :api-version ,zotero-lib-api-version :api-key ,api-key :if-modified-since-version ,version :content-type ,(or content-type "application/json") :expect  "" :if-match ,if-match :if-none-match ,if-none-match :write-token ,write-token)))
     (zotero-lib--submit-data handle)))
 
-;;;;; JSON parsing
-
-(defun json-read-object--empty-object (orig-fun)
-  "Advice around `json-read' to read `:json-empty' as JSON empty object (\"{}\").
-
-Both \"null\" and \"{}\" are parsed as `nil', so there's no
-convenient way to differentiate between an empty value or an
-empty object. However, a \"null\" instead of \"{}\" for an empty
-object will return a \"400 Bad Request\" error. The advices
-around `json-read' and `json-encode' use the value `:json-empty'
-when reading or writing a JSON empty object."
-  (let ((beg (point)))
-    ;; Skip over the "{"
-    (json-advance)
-    (json-skip-whitespace)
-    (if (= (json-peek) ?})
-        (progn
-          ;; Skip over the "}"
-          (json-advance)
-          :json-empty)
-      (goto-char beg)
-      (funcall orig-fun))))
-
-(defun json-encode--empty-object (orig-fun arg)
-  "Advice around `json-encode' to write `:json-empty' as JSON empty object (\"{}\").
-
-Both \"null\" and \"{}\" are parsed as `nil', so there's no
-convenient way to differentiate between an empty value or an
-empty object. However, a \"null\" instead of \"{}\" for an empty
-object will return a \"400 Bad Request\" error. The advices
-around `json-read' and `json-encode' use the value `:json-empty'
-when reading or writing a JSON empty object."
-  (if (eq arg :json-empty)
-      "{}"
-    (funcall orig-fun arg)))
-
-(defun zotero-lib--before-read-function ()
-  "Function to be run before a JSON read."
-  (advice-add #'json-read-object :around #'json-read-object--empty-object))
-
-(defun zotero-lib--after-read-function ()
-  "Function to be run after a JSON read."
-  (advice-remove #'json-read-object #'json-read-object--empty-object))
-
-(defun zotero-lib--before-write-function ()
-  "Function to be run before a JSON write."
-  (advice-add #'json-encode :around #'json-encode--empty-object))
-
-(defun zotero-lib--after-write-function ()
-  "Function to be run after a JSON write."
-  (advice-remove #'json-encode #'json-encode--empty-object))
-
-(defun zotero-lib--read-json (object)
-  "Convert the JSON OBJECT to Lisp data, else return nil.
-  A JSON Object will be converted to a plist. A JSON array of
-  objects wil be converted to a vector of plists.
-
-  OBJECT may be: a buffer (read one Lisp expression from the
-                                beginning) a function (call it with no arguments) a file (read
-                                one Lisp expression from the beginning) a string (takes text
-                                from string, starting at the beginning)."
-  (zotero-lib--before-read-function)
-  (let* ((json-object-type 'plist)
-         (data (cond ((bufferp object)
-                      (with-current-buffer object
-                        (save-excursion
-                          (goto-char (point-min))
-                          (json-read))))
-                     ((functionp object) (json-read-from-string (funcall object)))
-                     ((stringp object)
-                      (if (file-readable-p object)
-                          (json-read-file object)
-                        (json-read-from-string object))))))
-    (zotero-lib--after-read-function)
-    (when (or (json-plist-p data) (vectorp data)) data)))
-
-;; FIXME: move clean-plist function here?
-(defun zotero-lib--read (object)
-  "Read Lisp data from OBJECT, else return nil.
-  The OBJECT should return a plist or a vector of plists.
-
-  OBJECT may be:
-  a plist
-  a buffer (read one Lisp expression from the beginning)
-  a function (call it with no arguments)
-  a file (read one Lisp expression from the beginning)
-  a string (takes text from string, starting at the beginning)."
-  (zotero-lib--before-read-function)
-  (let ((data (cond ((consp object) object)
-                    ((bufferp object)
-                     (with-current-buffer object
-                       (save-excursion
-                         (goto-char (point-min))
-                         (read (current-buffer)))))
-                    ((functionp object) (read object))
-                    ((stringp object)
-                     (if (file-readable-p object)
-                         (with-temp-buffer
-                           (insert-file-contents object)
-                           (goto-char (point-min))
-                           (read (current-buffer))))
-                     (read object)))))
-    (prog1
-        data
-      (zotero-lib--after-read-function))))
-
-(defun zotero-lib--encode-object (&rest objects)
-  "Return a JSON array with OBJECTS.
-  OBJECTS should be a list of objects, each of which may be:
-  a cons cell
-  a buffer (read one Lisp expression from the beginning)
-  a function (call it with no arguments)
-  a file (read one Lisp expression from the beginning)
-  a string (takes text from string, starting at the beginning)."
-  (zotero-lib--before-write-function)
-  (let (result)
-    (dolist (object objects result)
-      (let ((plist (zotero-lib--read object)))
-        (if plist
-            (push plist result)
-          (user-error "Object %S doesn't return a property list" object))))
-    (let ((json (json-encode-array (vconcat (nreverse result)))))
-      (zotero-lib--after-write-function)
-      json)))
-
 (defun zotero-lib--write-token ()
   "Return a unique 32-char write-token.
 
@@ -1029,8 +998,35 @@ omitted."
       (let ((char (elt characters (random 36))))
         (setq token (concat token (string char)))))))
 
-;;;;; Methods
+(defun zotero-lib--file-attributes (file)
+  "Get the file attributes."
+  (when (file-readable-p file)
+    (let* ((md5 (with-temp-buffer
+                  (insert-file-contents file)
+                  (secure-hash 'md5 (current-buffer))))
+           (attributes (file-attributes file))
+           ;; (approximate) time of last modification in milliseconds
+           (mtime (thread-last
+                      ;; mtime as a Lisp timestamp
+                      (file-attribute-modification-time attributes)
+                    ;; convert to seconds since the epoch
+                    (format-time-string "%s")
+                    ;; convert to number
+                    (string-to-number)
+                    ;; and multiply by 1000
+                    (* 1000)))
+           (accessdate (thread-last
+                           (file-attribute-access-time attributes)
+                         ;; convert to ISO 8601 date format
+                         (format-time-string "%F")))
+           ;; filename without its directory
+           (filename (file-name-nondirectory file))
+           ;; filesize in bytes
+           (filesize (file-attribute-size attributes))
+           (contenttype (or (mailcap-file-name-to-mime-type filename) "application/octet-stream")))
+      `(:filename ,filename :filesize ,filesize :contenttype ,contenttype :md5 ,md5 :mtime ,mtime :accessdate ,accessdate))))
 
+;;;;; Methods
 
 (cl-defun zotero-lib-get-collections (&key user group format api-key)
   "Collections in the library.
