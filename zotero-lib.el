@@ -4,7 +4,7 @@
 ;; Created: 2020-03-27
 ;; Version: 0.1
 ;; Keywords: zotero, hypermedia
-;; Package-Requires: ((emacs "25.1") (oauth "1.0.4") (request "0.3.2"))
+;; Package-Requires: ((emacs "25.1") (ht "2.2") (oauth "1.0.4") (request "0.3.2") (s "1.12.0"))
 ;; URL: https://gitlab.com/fvdbeek/emacs-zotero
 
 ;; This file is NOT part of GNU Emacs.
@@ -35,17 +35,19 @@
 
 ;;;; Requirements
 
-(require 'aio)
 (require 'cl-lib)
-(require 'ht)
 (require 'json)
-(require 'request)
-(require 'request-deferred)
-(require 's)
 (require 'seq)
 (require 'subr-x)
-(require 'oauth)
 (require 'url)
+;; (require 'aio)
+(require 'ht)
+(require 'request)
+;; (require 'request-deferred)
+(require 's)
+(require 'zotero-auth)
+(require 'zotero-cache)
+(require 'zotero-sync)
 
 ;;;; Variables
 
