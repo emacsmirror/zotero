@@ -7,7 +7,7 @@ Group metadata includes group titles and descriptions as well as member/role/per
   (let* ((remote-plist (zotero-sync-get-remote-versions :resource 'groups :user user :api-key api-key))
          (local-hash (zotero-sync--cache-get 'groups))
          ;; Collect only the keys
-         (remote (cl-loop for key in remote-plist by 'cddr collect key))
+         (remote (cl-loop for key in remote-plist by #'cddr collect key))
          (local (ht-keys local-hash))
          ;; The local objects not in the remote list
          (removed (seq-difference local remote))
