@@ -1,4 +1,6 @@
-(cl-defun zotero-sync--sync-groups (&key user api-key)
+;;; zotero-sync.el --- synchronization for Zotero -*- lexical-binding: t; -*-
+
+(cl-defun zotero-sync--groups (&key user api-key)
   "Sync group metadata.
 
 Group metadata includes group titles and descriptions as well as member/role/permissions information. It is separate from group library data."
@@ -303,3 +305,7 @@ RESOURCE is one of 'groups 'collections 'items 'searches."
 ;;     ;;       ((not user-write-access)
 ;;     ;;        (warn "Insufficient privileges for write access to the personal library")))
 ;;     user-privileges))
+
+(provide 'zotero-sync)
+
+;;; zotero-sync.el ends here
