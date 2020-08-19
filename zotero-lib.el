@@ -1759,8 +1759,8 @@ Argument `:md5' is the previous MD5 hash of the file
 
 OBJECT should be a a plist containing three props:
 - `:content': the full-text content, and either
-- `:indexedChars' and `:totalChars' for text documents,
-- `indexedPages' and `totalPages' for PDFs.
+- `:indexedChars' and `:totalChars' for text documents, or
+- `:indexedPages' and `:totalPages' for PDFs.
 
 KEY is the item key. Optional argument LIBRARY is 'user for your
 personal library, and 'group for the group libraries. Optional
