@@ -29,7 +29,8 @@
 
 ;; Note
 
-;; FILES is implemented only for curl backend for now.
+;; REVIEW: FILES is implemented only for curl backend for now.
+;; REVIEW: Emacs 26 is required because of the incompatible struct changes.
 
 ;;; Code:
 
