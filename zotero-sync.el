@@ -45,14 +45,14 @@ Group metadata includes group titles and descriptions as well as member/role/per
     `(:removed ,removed :added ,added :updated ,updated)))
 
 ;; TODO: check last-modified-version with every api call
-(cl-defun zotero-sync--sync-remotely-updated (&key resource user group (since 0) api-key)
-  (let* ((url (zotero-sync--endpoint :resource resource :user user :group group))
+(cl-defun zotero-sync--get-remotely-updated (&key resource user group (since 0) api-key)
+  (let* ((url (zotero-lib--endpoint :resource resource :user user :group group))
          (handle `(:url ,url :method "GET" :api-version ,zotero-sync-api-version :api-key ,api-key :format "versions" :since ,since))
-         (remote-response (zotero-sync--get-response handle))
+         (remote-response (zotero-lib--get-response handle))
          (remote-data (plist-get remote-response :data))
          (last-modified-version (plist-get remote-response :version))
          ;; Collect only the keys
-         (remote-keys (cl-loop for key in remote-data by 'cddr collect key))
+         (remote-keys (cl-loop for key in remote-data by #'cddr collect key))
          (cache (plist-get zotero-sync-cache group))
          ;; Remotely updated keys
          (updated-keys (seq-filter (lambda (key)
@@ -80,7 +80,7 @@ Group metadata includes group titles and descriptions as well as member/role/per
         (zotero-sync--cache-update-object :resource resource :user user :group group :cache cache :data updated-data :version last-modified-version)))
     last-modified-version))
 
-(cl-defun zotero-sync--sync-remotely-deleted (&key resource user group since api-key)
+(cl-defun zotero-sync--get-remotely-deleted (&key resource user group since api-key)
   (let* ((url (zotero-sync--endpoint :resource 'deleted :user user :group group))
          (handle `(:url ,url :method "GET" :api-version ,zotero-sync-api-version :api-key ,api-key :since ,since))
          (remote-response (zotero-sync--get-response handle))
@@ -92,7 +92,7 @@ Group metadata includes group titles and descriptions as well as member/role/per
     last-modified-version))
 
 ;; TODO: attempt to upload data first and retrieve updated data only if receiving a 412 Precondition Failed. See If-Unmodified-Since-Version for more information.
-(cl-defun zotero-sync--sync-locally-updated (&key resource user group since api-key)
+(cl-defun -zotero-sync--get-locally-updated (&key resource user group since api-key)
   (let* ((url (zotero-sync--endpoint :resource resource :user user :group group))
          (handle `(:url ,url :method "GET" :api-version ,zotero-sync-api-version :api-key ,api-key :since ,since))
          (last-modified-version (plist-get remote-response :version))
@@ -152,7 +152,7 @@ Group metadata includes group titles and descriptions as well as member/role/per
 
 ;; On a 412 Precondition Failed response, return to the beginning of the sync process for that library.
 
-(cl-defun zotero-sync--sync-locally-deleted (&key user group since api-key)
+(cl-defun zotero-sync--get-locally-deleted (&key user group since api-key)
   (let* ((url (zotero-sync--endpoint :resource resource :user user :group group))
          (handle `(:url ,url :method "GET" :api-version ,zotero-sync-api-version :api-key ,api-key :since ,since))
          (last-modified-version (plist-get remote-response :version))
@@ -183,7 +183,7 @@ Group metadata includes group titles and descriptions as well as member/role/per
             (setq data (seq-concatenate 'vector data objects))))))
     last-modified-version))
 
-(defun zotero-sync--sync (data)
+(defun zotero-sync (data)
   (while
       (let* ((response (zotero-sync--request handle))
              (plist (zotero-sync--decider handle response)))
@@ -239,11 +239,11 @@ The cache is created both in memory and on the hard drive."
 (cl-defun zotero-sync-sync (&key user api-key)
   "Sync library."
   ;; 1) Verify key access
-  (let* ((url (zotero-sync--endpoint :resource 'keys :key api-key))
-         (handle `(:url ,url :method "GET" :api-version ,zotero-sync-api-version :api-key ,api-key))
-         (response (zotero-sync--get-response handle))
-         ;; (cache (zotero-sync--cache-get-library-metadata))
-         (libraries (plist-get zotero-sync-cache 'libraries)))
+  (let* ((url (zotero-lib--endpoint :resource 'keys :key api-key))
+         (handle `(:url ,url :method "GET" :api-version ,zotero-lib-api-version :api-key ,api-key))
+         (response (zotero-lib--get-response handle))
+         ;; (cache (zotero---cache-get-library-metadata))
+         (libraries (plist-get zotero-cache-cache 'libraries)))
     ;; (ht-each (lambda (key value)
     ;;            (let* ((id key)
     ;;                   (data value))
@@ -254,30 +254,31 @@ The cache is created both in memory and on the hard drive."
     )
   ;; 2) Get updated group metadata
   ;; 2a) First, retrieve a list of the user's groups, with a version indicating the current state of each group's metadata
-  (let ((remote-groups (zotero-sync--retrieve :resource 'groups :user user :api-key api-key :format "versions"))
-        (synccache (zotero-sync--cache-get 'synccache))
-        )
-    (cl-loop for group in remote-groups by 'cddr do
+  (let ((remote-groups (zotero-lib--retrieve :resource 'groups :user user :api-key api-key :format "versions"))
+        (local-groups (zotero-cache--cache-get 'groups))
+        (synccache (zotero-cache--cache-get 'synccache)))
+    (cl-loop for group in remote-groups by #'cddr do
+             ;; REVIEW: should this be postponed?
              (unless (ht-contains? synccache group)
-               (zotero-sync--initialize-group group))
+               (ht-set! synccache group (ht-create )))
              (cl-loop for resource in '(collections items searches) do
+                      ;; 2b) For each group that doesn't exist locally or that has a different version number, retrieve the group metadata
                       (let ((remote-version (plist-get remote-groups group))
                             (local-version (thread-first (ht-get local-groups group)
                                              (plist-get :version))))
-                        ;; 2b) For each group that doesn't exist locally or that has a different version number, retrieve the group metadata
                         (if (eq remote-version local-version)
-                            (message "Group %s already up to date." (substring (symbol-name group) 1))
+                            (message "Group %s already up to date." (zotero-lib--keyword->string group))
                           ;; Perform the following steps for each library:
                           ;; i. Get updated data
-                          (zotero-sync--sync-remotely-updated :resource resource :group group :since local-version :api-key api-key)
+                          (zotero-sync--get-remotely-updated :resource resource :group group :since local-version :api-key api-key)
                           ;; ii. Get deleted data
-                          ;; FIXME: loop over resource in inside or outside function?
-                          (zotero-sync--sync-remotely-deleted :resource resource :group group :since local-version :api-key api-key)
-                          ;; TODO: iii. Check for concurrent remote updates
+                          ;; REVIEW: loop over resource in inside or outside function?
+                          (zotero-sync--get-remotely-deleted :resource resource :group group :since local-version :api-key api-key)
+                          ;; FIXME: iii. Check for concurrent remote updates
                           ;; iv. Upload modified data
-                          (zotero-sync--sync-locally-updated :resource resource :group group :since local-version :api-key api-key)
+                          (-zotero-sync--get-locally-updated :resource resource :group group :since local-version :api-key api-key)
                           ;; v. Upload local deletions
-                          (zotero-sync--sync-locally-deleted :resource resource :group group :since local-version :api-key api-key)))))))
+                          (-zotero-sync--get-locally-deleted :resource resource :group group :since local-version :api-key api-key)))))))
 
 ;; FIXME: merge with read function
 (cl-defun zotero-sync--get-remote-versions (&key resource user group key since api-key)
