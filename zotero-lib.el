@@ -47,8 +47,6 @@
 ;; (require 'request-deferred)
 (require 's)
 (require 'zotero-auth)
-(require 'zotero-cache)
-(require 'zotero-sync)
 
 ;;;; Variables
 
