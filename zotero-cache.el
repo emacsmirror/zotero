@@ -112,7 +112,7 @@ The saved data can be restored with `zotero-cache-unserialize'."
   (let ((groups (plist-get zotero-cache-cache :groups)))
     (seq-some (lambda (group) (equal (plist-get group :id) id)) groups)))
 
-(defun zotero-cache--cache-get (resource)
+(defun zotero-cache--get (resource)
   "Get cached version of RESOURCE.
 RESOURCE is one of
  'version
@@ -123,7 +123,7 @@ RESOURCE is one of
   (zotero-cache--maybe-initialize-cache)
   (plist-get zotero-cache-cache resource))
 
-(defun zotero-cache--cache-remove-key (resource &rest keys)
+(defun zotero-cache--remove-key (resource &rest keys)
   "Remove KEY from CACHE.
 The cache is created both in memory and on the hard drive."
   (let ((table (plist-get zotero-cache-cache resource)))
@@ -132,7 +132,7 @@ The cache is created both in memory and on the hard drive."
     (setq zotero-cache-cache (plist-put zotero-cache-cache resource table))
     (zotero-cache-serialize-cache)))
 
-(defun zotero-cache--cache-update-version (version)
+(defun zotero-cache--update-version (version)
   "Update VERSION in cache.
 The cache is created both in memory and on the hard drive."
   (let* ((resource 'version)
@@ -142,7 +142,7 @@ The cache is created both in memory and on the hard drive."
     (setq zotero-cache-cache (plist-put zotero-cache-cache resource table))
     (zotero-cache-serialize-cache)))
 
-(defun zotero-cache--cache-update-libraries (id data)
+(defun zotero-cache--update-libraries (id data)
   "Update or add DATA in cache.
 The cache is created both in memory and on the hard drive."
   (let* ((resource 'libraries)
@@ -151,7 +151,7 @@ The cache is created both in memory and on the hard drive."
     (setq zotero-cache-cache (plist-put zotero-cache-cache resource table))
     (zotero-cache-serialize-cache)))
 
-(defun zotero-cache--cache-update-group (id data)
+(defun zotero-cache--update-group (id data)
   "Update or add DATA in cache.
 The cache is created both in memory and on the hard drive."
   (let* ((resource 'groups)
@@ -160,13 +160,13 @@ The cache is created both in memory and on the hard drive."
     (setq zotero-cache-cache (plist-put zotero-cache-cache resource table))
     (zotero-cache-serialize-cache)))
 
-(defun zotero-cache--cache-get-library-metadata ()
+(defun zotero-cache--get-library-metadata ()
   "Get library metadata from cache."
   (let* ((resource 'libraries)
          (table (plist-get zotero-cache-cache resource)))
     (ht->plist table)))
 
-(defun zotero-cache--cache-get-groups ()
+(defun zotero-cache--get-groups ()
   "Get library metadata from cache."
   (let* ((resource 'groups)
          (table (plist-get zotero-cache-cache resource)))
@@ -280,10 +280,8 @@ Return the updated table when success or nil when failed."
                 (throw 'break nil))))))))
     table))
 
-
-
 ;; TODO: offer option to manually resolve sync conflict
-(cl-defun zotero-cache--cache-update-object (resource user group cache data version)
+(cl-defun zotero-cache--update-object (resource user group cache data version)
   "Update DATA in cache.
 The cache is created both in memory and on the hard drive."
   (when-let ((updated-table (zotero-cache--process-updates :resource resource :user user :group group :cache cache :data data :version version)))
@@ -293,7 +291,7 @@ The cache is created both in memory and on the hard drive."
     (zotero-cache-serialize-cache)
     (message "Saving updated %s to cache...done" (symbol-name resource))))
 
-(defun zotero-cache--cache-delete (resource keys version)
+(defun zotero-cache--delete (resource keys version)
   "Delete KEYS in cache."
   (let* ((resource (intern (substring (symbol-name resource) 1))) ; strip the ":"
          (table (plist-get zotero-cache-cache resource)))
