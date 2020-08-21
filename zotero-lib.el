@@ -849,15 +849,15 @@ the logic what should be done based on the HANDLE and RESPONSE."
      (pcase (plist-get response :content-type)
        ("application/pdf"
         `(:response ,response))
-       (rx "application/json" (zero-or-more anything)
-           ;; When the total number of results matched by a read
-           ;; request is greater than the current limit, the API will
-           ;; include pagination links in the HTTP Link header.
-           (if-let ((next-url (plist-get response :next-url)))
-               ;; Return response and a new handle for the next pagination link
-               `(:response ,response :handle ,(plist-put handle :url next-url))
-             ;; Return response, but no new handle
-             `(:response ,response)))))
+       ((rx "application/json" (zero-or-more anything))
+        ;; When the total number of results matched by a read
+        ;; request is greater than the current limit, the API will
+        ;; include pagination links in the HTTP Link header.
+        (if-let ((next-url (plist-get response :next-url)))
+            ;; Return response and a new handle for the next pagination link
+            `(:response ,response :handle ,(plist-put handle :url next-url))
+          ;; Return response, but no new handle
+          `(:response ,response)))))
     ;; No Content
     (204
      (message "Success."))
