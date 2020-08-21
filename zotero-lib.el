@@ -1741,12 +1741,10 @@ to access, e.g. the \"user ID\" or \"group ID\"."
                                         ("filesize" ,filesize)
                                         ("md5" ,md5)
                                         ("mtime" ,mtime)))))
-    ;; For existing attachments, use If-Match: <hash> in place of
-    ;; If-None-Match: *, where <hash> is the previous MD5 hash of the
-    ;; file (as provided in the ETag header when downloading it).
-    (if hash
-        (zotero-lib--submit :method "POST" :resource 'file :user user :group group :key key :data data :content-type "application/x-www-form-urlencoded" :if-match hash :api-key api-key)
-      (zotero-lib--submit :method "POST" :resource 'file :user user :group group :key key :data data :content-type "application/x-www-form-urlencoded" :if-none-match "*" :api-key api-key))))
+    ;; For existing attachments, use If-Match: <hash> in place of If-None-Match:
+    ;; *, where <hash> is the previous MD5 hash of the file (as provided in the
+    ;; ETag header when downloading it).
+    (apply #'zotero-lib--submit :method "POST" :resource 'file :user user :group group :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key (if hash '(:if-match hash) '(:if-none-match "*")))))
 
 ;; A successful 200 response returns one of two possible JSON objects:
 
