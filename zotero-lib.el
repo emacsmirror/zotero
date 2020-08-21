@@ -963,13 +963,13 @@ be included with unversioned write requests to prevent them from
 being processed more than once. The Zotero server caches write
 tokens for successful requests for 12 hours, and subsequent
 requests from the same API key using the same write token will be
-rejected with a \"412 Precondition Failed\" status code. If a request
-fails, the write token will not be stored.
+rejected with a \"412 Precondition Failed\" status code. If a
+request fails, the write token will not be stored.
 
 If using versioned write requests (i.e., those that include an
 If-Unmodified-Since-Version HTTP header or individual object
-version properties), Zotero-Write-Token is redundant and should be
-omitted."
+version properties), Zotero-Write-Token is redundant and should
+be omitted."
   (let ((characters "0123456789abcdefghijklmnopqrstuvwxyz")
         (token ""))
     (dotimes (i 32 token)
