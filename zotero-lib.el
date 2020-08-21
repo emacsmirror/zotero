@@ -772,7 +772,7 @@ at <https://www.zotero.org/groups/>."
 ;; TODO: timeout error
 ;; (defun zotero-lib--decider (handle response)
 ;;   "Handle the RESPONSE and return a plist with the data and a new handle.
-;; This function is called by `zotero-lib--get-data' and provides the
+;; This function is called by `zotero-lib--dispatch' and provides the
 ;; logic to decide what should be done based on the RESPONSE."
 ;;   ;; (pcase (plist-get response :symbol-status)
 ;;   ;;   ('success)
@@ -834,9 +834,9 @@ at <https://www.zotero.org/groups/>."
 ;;     (503)))
 
 (defun zotero-lib--decider (handle response)
-  "Handle the RESPONSE and return a plist with the data and a new handle.
-This function is called by `zotero-lib--get-data' and provides the
-logic to decide what should be done based on the RESPONSE."
+  "Return a new handle and response.
+This function is called by `zotero-lib--dispatch' and provides
+the logic what should be done based on the HANDLE and RESPONSE."
   ;; (pcase (plist-get response :symbol-status)
   ;;   ('success)
   ;;   ('error)
@@ -893,37 +893,32 @@ logic to decide what should be done based on the RESPONSE."
     ;; Service Unavailable
     (503)))
 
-;; FIXME: next two functions should be combined
-(defun zotero-lib--get-data (handle)
-  "Return the concatenated data."
-  (let ((total))
+(defun zotero-lib--dispatch (handle)
+  "Dispatch HANDLE and return the last-modified-version and data.
+The result is a cons of (version . data)."
+  ;; The main flow of execution is a loop between the \"worker\" (`zotero-lib--request'), that sends a request to the Zotero API, and the \"decider\" (`zotero-lib--decider'), that decides what to do next:
+  ;; - Dispatch the handle to the worker and bind the response
+  ;; - Dispatch the handle and response to the decider and bind the response and a new handle, if applicable
+  ;; - Repeat while new handles are returned.
+  (let (version
+        all-data)
     (while
         (let* ((response (zotero-lib--request handle))
                (result (zotero-lib--decider handle response)))
-          (pcase (thread-first (plist-get result :response)
+          (setq version (thread-first
+                            (plist-get result :response)
+                          (plist-get :version)))
+          (pcase (thread-first
+                     (plist-get result :response)
                    (plist-get :data))
             ((and (pred vectorp) data)
-             (setq total (seq-concatenate 'vector total data)))
+             (setq all-data (seq-concatenate 'vector all-data data)))
             ((and (pred consp) data)
-             (setq total (seq-concatenate 'list total data)))
+             (setq all-data (seq-concatenate 'list all-data data)))
             ((and (pred stringp) data)
-             (setq total data)))
+             (setq all-data data)))
           (setq handle (plist-get result :handle))))
-    total))
-
-(defun zotero-lib--get-response (handle)
-  "Return the response.
-Main flow of execution becomes a simple loop:
-- Dispatch handle to worker and bind response
-- Dispatch handle + response to decider and bind new handle
-- Repeat while new handles are returned."
-  (let ((data))
-    (while
-        (let* ((response (zotero-lib--request handle))
-               (result (zotero-lib--decider handle response)))
-          (setq data (plist-get result :response))
-          (setq handle (plist-get result :handle))))
-    data))
+    (cons version all-data)))
 
 (cl-defun zotero-lib--retrieve (&key url resource key user group api-key version last-modified-version locale itemtype linkmode format since itemkey collectionkey searchkey)
   "Return a plist with the response of the Zotero request.
@@ -940,22 +935,7 @@ libraries, the ID can be found by opening the group's page at
   (let* ((url (or url
                   (zotero-lib--endpoint :resource resource :key key :user user :group group)))
          (handle `(:url ,url :method "GET" :api-version ,zotero-lib-api-version :api-key ,api-key :if-modified-since-version ,version :last-modified-version ,last-modified-version :locale ,locale :itemtype ,itemtype :linkmode ,linkmode :format ,format :since ,since :itemkey ,itemkey :collectionkey ,collectionkey :searchkey ,searchkey)))
-    (zotero-lib--get-data handle)))
-
-;; FIXME: next two functions should be combined
-(defun zotero-lib--submit-data (handle)
-  "Submit the data."
-  (let ((result))
-    (while
-        (let* ((response (zotero-lib--request handle))
-               (plist (zotero-lib--decider handle response)))
-          (pcase (plist-get plist :data)
-            ((and (pred vectorp) data)
-             (setq result (seq-concatenate 'vector result data)))
-            ((and (pred consp) data)
-             (setq result (seq-concatenate 'list result data))))
-          (setq handle (plist-get plist :handle))))
-    result))
+    (zotero-lib--dispatch handle)))
 
 (cl-defun zotero-lib--submit (&key method url resource key user group data api-key version content-type expect if-match if-none-match write-token)
   "Return a plist with the response of the Zotero request.
@@ -972,7 +952,7 @@ libraries, the ID can be found by opening the group's page at
   (let* ((url (or url
                   (zotero-lib--endpoint :resource resource :key key :user user :group group)))
          (handle `(:url ,url :method ,method :data ,data :api-version ,zotero-lib-api-version :api-key ,api-key :if-modified-since-version ,version :content-type ,(or content-type "application/json") :expect  "" :if-match ,if-match :if-none-match ,if-none-match :write-token ,write-token)))
-    (zotero-lib--submit-data handle)))
+    (zotero-lib--dispatch handle)))
 
 (defun zotero-lib--write-token ()
   "Return a unique 32-char write-token.
