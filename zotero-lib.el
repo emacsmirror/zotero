@@ -112,7 +112,7 @@
 
 (defvar zotero-lib-link-regexp "<\\([^>]*\\)>; rel=\"\\([[:word:]]+\\)\"")
 
-;;;;; Customization
+;;;; Customization
 
 (defgroup zotero-lib nil
   "Library for the Zotero API"
@@ -210,7 +210,7 @@ locale and cannot be localized."
   :type 'string
   :link '(url-link "https://github.com/citation-style-language/locales"))
 
-;;;;; Helper functions
+;;;; Helper functions
 
 (defun zotero-lib--keyword->string (keyword)
   "Convert a keyword to a string.
@@ -222,7 +222,7 @@ Strip the leading \":\" from the keyword."
 Add a leading \":\" to the string."
   (intern (concat ":" string)))
 
-;;;;; Parser functions
+;;;; Parser functions
 
 (defun zotero-lib--get-statusline (buffer)
   "Return the status-line from a response BUFFER."
@@ -289,7 +289,7 @@ the `:alternate', `:last', `:next', `:prev', and `:first' links."
         (setq pos (match-end 0)))
       (nreverse matches))))
 
-;;;;; JSON parsing
+;;;; JSON parsing
 
 (defun json-read-object--empty-object (orig-fun)
   "Advice around `json-read' to read `:json-empty' as JSON empty object (\"{}\").
@@ -413,7 +413,7 @@ when reading or writing a JSON empty object."
       (zotero-lib--after-write-function)
       json)))
 
-;;;;; Resources
+;;;; Resources
 
 ;; TODO: is this function necessary?
 (defun zotero-lib--error-p (response)
@@ -1004,7 +1004,7 @@ be omitted."
            (contenttype (or (mailcap-file-name-to-mime-type filename) "application/octet-stream")))
       `(:filename ,filename :filesize ,filesize :contenttype ,contenttype :md5 ,md5 :mtime ,mtime :accessdate ,accessdate))))
 
-;;;;; Methods
+;;;; Methods
 
 (cl-defun zotero-lib-get-collections (&key user group format api-key)
   "Collections in the library.
@@ -1289,7 +1289,7 @@ file name is returned."
          (etag (plist-get response :etag)))
     etag))
 
-;;;;; Item Type/Field Requests
+;;;; Item Type/Field Requests
 
 (defun zotero-lib-itemtypes ()
   "Return all item types."
@@ -1320,7 +1320,7 @@ file name is returned."
   "Get linkmode types."
   '("imported_file" "imported_url" "linked_file" "linked_url"))
 
-;;;;; Template Requests
+;;;; Template Requests
 
 (defun zotero-lib-item-template (itemtype)
   "Get a template for a new item."
@@ -1337,9 +1337,7 @@ file name is returned."
   (let ((url (concat zotero-lib-base-url "/items/new")))
     (zotero-lib--retrieve :url url :itemtype "attachment" :linkmode linkmode :locale zotero-lib-locale)))
 
-;;;;; Write Requests
-
-;;;;;; Item Requests
+;;;; Write Requests
 
 (cl-defun zotero-lib-create-item (object &key user group api-key)
   "Create an item in the library.
@@ -1492,8 +1490,6 @@ ID\" or \"group ID\"."
     (let* ((items (s-join "," keys)))
       (zotero-lib--submit :method "DELETE" :resource 'items :user user :group group :api-key api-key :version version :itemkey items)))))
 
-;;;;;; Collection Requests
-
 (cl-defun zotero-lib-create-collection (object &key user group version)
   "Create a collection.
 
@@ -1571,8 +1567,6 @@ or group library you want to access, e.g. the \"user ID\" or
     (let* ((collections (s-join "," keys)))
       (zotero-lib--submit :method "DELETE" :resource 'collections :user user :group group :api-key api-key :version version :collectionkey collections)))))
 
-;;;;;; Saved Search Requests
-
 (cl-defun zotero-lib-create-search (object &key user group)
   "Create a saved search.
 OBJECT is a plist of the new search. Optional argument LIBRARY is
@@ -1613,8 +1607,6 @@ e.g. the \"user ID\" or \"group ID\"."
     (let ((searches (s-join "," keys)))
       (zotero-lib--submit :method "DELETE" :resource 'searches :user user :group group :api-key api-key :version version :searchkey searches)))))
 
-;;;;;; Tag Requests
-
 (cl-defun zotero-lib-delete-tags (&rest tags &key user group version)
   "Delete multiple tags.
 Up to 50 tags can be deleted in a single request.
@@ -1637,13 +1629,13 @@ e.g. the \"user ID\" or \"group ID\"."
   "Delete the API key."
   (zotero-lib--submit :method "DELETE" :resource 'keys :key api-key))
 
-;;;;; File Uploads
+;;;; File Uploads
 
 ;; The exact process depends on whether you are adding a new
 ;; attachment file or modifying an existing one and whether you are
 ;; performing a full upload or uploading a binary diff.
 
-;;;;;; 1a) Create a new attachment
+;;;;; 1a) Create a new attachment
 ;; https://www.zotero.org/support/dev/web_api/v3/file_upload#a_create_a_new_attachment
 
 ;; i. Get attachment item template with `zotero-lib-attachment-template'
@@ -1693,7 +1685,7 @@ Argument `:md5' is the previous MD5 hash of the file
         (json (zotero-lib--encode-object object)))
     (zotero-lib--submit :method "POST" :resource 'items :user user :group group :data json :content-type "application/json" :expect "" :write-token write-token :if-match md5 :api-key api-key)))
 
-;;;;;; 1b) Modify an existing attachment
+;;;;; 1b) Modify an existing attachment
 ;; https://www.zotero.org/support/dev/web_api/v3/file_upload#b_modify_an_existing_attachment
 
 ;; i. Retrieve the attachment information
@@ -1725,7 +1717,7 @@ Argument `:md5' is the previous MD5 hash of the file
 ;; Note that to perform a faster partial upload using a binary diff,
 ;; you must save a copy of the file before changes are made.
 
-;;;;;; 2) Get upload authorization
+;;;;; 2) Get upload authorization
 ;; https://www.zotero.org/support/dev/web_api/v3/file_upload#get_upload_authorization
 
 (cl-defun zotero-lib-set-item-fulltext (object &key user group key)
@@ -1772,7 +1764,7 @@ to access, e.g. the \"user ID\" or \"group ID\"."
 
 ;; In the latter case, the file already exists on the server and was successfully associated with the specified item. No further action is necessary.
 
-;;;;;; 3a) Full upload
+;;;;; 3a) Full upload
 ;; https://www.zotero.org/support/dev/web_api/v3/file_upload#a_full_upload
 
 ;; i. POST file
