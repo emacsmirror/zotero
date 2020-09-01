@@ -669,7 +669,7 @@ at <https://www.zotero.org/groups/>."
          (last-modified-version (when-let ((version (request-response-header response "Last-Modified-Version"))) (string-to-number version)))
          (links (zotero-lib--parse-links (request-response-header response "Link")))
          ;; (raw-header (request-response--raw-header response))
-         ;; (raw-data (request-response-data response))
+         (raw-data (request-response-data response))
          (total-results (when-let ((results (request-response-header response "Total-Results"))) (string-to-number results)))
          (data (if (string-match-p "application/json.*" content-type)
                    (zotero-lib--read-json raw-data)
