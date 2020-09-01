@@ -904,10 +904,8 @@ the logic what should be done based on the HANDLE and RESPONSE."
           ;; When the total number of results matched by a read
           ;; request is greater than the current limit, the API will
           ;; include pagination links in the HTTP Link header.
-          (let ((data (thread-first
-                          (plist-get result :response)
-                        (plist-get :data)))
-                (total (seq-concatenate 'vector total data)))
+          (let* ((data (plist-get response :data))
+                 (total (seq-concatenate 'vector total data)))
             (if-let ((next-url (plist-get response :next-url))
                      (handle (plist-put handle :url next-url)))
                 (zotero-lib--recurse handle total)
