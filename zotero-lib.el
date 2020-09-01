@@ -671,7 +671,7 @@ at <https://www.zotero.org/groups/>."
          ;; (raw-header (request-response--raw-header response))
          ;; (raw-data (request-response-data response))
          (total-results (when-let ((results (request-response-header response "Total-Results"))) (string-to-number results)))
-         (data (if (or (equal content-type "application/json") (equal content-type "application/json; charset=utf-8"))
+         (data (if (string-match-p "application/json.*" content-type)
                    (zotero-lib--read-json raw-data)
                  raw-data)))
     `(:error ,error-thrown
