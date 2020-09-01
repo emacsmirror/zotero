@@ -1062,7 +1062,7 @@ be omitted."
 
 ;;;; Methods
 
-(cl-defun zotero-lib-get-collections (&key user group format api-key)
+(cl-defun zotero-lib-get-collections (&key user group api-key)
   "Collections in the library.
   Optional argument LIBRARY is 'user for your personal library, and
   'group for the group libraries. Optional argument ID is the ID of
