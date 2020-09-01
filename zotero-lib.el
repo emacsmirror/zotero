@@ -668,26 +668,27 @@ at <https://www.zotero.org/groups/>."
          (etag (when-let ((etag (request-response-header response "Etag"))) (substring etag 1 -1)))
          (last-modified-version (when-let ((version (request-response-header response "Last-Modified-Version"))) (string-to-number version)))
          (links (zotero-lib--parse-links (request-response-header response "Link")))
-         (raw-header (request-response--raw-header response))
-         (raw-data (request-response-data response))
+         ;; (raw-header (request-response--raw-header response))
+         ;; (raw-data (request-response-data response))
          (total-results (when-let ((results (request-response-header response "Total-Results"))) (string-to-number results)))
          (data (if (or (equal content-type "application/json") (equal content-type "application/json; charset=utf-8"))
                    (zotero-lib--read-json raw-data)
                  raw-data)))
-    `(:symbol-status ,symbol-status
-                     :status-code ,status-code
-                     :content-type ,content-type
-                     :data ,data
-                     :version ,last-modified-version
-                     :etag ,etag
-                     :total-results ,total-results
-                     :next-url ,(plist-get links :next)
-                     :prev-url ,(plist-get links :prev)
-                     :first-url ,(plist-get links :first)
-                     :last-url ,(plist-get links :last)
-                     :alternate-url ,(plist-get links :alternate)
-                     :raw-header ,raw-header
-                     :raw-data ,raw-data)))
+    `(:error ,error-thrown
+             :symbol-status ,symbol-status
+             :status-code ,status-code
+             :content-type ,content-type
+             :etag ,etag
+             :version ,last-modified-version
+             :next-url ,(plist-get links :next)
+             :prev-url ,(plist-get links :prev)
+             :first-url ,(plist-get links :first)
+             :last-url ,(plist-get links :last)
+             :alternate-url ,(plist-get links :alternate)
+             ;; :raw-header ,raw-header
+             ;; :raw-data ,raw-data
+             :total-results ,total-results
+             :data ,data)))
 
 (defun zotero-lib--authorize (handle)
   "Reauthorize Zotero and return a new request handle."
