@@ -951,7 +951,7 @@ libraries, the ID can be found by opening the group's page at
   ;; Request the specified URL or construct the endpoint of the resource
   (let* ((url (or url
                   (zotero-lib--endpoint :resource resource :key key :user user :group group)))
-         (handle `(:url ,url :method ,method :data ,data :api-version ,zotero-lib-api-version :api-key ,api-key :if-modified-since-version ,version :content-type ,(or content-type "application/json") :expect  "" :if-match ,if-match :if-none-match ,if-none-match :write-token ,write-token)))
+         (handle `(:url ,url :method ,method :data ,data :api-version ,zotero-lib-api-version :api-key ,api-key :if-modified-since-version ,version :content-type ,(or content-type "application/json") :expect "" :if-match ,if-match :if-none-match ,if-none-match :write-token ,write-token)))
     (zotero-lib--dispatch handle)))
 
 (defun zotero-lib--write-token ()
@@ -1368,7 +1368,7 @@ file name is returned."
   a file (read one Lisp expression from the beginning),
   a string (takes text from string, starting at the beginning).
 
-  Optional argument LIBRARY is user' for your
+  Optional argument LIBRARY is 'user for your
   personal library, and 'group for the group libraries. Optional
   argument ID is the ID of the personal or group library you want
   to access, e.g. the \"user ID\" or \"group ID\"."
