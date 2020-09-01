@@ -860,9 +860,10 @@ the logic what should be done based on the HANDLE and RESPONSE."
           `(:response ,response)))))
     ;; No Content
     (204
-     (message "Success."))
-    ;; Not Modified
-    (304)
+     (message "204 Success."))
+    ;; TODO
+    (304
+     (message "304 Not Modified"))
     (400
      (pcase (plist-get response :data)
        ("Item is not an attachment"
@@ -880,18 +881,78 @@ the logic what should be done based on the HANDLE and RESPONSE."
           `(:handle ,handle)))
        (message
         (user-error "Unknown authentication error: %s" message))))
-    ;; Not found
     (404
-     (user-error "Not found"))
-    ;; Precondition Failed
-    (412)
-    ;; Precondition Required
+     (user-error "404 Not found"))
+    (412
+     (user-error "412 Precondition Failed. The library has been modified since the passed version."))
     (428
-     (user-error "If-Match or If-None-Match was not provided."))
-    ;; Too Many Requests
-    (429)
-    ;; Service Unavailable
-    (503)))
+     (user-error "428 Precondition Required. The \"If-Match\" or \"If-None-Match\" header was not provided."))
+    ;; TODO
+    (429
+     (user-error "Too Many Requests"))
+    ;; TODO
+    (503
+     (user-error "Service Unavailable"))))
+
+(defun zotero-lib--recurse (handle &optional total)
+  "Return a new handle and response.
+This function is called by `zotero-lib--dispatch' and provides
+the logic what should be done based on the HANDLE and RESPONSE."
+  (let ((response (zotero-lib--request handle)))
+    (pcase (plist-get response :status-code)
+      ;; OK
+      (200
+       (pcase (plist-get response :content-type)
+         ("application/pdf"
+          response)
+         ((rx "application/json" (zero-or-more anything))
+          ;; When the total number of results matched by a read
+          ;; request is greater than the current limit, the API will
+          ;; include pagination links in the HTTP Link header.
+          (let ((data (thread-first
+                          (plist-get result :response)
+                        (plist-get :data)))
+                (total (seq-concatenate 'vector total data)))
+            (if-let ((next-url (plist-get response :next-url))
+                     (handle (plist-put handle :url next-url)))
+                (zotero-lib--recurse handle total)
+              (plist-put response :data total))))))
+      ;; No Content
+      (204
+       (message "204 Success.")
+       response)
+      (304
+       (message "304 Not Modified")
+       response)
+      (400
+       (pcase (plist-get response :data)
+         ("Item is not an attachment"
+          (user-error "Item is not an attachment"))))
+      ;; Forbidden
+      (403
+       (pcase (plist-get response :data)
+         ("Invalid key"
+          ;; Authorize and return a new handle, but no data
+          (let ((handle (zotero-lib--authorize handle)))
+            (zotero-lib--recurse handle)))
+         ("Forbidden"
+          ;; Offer to review the privileges and return a new handle, but no data
+          (let ((handle (zotero-lib--privileges handle)))
+            (zotero-lib--recurse handle)))
+         (message
+          (user-error "Unknown authentication error: %s" message))))
+      (404
+       (user-error "404 Not found"))
+      (412
+       (user-error "412 Precondition Failed. The library has been modified since the passed version."))
+      (428
+       (user-error "428 Precondition Required. The \"If-Match\" or \"If-None-Match\" header was not provided."))
+      ;; TODO
+      (429
+       (user-error "Too Many Requests"))
+      ;; TODO
+      (503
+       (user-error "Service Unavailable")))))
 
 (defun zotero-lib--dispatch (handle)
   "Dispatch HANDLE and return the last-modified-version and data.
