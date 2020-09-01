@@ -837,12 +837,6 @@ at <https://www.zotero.org/groups/>."
   "Return a new handle and response.
 This function is called by `zotero-lib--dispatch' and provides
 the logic what should be done based on the HANDLE and RESPONSE."
-  ;; (pcase (plist-get response :symbol-status)
-  ;;   ('success)
-  ;;   ('error)
-  ;;   ('timeout)
-  ;;   ('abort)
-  ;;   ('parse-error))
   (pcase (plist-get response :status-code)
     ;; OK
     (200
