@@ -629,7 +629,7 @@ at <https://www.zotero.org/groups/>."
 ;;            (resource nil)))
 ;;     (concat zotero-lib-base-url prefix suffix)))
 
-;; FIXME: disabled param-function
+;; FIXME: is this function necessary?
 ;; (cl-defun zotero-lib--request (&key url type extra-headers extra-params data files api-key modified-version unmodified-version)
 ;;   "Return response struct for an API request to Zotero.
 ;; The response body is automatically parsed with `json-read'."
