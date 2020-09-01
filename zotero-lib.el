@@ -976,7 +976,8 @@ The result is a cons of (version . data)."
     (cons version all-data)))
 
 (cl-defun zotero-lib--retrieve (&key url resource key user group api-key version last-modified-version locale itemtype linkmode format since itemkey collectionkey searchkey)
-  "Return a plist with the response of the Zotero request.
+  "Return the last-modified-version and the data returned by the Zotero request.
+The result is a cons of (version . data).
 
 KEY is the item key, collection key, or search key. Which key is
 needed varies by resource. LIBRARY is 'user (default) for your
