@@ -990,7 +990,8 @@ libraries, the ID can be found by opening the group's page at
   (let* ((url (or url
                   (zotero-lib--endpoint :resource resource :key key :user user :group group)))
          (handle `(:url ,url :method "GET" :api-version ,zotero-lib-api-version :api-key ,api-key :if-modified-since-version ,version :last-modified-version ,last-modified-version :locale ,locale :itemtype ,itemtype :linkmode ,linkmode :format ,format :since ,since :itemkey ,itemkey :collectionkey ,collectionkey :searchkey ,searchkey)))
-    (zotero-lib--dispatch handle)))
+    ;; (zotero-lib--dispatch handle)
+    (zotero-lib--recurse handle)))
 
 (cl-defun zotero-lib--submit (&key method url resource key user group data api-key version content-type expect if-match if-none-match write-token)
   "Return a plist with the response of the Zotero request.
