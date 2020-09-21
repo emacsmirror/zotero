@@ -23,8 +23,12 @@
 (require 'cl-lib)
 (require 'zotero-lib)
 
-(defvar zotero-cache-cache nil
+;;;; Variables
+
+(defvar zotero-cache nil
   "A plist used to cache the library data.")
+
+;;;; Customization
 
 (defcustom zotero-cache-enable-caching t
   "When t enables caching.
@@ -54,29 +58,55 @@ a request to the Zotero API every time a user loaded a page."
   :group 'zotero-cache
   :type 'boolean)
 
-(defcustom zotero-cache-cache-file
-  (locate-user-emacs-file "zotero-cache-cache" ".zotero-cache-cache")
+(defcustom zotero-cache-file
+  (locate-user-emacs-file "zotero-cache" ".zotero-cache")
   "The name of Zotero lib's cache file."
   :group 'zotero-cache
   :type 'file)
 
-;; ;;;;; Caching
+(defcustom zotero-cache-max-delay 3600
+  "Seconds to wait before stopping sync retries; set to 0 to disable retrying."
+  :group 'zotero-cache
+  :type '(integer :validate
+		  (lambda (widget)
+                    (let ((int (widget-value widget)))
+		      (unless (< int 0)
+		        (widget-put widget :error
+				    "Invalid value: must be a non-negative integer")
+		        widget)))))
 
-;; (defun zotero-cache-serialize-cache ()
-;;   "Serializes the memory cache to the hard drive."
-;;   (zotero-cache-serialize zotero-cache-cache zotero-cache-cache-file))
+(defcustom zotero-cache-max-retries 100
+  "Seconds to wait before stopping sync retries; set to 0 to disable retrying."
+  :group 'zotero-cache
+  :type '(integer :validate
+		  (lambda (widget)
+                    (let ((int (widget-value widget)))
+		      (unless (< int 0)
+		        (widget-put widget :error
+				    "Invalid value: must be a non-negative integer")
+		        widget)))))
 
-;;; Serialization
+(defcustom zotero-cache-expire 86400
+  "Number of seconds before the cache expires; default=86400 (one day).
 
-(defun zotero-cache-serialize (data filename)
+A value of nil means the cache never expires. As schema changes
+are currently rare, clients should cache type/field data for a
+period of time without making further requests."
+  :group 'zotero-cache
+  :type '(choice (const :tag "Disabled" nil)
+                 (integer :tag "Seconds")))
+
+;;;; Serialization
+
+(defun zotero-cache--serialize (data filename)
   "Serialize DATA to FILENAME.
-The saved data can be restored with `zotero-cache-unserialize'."
+The saved data can be restored with `zotero-cache--unserialize'."
   (when (file-writable-p filename)
     (with-temp-file filename
       (insert (let (print-length) (prin1-to-string data))))))
 
-(defun zotero-cache-unserialize (filename)
-  "Read data serialized by `zotero-cache-serialize' from FILENAME."
+(defun zotero-cache--unserialize (filename)
+  "Read data serialized by `zotero-cache--serialize' from FILENAME."
   (with-demoted-errors
       "Error during file deserialization: %S"
     (when (file-exists-p filename)
@@ -85,97 +115,58 @@ The saved data can be restored with `zotero-cache-unserialize'."
         (unless (string-empty-p (buffer-string))
           (read (buffer-string)))))))
 
-(defun zotero-cache-unserialize-cache ()
-  "Serializes the hard drive to the memory cache."
-  (setq zotero-cache-cache (zotero-cache-unserialize zotero-cache-cache-file)))
+(defun zotero-cache-serialize ()
+  "Serialize the memory cache to the hard drive."
+  (zotero-cache--serialize zotero-cache zotero-cache-file))
 
-;; TODO: add cache timer
+(defun zotero-cache-unserialize ()
+  "Serialize the hard drive to the memory cache."
+  (setq zotero-cache (zotero-cache--unserialize zotero-cache-file)))
+
+(defun zotero-cache-erase (&optional no-confirm)
+  "Erase the cache.
+  If optional argument NO-CONFIRM is non-nil, don't ask for confirmation."
+  (interactive)
+  (when (or no-confirm
+            (y-or-n-p "This will completely erase your local Zotero cache. Are you sure? "))
+    (setq zotero-cache (zotero-cache--initialize-cache))
+    (zotero-cache-serialize)))
+
 (defun zotero-cache--maybe-initialize-cache ()
   "Initialize the cache if needed."
-  (unless zotero-cache-cache
-    (setq zotero-cache-cache
-          (or (zotero-cache-unserialize zotero-cache-cache-file)
-              `(libraries ,(ht-create)
-                          version ,(ht-create)
-                          groups ,(ht-create)
-                          synccache ,(ht-create)
-                          ;; collections ,(ht-create)
-                          ;; items ,(ht-create)
-                          ;; searches ,(ht-create)
-                          deletions ,(ht-create)))))
-  ;; (unless zotero-cache-enable-cache-time
-  ;;   (setq zotero-cache-cache-time (ht-create)))
-  )
+  (unless zotero-cache
+    (setq zotero-cache
+          (or (zotero-cache--unserialize zotero-cache-file)
+              (zotero-cache--maybe-initialize-cache)))))
 
-(defun zotero-cache--group-cached-p (id)
-  "Check if group ID is already in cache."
-  (let ((groups (plist-get zotero-cache-cache :groups)))
-    (seq-some (lambda (group) (equal (plist-get group :id) id)) groups)))
+(defun zotero-cache--initialize-cache ()
+  "Return an empty cache "
+  (ht ("version" 0.1)
+      ("libraries" (ht-create))
+      ("groups" (ht-create))
+      ("synccache" (ht-create))
+      ("deletions" (ht-create))
+      ("templates" (ht ("items" (ht-create))
+                       ("attachments" (ht-create))))))
 
-(defun zotero-cache--get (resource)
-  "Get cached version of RESOURCE.
-RESOURCE is one of
- 'version
- 'groups
- 'collections
- 'items
- 'searches."
-  (zotero-cache--maybe-initialize-cache)
-  (plist-get zotero-cache-cache resource))
-
-(defun zotero-cache--remove-key (resource &rest keys)
-  "Remove KEY from CACHE.
-The cache is created both in memory and on the hard drive."
-  (let ((table (plist-get zotero-cache-cache resource)))
-    (dolist (key keys)
-      (ht-remove! table key))
-    (setq zotero-cache-cache (plist-put zotero-cache-cache resource table))
-    (zotero-cache-serialize-cache)))
-
-(defun zotero-cache--update-version (version)
-  "Update VERSION in cache.
-The cache is created both in memory and on the hard drive."
-  (let* ((resource 'version)
-         (table (plist-get zotero-cache-cache resource)))
-    (ht-set! table :version version)
-    (ht-set! table :lastsync (current-time))
-    (setq zotero-cache-cache (plist-put zotero-cache-cache resource table))
-    (zotero-cache-serialize-cache)))
-
-(defun zotero-cache--update-libraries (id data)
-  "Update or add DATA in cache.
-The cache is created both in memory and on the hard drive."
-  (let* ((resource 'libraries)
-         (table (plist-get zotero-cache-cache resource)))
-    (ht-set! table id data)
-    (setq zotero-cache-cache (plist-put zotero-cache-cache resource table))
-    (zotero-cache-serialize-cache)))
-
-(defun zotero-cache--update-group (id data)
-  "Update or add DATA in cache.
-The cache is created both in memory and on the hard drive."
-  (let* ((resource 'groups)
-         (table (plist-get zotero-cache-cache resource)))
-    (ht-set! table id data)
-    (setq zotero-cache-cache (plist-put zotero-cache-cache resource table))
-    (zotero-cache-serialize-cache)))
-
-(defun zotero-cache--get-library-metadata ()
-  "Get library metadata from cache."
-  (let* ((resource 'libraries)
-         (table (plist-get zotero-cache-cache resource)))
-    (ht->plist table)))
-
-(defun zotero-cache--get-groups ()
-  "Get library metadata from cache."
-  (let* ((resource 'groups)
-         (table (plist-get zotero-cache-cache resource)))
-    (ht->plist table)))
+(cl-defun zotero-cache--maybe-initialize-library (&key cache id)
+  "Initialize synccache and deletions for ID if it doesn't exist."
+  (let ((synccache (ht-get cache "synccache"))
+        (deletions (ht-get cache "deletions")))
+    (unless (ht-contains? synccache id)
+      (ht-set! synccache id (ht ("collections" (ht-create))
+                                ("items" (ht-create))
+                                ("searches" (ht-create)))))
+    (unless (ht-contains? deletions id)
+      (ht-set! deletions id (ht ("collections" (ht-create))
+                                ("items" (ht-create))
+                                ("searches" (ht-create)))))
+    cache))
 
 (defun zotero-cache--mergable-plist-p (plist1 plist2)
   "Return non-nil if PLIST1 and PLIST2 can be merged without conflicts.
 Two plists are considered mergable when the same keys don't have different values."
-  (loop for (key val) on plist1 by 'cddr
+  (loop for (key val) on plist1 by #'cddr
         always (or (not (plist-member plist2 key))
                    (eq val :json-false)
                    (eq val :json-empty)
@@ -183,428 +174,790 @@ Two plists are considered mergable when the same keys don't have different value
                    (eq (plist-get plist2 key) :json-empty)
                    (equal val (plist-get plist2 key)))))
 
-(defun zotero-cache--merge-plist (plist1 plist2)
+(defun zotero-cache-merge-plist (plist1 plist2)
   "Merge PLIST2 into PLIST1."
-  (loop for (key val) on plist2 by 'cddr do
+  (loop for (key val) on plist2 by #'cddr do
         (unless (or (eq val :json-false)
                     (eq val :json-empty))
           (plist-put plist1 key val))
         finally return plist1))
 
-(cl-defun zotero-cache--process-updates (resource user group cache data version)
-  "Update TABLE with DATA.
-Return the updated table when success or nil when failed."
-  (catch 'quit
-    (seq-doseq (object data)
-      (let ((key (intern (concat ":" (plist-get object :key))))
-            (value (ht-get* cache group resource key)))
-        (pcase value
-          ;; if object doesn't exist locally:
-          ;; create local object with version = Last-Modified-Version and set synced = true
-          (nil
-           ;; (ht-set! table key `(:synced t :version ,version :data ,object))
-           (setf value `(:synced t :version ,version :data ,object)))
-          ;; if object hasn't been modified locally (synced == true):
-          ;; overwrite with synced = true and version = Last-Modified-Version
-          ((guard (eq (plist-get value :synced) t))
-           ;; (ht-set! table key `(:synced t :version ,version :data ,object))
-           (setf value `(:synced t :version ,version :data ,object)))
-          ;; if object hasn't changed:
-          ;; set synced = true and version = Last-Modified-Version
-          ((guard (equal (plist-get value :data) object))
-           ;; (ht-set! table key `(:synced t :version ,version :data ,object))
-           (setf value `(:synced t :version ,version :data ,object)))
-          ;; if changes can be automatically merged:
-          ;; apply changes from each side and set synced = true and version = Last-Modified-Version
-          ((guard (zotero-cache--mergable-plist-p (plist-get value :data) object))
-           (let ((merged (zotero-cache--merge-plist (plist-get value :data) object)))
-             (ht-set! table key `(:synced t :version ,version :data ,merged))
-             (setf value `(:synced t :version ,version :data ,merged))))
-          ;; else:
-          ;; prompt user to choose a side or merge conflicts
-          ;; TODO: global variable to set default action: 'ask 'keep-local 'keep-remote 'manual
-          (value
-           ;; TODO: offer option to always delete or keep
-           (let ((choice (read-multiple-choice
-                          "Conflict between local and remote object cannot be automatically resolved. How should this be resolved? "
-                          '((?l "keep the local copy")
-                            (?r "keep the remote copy")
-                            (?q "quit")))))
-             (pcase (car choice)
-               ;; else if user chooses local copy:
-               ;; synced = false and set a flag to restart the sync when finished
-               ;; TODO: flag to restart the sync when finished?
-               (?l
-                ;; (ht-set! table key `(:synced :json-false :data ,(plist-get value :data)))
-                (setf value `(:synced :json-false :data ,(plist-get value :data))))
-               ;; if user chooses remote copy:
-               ;; overwrite with synced = true and version = Last-Modified-Version
-               (?r
-                ;; (ht-set! table key `(:synced t :version ,version :data ,object))
-                (setf value `(:synced t :version ,version :data ,object)))
-               (?q
-                (throw 'quit nil))))))))
-    cache))
+(defun zotero-cache--read-access-p (plist)
+  "Return t if read access is permitted, else return nil.
 
-(defun zotero-cache--process-deletions (table keys version)
+Argument PLIST is the permissions of the user or group library as
+returned by `zotero-lib-get-key'."
+  (eq (plist-get plist :library) t))
+
+(defun zotero-cache--write-access-p (plist)
+  "Return t if write access is permitted, else return nil.
+
+Argument PLIST is the permissions of the user or group library as
+returned by `zotero-lib-get-key'."
+  (eq (plist-get plist :write) t))
+
+(defun zotero-cache--read-only-p (plist)
+  "Return t if read only, else return nil.
+
+Argument PLIST is the permissions of the user or group library as
+returned by `zotero-lib-get-key'."
+  (and (zotero-cache--read-access-p plist) (not (zotero-cache--write-access-p plist))))
+
+(defun zotero-cache--note-access-p (plist)
+  "Return t if note access is permitted, else return nil.
+
+Argument PLIST is the permissions of the user or group library as
+returned by `zotero-lib-get-key'."
+  (eq (plist-get plist :notes) t))
+
+(defun zotero-cache--file-access-p (plist)
+  "Return t if file access is permitted, else return nil.
+
+Argument PLIST is the permissions of the user or group library as
+returned by `zotero-lib-get-key'."
+  (eq (plist-get plist :files) t))
+
+(cl-defun zotero-cache--process-updates (&key table objects version)
+  "Update TABLE with OBJECTS.
+Return the updated table when success or nil when failed."
+  (seq-doseq (object objects)
+    (let* ((key (plist-get object :key))
+           (value (ht-get table key))
+           (default))
+      ;; FIXME: when resolving a conflict between a locally deleted object and a
+      ;; remotely modified object in favor of the remote object, remove it from
+      ;; the delete log.
+      (pcase value
+        ;; if object doesn't exist locally:
+        ;; create local object with version = Last-Modified-Version and set synced = true
+        ((pred null)
+         (ht-set! table key `(:synced t :version ,version :object ,object)))
+        ;; if object hasn't been modified locally (synced == true):
+        ;; overwrite with synced = true and version = Last-Modified-Version
+        ((guard (eq (plist-get value :synced) t))
+         (ht-set! table key `(:synced t :version ,version :object ,object)))
+        ;; if object hasn't changed:
+        ;; set synced = true and version = Last-Modified-Version
+        ((guard (equal (plist-get value :object) object))
+         (ht-set! table key `(:synced t :version ,version :object ,object)))
+        ;; if changes can be automatically merged:
+        ;; apply changes from each side and set synced = true and version = Last-Modified-Version
+        ((guard (zotero-cache--mergable-plist-p (plist-get value :object) object))
+         (let ((merged (zotero-cache-merge-plist (plist-get value :object) object)))
+           (ht-set! table key `(:synced t :version ,version :object ,merged))))
+        ;; else:
+        ;; prompt user to choose a side or merge conflicts
+        ;; TODO: global variable to set default action: 'ask 'keep-local 'keep-remote 'manual
+        (value
+         (let ((choice (or default
+                           (read-multiple-choice
+                            "Conflict between local and remote object cannot be automatically resolved. How should this be resolved? "
+                            '((?l "keep the local copy")
+                              (?r "keep the remote copy")
+                              (?L "always keep the local copy")
+                              (?R "always keep the remote copy")
+                              (?q "quit"))))))
+           (pcase (car choice)
+             ;; else if user chooses local copy:
+             ;; synced = false and set a flag to restart the sync when finished
+             ;; REVIEW: flag to restart the sync when finished?
+             (?l
+              (ht-set! table key `(:synced nil :object ,(plist-get value :object))))
+             ;; if user chooses remote copy:
+             ;; overwrite with synced = true and version = Last-Modified-Version
+             (?r
+              (ht-set! table key `(:synced t :version ,version :object ,object)))
+             (?L
+              (ht-set! table key `(:synced nil :object ,(plist-get value :object)))
+              (setq default ?l))
+             (?R
+              (ht-set! table key `(:synced t :version ,version :object ,object))
+              (setq default ?r))
+             (?q
+              (throw 'sync 'quit))))))))
+  table)
+
+(cl-defun zotero-cache--process-deletions (&key table keys version)
   "Delete KEYS from TABLE.
 Return the updated table when success or nil when failed."
-  (catch 'break
+  (let (default)
     (seq-doseq (key keys)
-      (let ((key (intern (concat ":" key))))
-        (pcase (ht-get table key)
-          ;; if local object doesn't exist:
-          ;; continue
-          ;; if object hasn't been modified locally (synced == true):
-          ;; delete local object, skipping delete log
-          ((and value (guard (eq (plist-get value :synced) t)))
-           (ht-remove! table key))
-          ;; else:
-          ;; perform conflict resolution
-          (value
-           ;; TODO: offer option to always delete or keep
-           (let ((choice (read-multiple-choice
-                          "Deleted object was modified. How should this be resolved? "
-                          '((?d "delete the locally modified object")
-                            (?k "keep the locally modified object")
-                            (?q "quit")))))
-             (pcase (car choice)
-               ;; if user chooses deletion, delete local object, skipping delete log
-               (?d
-                (ht-remove! table key))
-               ;; if user chooses local modification, keep object and set synced = true and version = Last-Modified-Version
-               (?k
-                (let ((data (plist-get value :data)))
-                  (ht-set! table key `(:synced t :version ,version :data ,data))))
-               (?q
-                (throw 'break nil))))))))
-    table))
+      (pcase (ht-get table key)
+        ;; if local object doesn't exist:
+        ;; continue
+        ((pred null))
+        ;; if object hasn't been modified locally (synced == true):
+        ;; delete local object, skipping delete log
+        ((and value (guard (eq (plist-get value :synced) t)))
+         (ht-remove! table key))
+        ;; else:
+        ;; perform conflict resolution
+        (value
+         (let ((choice (read-multiple-choice
+                        "Deleted object was modified. How should this be resolved? "
+                        '((?d "delete the locally modified object")
+                          (?k "keep the locally modified object")
+                          (?D "always delete the locally modified object")
+                          (?K "always keep the locally modified object")
+                          (?q "quit")))))
+           (pcase (car choice)
+             ;; if user chooses deletion, delete local object, skipping delete log
+             (?d
+              (ht-remove! table key))
+             ;; if user chooses local modification, keep object and set synced = true and version = Last-Modified-Version
+             (?k
+              (let ((object (plist-get value :object)))
+                (ht-set! table key `(:synced t :version ,version :object ,object))))
+             (?D
+              (ht-remove! table key)
+              (setq default ?d))
+             (?K
+              (let ((object (plist-get value :object)))
+                (ht-set! table key `(:synced t :version ,version :object ,object)))
+              (setq default ?k))
+             (?q
+              (throw 'sync 'quit))))))))
+  table)
 
-;; TODO: offer option to manually resolve sync conflict
-(cl-defun zotero-cache--update-object (resource user group cache data version)
-  "Update DATA in cache.
-The cache is created both in memory and on the hard drive."
-  (when-let ((updated-table (zotero-cache--process-updates :resource resource :user user :group group :cache cache :data data :version version)))
-    ;; TODO: handle save errors
-    (setq zotero-cache-cache (plist-put zotero-cache-cache resource updated-table))
-    (message "Saving updated %s to cache..." (symbol-name resource))
-    (zotero-cache-serialize-cache)
-    (message "Saving updated %s to cache...done" (symbol-name resource))))
+(cl-defun zotero-cache--get-remotely-updated (&key type id resource api-key keys)
+  (when keys
+    (let ((partitions (seq-partition keys 50))
+          (number 0)
+          (version)
+          (data))
+      (dolist (partition partitions data)
+        (message "Retrieving %d-%d of %d updated %s..." (1+ number) (+ number (length partition)) (length keys) resource)
+        (let* ((param-key (pcase resource
+                            ("collections" :collectionkey)
+                            ("items" :itemkey)
+                            ("searches" :searchkey)))
+               (param-value (s-join "," (seq-map #'zotero-lib-keyword->string partition)))
+               (response (zotero-lib--retrieve :type type :id id :resource resource :api-key api-key param-key param-value))
+               (remote-version (plist-get response :version))
+               (remote-data (plist-get response :data)))
+          (message "Retrieving %d-%d of %d updated %s...done" (1+ number) (+ number (length partition)) (length keys) resource)
+          (setq number (+ number (length partition)))
+          (setq version remote-version)
+          (setq data (seq-concatenate 'vector data remote-data))))
+      `(:version ,version :data ,data))))
 
-(defun zotero-cache--delete (resource keys version)
-  "Delete KEYS in cache."
-  (let* ((resource (intern (substring (symbol-name resource) 1))) ; strip the ":"
-         (table (plist-get zotero-cache-cache resource)))
-    (when-let ((deleted-table (zotero-cache--process-deletions table keys version)))
-      (setq zotero-cache-cache (plist-put zotero-cache-cache resource deleted-table))
-      (zotero-cache-serialize-cache))))
+(cl-defun zotero-cache--get-locally-updated (&key cache id resource)
+  (let* ((table (ht-get* cache "synccache" id resource))
+         (modified (ht-reject (lambda (key value) (plist-get value :synced)) table))
+         (keys (ht-keys modified)))
+    keys))
 
-(cl-defun zotero-cache--sync-groups (&key user api-key)
-  "Sync group metadata.
+(cl-defun zotero-cache--get-locally-deleted (&key cache id resource)
+  (let* ((table (ht-get* cache "deletions" id resource))
+         (keys (ht-keys table)))
+    keys))
 
-Group metadata includes group titles and descriptions as well as member/role/permissions information. It is separate from group library data."
-  (let* ((remote-plist (zotero-sync-get-remote-versions :resource 'groups :user user :api-key api-key))
-         (local-hash (zotero-cache--sync-cache-get 'groups))
-         ;; Collect only the keys
-         (remote (cl-loop for key in remote-plist by #'cddr collect key))
-         (local (ht-keys local-hash))
-         ;; The local objects not in the remote list
-         (removed (seq-difference local remote))
-         ;; The remote objects not in the local list
-         (added (seq-difference remote local))
-         ;; The objects both in the local and remote list
-         (intersection (seq-intersection local remote))
-         ;; The objects with different version numbers
-         (updated (seq-filter (lambda (id)
-                                (let* ((plist (ht-get local-hash id))
-                                       (local-version (thread-first
-                                                          (plist-get plist :data)
-                                                        (plist-get :version)))
-                                       (remote-version (plist-get remote-plist id)))
-                                  (/= local-version remote-version)))
-                              intersection)))
-    ;; Delete any local groups not in the list, which either were
-    ;; deleted or are currently inaccessible. (The user may have been
-    ;; removed from a group, or the current API key may no longer have
-    ;; access.)
-    (when removed
-      ;; TODO: If data has been modified locally in any groups that
-      ;; are no longer available, offer the user the ability to cancel
-      ;; and transfer modified data elsewhere before continuing.
-      (apply 'zotero-cache--sync-cache-remove-key resource removed))
-    ;; For each group that doesn't exist locally or that has a
-    ;; different version number, retrieve the group metadata.
-    ;; FIXME: upload local changes of group metadata
-    (when (or added updated)
-      (dolist (key (nconc added updated))
-        (let* ((id (substring (symbol-name key) 1)) ; strip the ":"
-               (url (zotero-cache--sync-endpoint :group id))
-               (data (zotero-lib--retrieve :url url :api-key api-key)))
-          (zotero-cache--sync-cache-update-group key data))))
-    `(:removed ,removed :added ,added :updated ,updated)))
+(cl-defun zotero-cache--sync-verify-key (&key cache api-key)
+  "Verify that API-KEY has the expected access to the library and return updated cache.
 
-;; TODO: check last-modified-version with every api call
-(cl-defun zotero-cache--sync-get-remotely-updated (&key resource user group (since 0) api-key)
-  (let* ((url (zotero-lib--endpoint :resource resource :user user :group group))
-         (handle `(:url ,url :method "GET" :api-version ,zotero-sync-api-version :api-key ,api-key :format "versions" :since ,since))
-         (remote-response (zotero-lib--get-response handle))
-         (remote-data (plist-get remote-response :data))
-         (last-modified-version (plist-get remote-response :version))
-         ;; Collect only the keys
-         (remote-keys (cl-loop for key in remote-data by #'cddr collect key))
-         (cache (plist-get zotero-sync-cache group))
-         ;; Remotely updated keys
-         (updated-keys (seq-filter (lambda (key)
-                                     (let* ((value (ht-get* cache resource key))
-                                            (local-version (plist-get value :version))
-                                            (remote-version (plist-get remote-data key)))
-                                       (/= local-version remote-version)))
-                                   remote-keys)))
-    ;; TODO: retrieve objects flagged as previously failed to save
-    (when updated-keys
-      (let* ((partitions (seq-partition updated-keys 50))
-             (number 0)
-             (data))
-        (dolist (partition partitions data)
-          (message "Retrieving %d-%d of %d updated %s..." (1+ number) (+ number (length partition)) (length updated-keys) (symbol-name resource))
-          (let* ((param-key (pcase resource
-                              ('collections :collectionkey)
-                              ('items :itemkey)
-                              ('searches :searchkey)))
-                 (param-value (s-join "," (seq-map (lambda (key) (substring (symbol-name key) 1)) partition)))
-                 (objects (zotero-lib--retrieve :resource resource :user user :group group :api-key api-key param-key param-value)))
-            (message "Retrieving %d-%d of %d updated %s...done" (1+ number) (+ number (length partition)) (length updated-keys) (symbol-name resource))
-            (setq number (+ number (length partition)))
-            (setq data (seq-concatenate 'vector data objects))))
-        (zotero-cache--sync-cache-update-object :resource resource :user user :group group :cache cache :data updated-data :version last-modified-version)))
-    last-modified-version))
+If necessary, show a warning that the user no longer has sufficient access and offer to remove a local library or reset local changes. Argument CACHE is the current cache, e.g. (a copy of) `zotero-cache'."
+  ;; TODO: deduplicate handling of user and group libraries
+  (let* ((remote-access (zotero-lib-get-key :api-key api-key))
+         (libraries (ht-get cache "libraries"))
+         (groups (ht-get cache "groups"))
+         (synccache (ht-get cache "synccache"))
+         (deletions (ht-get cache "deletions")))
+    (let ((id (number-to-string (plist-get remote-access :userID)))
+          (permissions (zotero-lib-plist-get* remote-access :access :user)))
+      ;; TODO: only write if changed
+      ;; TODO: include note and file access of user library
+      (pcase permissions
+        ;; For each library without read access: offer to remove the library
+        ((guard (not (zotero-cache--read-access-p permissions)))
+         (if (y-or-n-p (format "User library %s has no read access. Remove from cache? " id))
+             (progn
+               (ht-remove! libraries id)
+               (ht-remove! synccache id)
+               (ht-remove! deletions id))
+           (if (ht-contains? libraries id)
+               (let ((value (ht-get libraries id)))
+                 (plist-put value :library :json-false)
+                 (plist-put value :write :json-false)
+                 (ht-set! libraries id value))
+             (ht-set! libraries id '(:type "user" :library :json-false :write :json-false)))
+           (message "User library %s has no read access, so cannot be synced. " id)))
+        ;; For each library without write access: offer to reset local changes
+        ((pred zotero-cache--read-only-p) ; read only
+         (if (ht-contains? libraries id)
+             (let ((value (ht-get libraries id)))
+               (plist-put value :library t)
+               (plist-put value :write :json-false)
+               (ht-set! libraries id value))
+           (ht-set! libraries id '(:type "user" :library t :write :json-false)))
+         (when (ht-contains? (ht-get* zotero-cache "synccache") id)
+           (let (updated)
+             (dolist (resource '("collections" "items" "searches") updated)
+               (push (cons resource (zotero-cache--get-locally-updated :cache cache :id id :resource resource)) updated))
+             (let ((updated-p (seq-some #'cdr updated)))
+               (when (and updated-p
+                          (y-or-n-p (format "Group library %s has no write access. Reset local changes? " id)))
+                 (cl-loop for resource in '("collections" "items" "searches") do
+                          (let ((keys (cdr (assoc resource updated)))
+                                (table (ht-get* synccache id resource)))
+                            (dolist (key keys)
+                              (ht-remove! table key))))
+                 (message "All local changes in user library %s are reset." id)))))
+         (when (ht-contains? (ht-get* zotero-cache "deletions") id)
+           (let (deleted)
+             (dolist (resource '("collections" "items" "searches") deleted)
+               (push (cons resource (zotero-cache--get-locally-deleted :cache cache :id id :resource resource)) deleted))
+             (let ((deleted-p (seq-some #'cdr deleted)))
+               (when (and deleted-p
+                          (y-or-n-p (format "Group library %s has no write access. Reset local deletions? " id)))
+                 (cl-loop for resource in '("collections" "items" "searches") do
+                          (let ((keys (cdr (assoc resource deleted)))
+                                (table (ht-get* deletions id resource)))
+                            (dolist (key keys)
+                              (ht-remove! table key))))
+                 (message "All local deletions in user library %s are reset." id))))))
+        ;; For each library with read and write access: continue to sync
+        ((and (pred zotero-cache--read-access-p) (pred zotero-cache--write-access-p)) ; read/write
+         (if (ht-contains? libraries id)
+             (let ((value (ht-get libraries id)))
+               (plist-put value :library t)
+               (plist-put value :write t)
+               (ht-set! libraries id value))
+           (ht-set! libraries id '(:type "user" :library t :write t))))))
+    (let ((remote-groups (zotero-lib-plist-get* remote-access :access :groups)))
+      (cl-loop for key in remote-groups by #'cddr do
+               (unless (eq key :all) ; These are just the default group permissions, and is not a syncable group
+                 (let ((id (zotero-lib-keyword->string key))
+                       (permissions (plist-get remote-groups key)))
+                   ;; TODO: only write if changed
+                   (pcase permissions
+                     ;; For each library without read access: offer to remove the library
+                     ((guard (not (zotero-cache--read-access-p permissions))) ; none
+                      (if (y-or-n-p (format "Group %s has no read access. Remove from cache? " id))
+                          (progn
+                            (ht-remove! libraries id)
+                            (ht-remove! groups id)
+                            (ht-remove! synccache id)
+                            (ht-remove! deletions id))
+                        (if (ht-contains? libraries id)
+                            (let ((value (ht-get libraries id)))
+                              (plist-put value :library :json-false)
+                              (plist-put value :write :json-false)
+                              (ht-set! libraries id value))
+                          (ht-set! libraries id '(:type "group" :library :json-false :write :json-false)))
+                        (message "Group %s has no read access, so cannot be synced." id)))
+                     ;; For each library without write access: offer to reset local changes
+                     ((pred zotero-cache--read-only-p) ; read only
+                      (if (ht-contains? libraries id)
+                          (let ((value (ht-get libraries id)))
+                            (plist-put value :library t)
+                            (plist-put value :write :json-false)
+                            (ht-set! libraries id value))
+                        (ht-set! libraries id '(:type "group" :library t :write :json-false)))
+                      (when (ht-contains? (ht-get* zotero-cache "synccache") id)
+                        (let (updated)
+                          (dolist (resource '("collections" "items" "searches") updated)
+                            (push (cons resource (zotero-cache--get-locally-updated :cache cache :id id :resource resource)) updated))
+                          (let ((updated-p (seq-some #'cdr updated)))
+                            (when (and updated-p
+                                       (y-or-n-p (format "Group library %s has no write access. Reset local changes? " id)))
+                              (cl-loop for resource in '("collections" "items" "searches") do
+                                       (let ((keys (cdr (assoc resource updated)))
+                                             (table (ht-get* synccache id resource)))
+                                         (dolist (key keys)
+                                           (ht-remove! table key))))
+                              (message "All local changes in group library %s are reset." id)))))
+                      (when (ht-contains? (ht-get* zotero-cache "deletions") id)
+                        (let (deleted)
+                          (dolist (resource '("collections" "items" "searches") deleted)
+                            (push (cons resource (zotero-cache--get-locally-deleted :cache cache :id id :resource resource)) deleted))
+                          (let ((deleted-p (seq-some #'cdr deleted)))
+                            (when (and deleted-p
+                                       (y-or-n-p (format "Group library %s has no write access. Reset local deletions? " id)))
+                              (cl-loop for resource in '("collections" "items" "searches") do
+                                       (let ((keys (cdr (assoc resource deleted)))
+                                             (table (ht-get* deletions id resource)))
+                                         (dolist (key keys)
+                                           (ht-remove! table key))))
+                              (message "All local deletions in group library %s are reset." id))))))
+                     ;; For each library with read and write access: continue to sync
+                     ((and (pred zotero-cache--read-access-p) (pred zotero-cache--write-access-p)) ; read/write
+                      (if (ht-contains? libraries id)
+                          (let ((value (ht-get libraries id)))
+                            (plist-put value :library t)
+                            (plist-put value :write t)
+                            (ht-set! libraries id value))
+                        (ht-set! libraries id '(:type "group" :library t :write t)))))))))
+    cache))
 
-(cl-defun zotero-cache--sync-get-remotely-deleted (&key resource user group since api-key)
-  (let* ((url (zotero-cache--sync-endpoint :resource 'deleted :user user :group group))
-         (handle `(:url ,url :method "GET" :api-version ,zotero-sync-api-version :api-key ,api-key :since ,since))
-         (remote-response (zotero-lib--get-response handle))
-         (remote-data (plist-get remote-response :data))
-         (last-modified-version (plist-get remote-response :version))
-         (deleted-keys (plist-get remote-data resource)))
-    (unless (seq-empty-p deleted-keys)
-      (zotero-cache--sync-cache-delete resource deleted-keys last-modified-version))
-    last-modified-version))
-
-;; TODO: attempt to upload data first and retrieve updated data only if receiving a 412 Precondition Failed. See If-Unmodified-Since-Version for more information.
-(cl-defun -zotero-cache--sync-get-locally-updated (&key resource user group since api-key)
-  (let* ((url (zotero-cache--sync-endpoint :resource resource :user user :group group))
-         (handle `(:url ,url :method "GET" :api-version ,zotero-sync-api-version :api-key ,api-key :since ,since))
-         (last-modified-version (plist-get remote-response :version))
-         (cache (zotero-cache--sync-cache-get resource))
-         (keys (ht-keys cache))
-         ;; Locally modified keys
-         (modified-keys (seq-filter (lambda (key)
-                                      (let ((plist (ht-get cache key))
-                                            (synced (plist-get plist :synced)))
-                                        ;; Explicit negation of true value
-                                        ;; because `json.el' parses `nil' as
-                                        ;; `:json-false', which evaluates to
-                                        ;; `t'
-                                        (not (eq synced t))))
-                                    keys)))
-    (when modified-keys
-      (let* ((partitions (seq-partition modified-keys 50))
-             (number 0)
-             (data))
-        (dolist (partition partitions)
-          (message "Uploading %d-%d of %d updated %s..." (1+ number) (+ number (length partition)) (length modified-keys) (symbol-name resource))
-          (let* ((param-key (pcase resource
-                              ('collections :collectionkey)
-                              ('items :itemkey)
-                              ('searches :searchkey)))
-                 (data (mapcar (lambda (key) (let ((plist (ht-get cache key))) (plist-get plist :data))) partition ))
-                 (json (zotero-cache--sync-encode-object data)))
-            (zotero-cache--sync-submit :method "POST" :resource resource :user user :group group :data json :content-type "application/json" :expect "" :version version)
-            (message "Uploading %d-%d of %d updated %s...done" (1+ number) (+ number (length partition)) (length updated-keys) (symbol-name resource))
-            (setq number (+ number (length partition)))
-            (setq data (seq-concatenate 'vector data objects))))
-        (message "Saving updated %s to cache..." (symbol-name resource))
-        (zotero-cache--sync-cache-update-object resource data)
-        (message "Saving updated %s to cache...done" (symbol-name resource))))
-    last-modified-version))
-
-
-
-;; TODO:
-;; When an object is deleted locally during regular usage, add its library and key to a delete log.
-;; When syncing, send delete requests for objects in the log and clear them from the log on successful deletion.
-;; When resolving a conflict between a locally deleted object and a remotely modified object in favor of the remote object, remove it from the delete log.
-
-;; See Deleting Multiple Collections, Deleting Multiple Searches, and Deleting Multiple Items for the specific requests. Pass the current library version as If-Unmodified-Since-Version.
-
-;; Example request:
-
-;; DELETE <userOrGroupPrefix>/collections?collectionKey=<key>,<key>,<key>
-;; If-Unmodified-Since-Version: <version>
-
-;; Response:
-
-;; 204 No Content
-;; Last-Modified-Version: <version>
-
-;; On a 204 response, store the returned Last-Modified-Version as the current library version to be passed with the next write request.
-
-;; On a 412 Precondition Failed response, return to the beginning of the sync process for that library.
-
-(cl-defun zotero-cache--sync-get-locally-deleted (&key user group since api-key)
-  (let* ((url (zotero-cache--sync-endpoint :resource resource :user user :group group))
-         (handle `(:url ,url :method "GET" :api-version ,zotero-sync-api-version :api-key ,api-key :since ,since))
-         (last-modified-version (plist-get remote-response :version))
-         (deletions (zotero-cache--sync-cache-get deletions))
-         (keys (ht-keys cache))
-         ;; Locally deleted keys
-         (deleted-keys (seq-filter (lambda (key)
-                                     (let ((plist (ht-get cache key)))
-                                       (equal (plist-get plist :group) group)))
-                                   keys)))
-    (when deleted-keys
-      (let* ((partitions (seq-partition modified-keys 50))
-             (number 0)
-             (data))
-        (dolist (partition partitions)
-          (message "Uploading %d-%d of %d deleted %s..." (1+ number) (+ number (length partition)) (length modified-keys) (symbol-name resource))
-          (let* ((param-key (pcase resource
-                              ('collections :collectionkey)
-                              ('items :itemkey)
-                              ('searches :searchkey)))
-                 (param-value (s-join "," (seq-map (lambda (key) (substring (symbol-name key) 1)) partition)))
-                 (json (zotero-cache--sync-encode-object data)))
-            (zotero-cache--sync-submit :method "DELETE" :resource resource :user user :group group :data json :content-type "application/json" :expect "" :version version)
-            (message "Uploading %d-%d of %d deleted %s...done" (1+ number) (+ number (length partition)) (length updated-keys) (symbol-name resource))
-            ;; Remove the keys from the delete log
-            (mapcar (lambda (key) (ht-remove! cache key)) partition)
-            (setq number (+ number (length partition)))
-            (setq data (seq-concatenate 'vector data objects))))))
-    last-modified-version))
-
-(defun zotero-sync (data)
-  (while
-      (let* ((response (zotero-cache--sync-request handle))
-             (plist (zotero-cache--sync-decider handle response)))
-        (pcase (plist-get plist :data)
-          ((and (pred vectorp) data)
-           (setq result (seq-concatenate 'vector result data)))
-          ((and (pred consp) data)
-           (setq result (seq-concatenate 'list result data))))
-        (setq handle (plist-get plist :handle)))))
-
-(defun zotero-cache--sync-verify-key (handle)
-  (zotero-lib--retrieve :resource 'keys :key api-key))
-
-(defun zotero-cache--sync-group-readable-p (group data)
-  (let ((group-access (plist-get data :access))
-        (group (intern (concat ":" group))))
-    (or (eq (thread-first group-access
-              (plist-get :groups)
-              (plist-get group)
-              (plist-get :library))
-            t)
-        (eq (thread-first group-access
-              (plist-get :groups)
-              (plist-get :all)
-              (plist-get :library))
-            t))))
-
-(defun zotero-cache--sync-group-writable-p (group response)
-  (let ((group-access (thread-first response
-                        (plist-get :data)
-                        (plist-get :access)))
-        (group (intern (concat ":" group))))
-    (or (eq (thread-first group-access
-              (plist-get :groups)
-              (plist-get group)
-              (plist-get :write))
-            t)
-        (eq (thread-first group-access
-              (plist-get :groups)
-              (plist-get :all)
-              (plist-get :write))
-            t))))
-
-(defun zotero-cache--sync-cache-update-libraries (id data)
-  "Update libraries in cache.
-The cache is created both in memory and on the hard drive."
-  (let* ((resource 'libraries)
-         (table (plist-get zotero-sync-cache resource)))
-    (ht-set! table :type type :read library :write write :files data :version version :lastsync (current-time))
-    (setq zotero-sync-cache (plist-put zotero-sync-cache resource table))
-    (zotero-sync-serialize-cache)))
-
-(cl-defun zotero-sync-sync (&key user api-key)
-  "Sync library."
-  ;; 1) Verify key access
-  (let* ((url (zotero-lib--endpoint :resource 'keys :key api-key))
-         (handle `(:url ,url :method "GET" :api-version ,zotero-lib-api-version :api-key ,api-key))
-         (response (zotero-lib--get-response handle))
-         ;; (cache (zotero---cache-get-library-metadata))
-         (libraries (plist-get zotero-cache-cache 'libraries)))
-    ;; (ht-each (lambda (key value)
-    ;;            (let* ((id key)
-    ;;                   (data value))
-    ;;              ;; - for each library without read access: offer to remove the library
-    ;;              ;; - for each library without write access: offer to reset local changes
-    ;;              ;; - for each library with read and write access: continue to sync
-    ;;              )))
-    )
+(cl-defun zotero-cache--sync-metadata (&key cache id api-key)
   ;; 2) Get updated group metadata
-  ;; 2a) First, retrieve a list of the user's groups, with a version indicating the current state of each group's metadata
-  (let ((remote-groups (zotero-lib--retrieve :resource 'groups :user user :api-key api-key :format "versions"))
-        (local-groups (zotero-cache--get 'groups))
-        (synccache (zotero-cache--get 'synccache)))
-    (cl-loop for group in remote-groups by #'cddr do
-             ;; REVIEW: should this be postponed?
-             (unless (ht-contains? synccache group)
-               (ht-set! synccache group (ht-create )))
-             (cl-loop for resource in '(collections items searches) do
-                      ;; 2b) For each group that doesn't exist locally or that has a different version number, retrieve the group metadata
-                      (let ((remote-version (plist-get remote-groups group))
-                            (local-version (thread-first (ht-get local-groups group)
-                                             (plist-get :version))))
-                        (if (eq remote-version local-version)
-                            (message "Group %s already up to date." (zotero-lib--keyword->string group))
-                          ;; Perform the following steps for each library:
-                          ;; i. Get updated data
-                          (zotero-cache--sync-get-remotely-updated :resource resource :group group :since local-version :api-key api-key)
-                          ;; ii. Get deleted data
-                          ;; REVIEW: loop over resource in inside or outside function?
-                          (zotero-cache--sync-get-remotely-deleted :resource resource :group group :since local-version :api-key api-key)
-                          ;; FIXME: iii. Check for concurrent remote updates
-                          ;; iv. Upload modified data
-                          (-zotero-cache--sync-get-locally-updated :resource resource :group group :since local-version :api-key api-key)
-                          ;; v. Upload local deletions
-                          (-zotero-cache--sync-get-locally-deleted :resource resource :group group :since local-version :api-key api-key)))))))
+  ;; 2a) First, retrieve a plist of the user's groups with the group as keyword
+  ;; and the version as value.
+  (let* ((response (zotero-lib--retrieve :resource "groups" :type "user" :id id :api-key api-key :format "versions"))
+         (remote-groups (plist-get response :data))
+         (libraries (ht-get cache "libraries"))
+         (groups (ht-get cache "groups"))
+         (synccache (ht-get cache "synccache"))
+         (deletions (ht-get cache "deletions")))
+    (cl-loop for group being the hash-keys of groups do
+             (let ((remote-group (zotero-lib-string->keyword group)))
+               (if (plist-member remote-groups remote-group)
+                   (let ((remote-version (plist-get remote-groups remote-group)))
+                     ;; Update version of library
+                     (if (ht-contains? libraries group)
+                         (let ((value (ht-get libraries group)))
+                           (plist-put value :version remote-version)
+                           (ht-set! libraries group value))
+                       (ht-set! libraries group '(:type "group" :version remote-version))))
 
-;; FIXME: merge with read function
-(cl-defun zotero-cache--sync-get-remote-versions (&key resource user group key since api-key)
-  "Get versions of RESOURCE.
-RESOURCE is one of 'groups 'collections 'items 'searches."
-  (zotero-lib--retrieve :resource resource :user user :group group :key key :api-key api-key :format "versions" :since since))
+                 ;; Delete any local groups not in the list, which either were deleted or
+                 ;; are currently inaccessible. (The user may have been removed from a
+                 ;; group, or the current API key may no longer have access.)
+                 (let ((choice (read-multiple-choice (format "Local group %s is not available remotely. Remove from cache or quit syncing to transfer modified data elsewhere? " group)
+                                                     '((?d "remove from cache")
+                                                       (?q "quit")))))
+                   (pcase (car choice)
+                     (?d
+                      (ht-remove! libraries group)
+                      (ht-remove! groups group)
+                      (ht-remove! synccache group)
+                      (message "Group %s removed from cache." group))
+                     (?q
+                      (throw 'sync 'quit)))))))
 
-;; (cl-defun zotero-sync-privileges (&key api-key)
-;;   "Verify key access."
-;;   (let* ((privileges (zotero-sync-get-key :api-key api-key))
-;;          (access (plist-get privileges :access))
-;;          (user-privileges (plist-get access :user))
-;;          (user-library-access (plist-get user-privileges :library))
-;;          (user-files-access (plist-get user-privileges :files))
-;;          (user-notes-access (plist-get user-privileges :notes))
-;;          (user-write-access (plist-get user-privileges :write)))
-;;     ;; TODO: offer to remove a local library or reset local changes?
-;;     ;; (cond ((not access)
-;;     ;;        (warn "Insufficient privileges for access to the personal or group
-;;     ;;            libraries"))
-;;     ;;       ((not user-library-access)
-;;     ;;        (warn "Insufficient privileges for access to the personal library"))
-;;     ;;       ((not user-notes-access)
-;;     ;;        (warn "Insufficient privileges for access to the notes in the personal library"))
-;;     ;;       ((not user-write-access)
-;;     ;;        (warn "Insufficient privileges for write access to the personal library")))
-;;     user-privileges))
+    ;; 2b) For each group that doesn't exist locally or that has a different
+    ;; version number, retrieve the group metadata
+    (cl-loop for key in remote-groups by #'cddr do
+             (let* ((remote-version (plist-get remote-groups key))
+                    (group (zotero-lib-keyword->string key))
+                    (local-version (plist-get (ht-get groups group) :version)))
+               (if (eq remote-version local-version)
+                   (message "Metadata of group %s already up to date." group)
+                 ;; FIXME: metadata cannot be retrieved from read-only groups
+                 (let* ((response (zotero-lib-get-group :id group :api-key api-key))
+                        (data (plist-get response :data)))
+                   (ht-set! groups group data)))))
+    cache))
+
+(cl-defun zotero-cache--sync-remotely-updated (&key cache type id api-key)
+  ;; Perform the following steps for each library:
+  (let* ((libraries (ht-get cache "libraries"))
+         (synccache (ht-get cache "synccache"))
+         (storage-version (plist-get (ht-get libraries id) :storage-version))
+         (version (plist-get (ht-get libraries id) :version)))
+    ;; i. Get updated data
+    (cl-loop for resource in '("collections" "items" "searches") do
+             (let* ((response (zotero-lib--retrieve :type type :id id :resource resource :format "versions" :since (or storage-version 0) :api-key api-key))
+                    (remote-version (plist-get response :version))
+                    (data (plist-get response :data))
+                    ;; Collect only the keys
+                    (keys (cl-loop for key in data by #'cddr collect key)))
+               (when remote-version
+                 ;; Store Last-Modified-Version as the
+                 ;; current library version
+                 (let ((value (ht-get libraries id)))
+                   (plist-put value :version remote-version)
+                   (ht-set! libraries id value)
+                   (setq version remote-version)))
+               (when keys
+                 (let* ((response (zotero-cache--get-remotely-updated :type type :id id :resource resource :api-key api-key :keys keys))
+                        (remote-version (plist-get response :version))
+                        (objects (plist-get response :data))
+                        (table (ht-get* synccache id resource)))
+                   (when (and remote-version
+                              (not (eq remote-version version)))
+                     (throw 'sync 'concurrent-update))
+                   (when-let ((updated-table (zotero-cache--process-updates :table table :objects objects :version version)))
+                     (setf table updated-table))))))
+    cache))
+
+(cl-defun zotero-cache--sync-remotely-deleted (&key cache type id api-key)
+  ;; ii. Get deleted data
+  (let* ((libraries (ht-get cache "libraries"))
+         (synccache (ht-get cache "synccache"))
+         (storage-version (plist-get (ht-get libraries id) :storage-version))
+         (version (plist-get (ht-get libraries id) :version))
+         (response (zotero-lib--retrieve :type type :id id :resource "deleted" :since (or storage-version 0) :api-key api-key))
+         (remote-version (plist-get response :version))
+         (deletions (plist-get response :data)))
+    (when (and remote-version
+               (not (eq remote-version version)))
+      (throw 'sync 'concurrent-update))
+    ;; REVIEW: should tags and settings be synced as well?
+    (cl-loop for resource in '("collections" "items" "searches") do
+             (let* ((prop (pcase resource
+                            ("collections" :collections)
+                            ("items" :items)
+                            ("searches" :searches)))
+                    (keys (plist-get deletions prop))
+                    (table (ht-get* synccache id resource)))
+               (when-let ((updated-table (zotero-cache--process-deletions :table table :keys keys :version version)))
+                 (setf table updated-table))))
+    cache))
+
+(cl-defun zotero-cache--sync-locally-updated (&key cache type id api-key)
+  ;; iv. Upload modified data
+  (let* ((libraries (ht-get cache "libraries"))
+         (synccache (ht-get cache "synccache"))
+         (storage-version (plist-get (ht-get libraries id) :storage-version))
+         (version (plist-get (ht-get libraries id) :version))
+         (failures 0))
+    (cl-loop for resource in '("collections" "items" "searches") do
+             (when-let ((table (ht-get* synccache id resource))
+                        (modified (ht-reject (lambda (key value) (plist-get value :synced)) table))
+                        (keys (ht-keys modified))
+                        (objects (seq-map (lambda (elt) (plist-get elt :object)) (ht-values modified)))
+                        (partitions (seq-partition objects 50))
+                        (number 0))
+               (dolist (partition partitions)
+                 (message "Uploading %d-%d of %d updated %s..." (1+ number) (+ number (length partition)) (length keys) resource)
+                 (let* ((param-key (pcase resource
+                                     ("collections" :collectionkey)
+                                     ("items" :itemkey)
+                                     ("searches" :searchkey)))
+                        (json (zotero-lib--encode-object partition))
+                        (response (zotero-lib--submit :method "POST" :type type :id id :resource resource :data json :content-type "application/json" :expect "" :version version :api-key api-key))
+                        (status-code (plist-get response :status-code))
+                        (remote-version (plist-get response :version))
+                        (data (plist-get response :data))
+                        (successful (plist-get data :succesful))
+                        (success (plist-get data :success))
+                        (unchanged (plist-get data :unchanged))
+                        (failed (plist-get data :failed)))
+                   (pcase status-code
+                     (200
+                      ;; On a 200 response, set synced = true and version =
+                      ;; Last-Modified-Version for each successfully uploaded
+                      ;; Zotero object and store Last-Modified-Version as the
+                      ;; current library version to be passed with the next
+                      ;; write request.
+                      (when remote-version
+                        ;; Store Last-Modified-Version as the current library
+                        ;; version
+                        (let ((value (ht-get libraries id)))
+                          (plist-put value :version remote-version)
+                          (ht-set! libraries id value)
+                          (setq version remote-version)))
+                      (unless (eq succesful :json-empty)
+                        (cl-loop for index in successful by #'cddr do
+                                 (let ((value (plist-get successful index))
+                                       (key (plist-get value :key)))
+                                   (ht-set! table key `(:synced t :version ,version :object ,value)))))
+                      ;; Do not update the version of Zotero objects in the
+                      ;; unchanged object.
+                      (unless (eq unchanged :json-empty)
+                        (cl-loop for key in unchanged do
+                                 (let* ((value (ht-get table key))
+                                        (updated-value (plist-put value :synced t)))
+                                   (ht-set! table key updated-value))))
+                      (unless (eq failed :json-empty)
+                        ;; (cl-loop for key in failed do
+                        ;;          (let* ((value (ht-get table key))
+                        ;;                 (updated-value (plist-put value :synced 'failed)))
+                        ;;            (ht-set! table key updated-value)))
+                        (setq failures (+ failures (length failed)))))
+                     ;; On a 412 Precondition Failed response, return to the
+                     ;; beginning of the sync process for that library.
+                     (412
+                      (throw 'sync 'concurrent-update)))
+
+                   (message "Uploading %d-%d of %d updated %s...done" (1+ number) (+ number (length partition)) (length keys) resource)
+                   (setq number (+ number (length partition)))))))
+    ;; Retry non-fatal failures.
+    (when (and (> failures 0)
+               (y-or-n-p (format "Uploading of %d local updates failed. Retry? " failures))
+               (zotero-cache--sync-locally-updated :cache cache :type type :id id :api-key api-key)))
+    cache))
+
+(cl-defun zotero-cache--sync-locally-deleted (&key cache type id api-key)
+  ;; v. Upload local deletions
+  (let* ((libraries (ht-get cache "libraries"))
+         (synccache (ht-get cache "synccache"))
+         (deletions (ht-get cache "deletions"))
+         (storage-version (plist-get (ht-get libraries id) :storage-version))
+         (version (plist-get (ht-get libraries id) :version)))
+    (cl-loop for resource in '("collections" "items" "searches") do
+             (when-let ((table (ht-get* deletions id resource))
+                        (keys (ht-keys table))
+                        (partitions (seq-partition keys 50))
+                        (number 0))
+               (dolist (partition partitions)
+                 (message "Uploading %d-%d of %d deleted %s..." (1+ number) (+ number (length partition)) (length keys) resource)
+                 (let ((param-key (pcase resource
+                                    ("collections" :collectionkey)
+                                    ("items" :itemkey)
+                                    ("searches" :searchkey)))
+                       (json (zotero-lib--encode-object partition))
+                       (response (zotero-lib--submit :method "DELETE" :type type :id id :resource resource :data json :content-type "application/json" :expect "" :version version :api-key api-key))
+                       (status-code (plist-get response :status-code))
+                       (remote-version (plist-get response :version)))
+                   (pcase status-code
+                     (204
+                      ;; On a 204 response, store the returned
+                      ;; Last-Modified-Version as the current
+                      ;; library version to be passed with the next
+                      ;; write request.
+                      (when remote-version
+                        ;; Store Last-Modified-Version as the
+                        ;; current library version
+                        (let ((value (ht-get libraries id)))
+                          (plist-put value :version remote-version)
+                          (ht-set! libraries id value)
+                          (setq version remote-version)))
+                      ;; Remove the keys from the delete log
+                      (dolist (key partition)
+                        (ht-remove! table key)))
+                     ;; On a 412 Precondition Failed response,
+                     ;; return to the beginning of the sync
+                     ;; process for that library.
+                     (412
+                      (throw 'sync 'concurrent-update)))
+                   (message "Uploading %d-%d of %d deleted %s...done" (1+ number) (+ number (length partition)) (length keys) resource)
+                   (setq number (+ number (length partition)))))))
+    cache))
+
+(cl-defun zotero-cache--sync-templates (&key cache)
+  "Sync the item and attachment templates in CACHE."
+  (let ((itemtypes (seq-map (lambda (elt) (plist-get elt :itemType)) (zotero-lib-itemtypes)))
+        (linkmodes (zotero-lib-attachment-linkmodes)))
+    (dolist (itemtype itemtypes)
+      (zotero-cache--sync-item-template :cache cache :itemtype itemtype))
+    (dolist (linkmode linkmodes)
+      (zotero-cache--sync-attachment-template :cache cache :linkmode linkmode))
+    cache))
+
+(cl-defun zotero-cache--sync-item-template (&key cache itemtype)
+  "Store the template for ITEMTYPE in CACHE."
+  (let* ((table (ht-get* cache "templates" "items"))
+         (object (zotero-lib-item-template itemtype)))
+    (ht-set! table itemtype `(:last-sync ,(current-time) :object ,object))
+    cache))
+
+(cl-defun zotero-cache--sync-attachment-template (&key cache linkmode)
+  "Store the attachment template for LINKMODE in CACHE."
+  (let* ((table (ht-get* cache "templates" "attachments"))
+         (object (zotero-lib-attachment-template linkmode)))
+    (ht-set! table linkmode `(:last-sync ,(current-time) :object ,object))
+    cache))
+
+(cl-defun zotero-cache--sync (&key cache id api-key)
+  "Sync library."
+  (catch 'sync
+    (message "Verifying key access...")
+    (zotero-cache--sync-verify-key :cache cache :api-key api-key)
+    (message "Verifying key access...done")
+
+    (message "Syncing group metadata...")
+    (zotero-cache--sync-metadata :cache cache :id id :api-key api-key)
+    (message "Syncing group metadata...done")
+
+    (let ((libraries (ht-get cache "libraries")))
+      ;; Perform the following steps for each library:
+      (cl-loop for id being the hash-keys of libraries do
+               (let* ((value (ht-get libraries id))
+                      (type (plist-get value :type))
+                      (read-only (zotero-cache--read-only-p value)))
+
+                 (zotero-cache--maybe-initialize-library :cache cache :id id)
+
+                 (message "Syncing remotely updated data for %s %s..." type id)
+                 (zotero-cache--sync-remotely-updated :cache cache :type type :id id :api-key api-key)
+                 (message "Syncing remotely updated data for %s %s...done" type id)
+
+                 (message "Syncing remotely deleted data for %s %s..." type id)
+                 (zotero-cache--sync-remotely-deleted :cache cache :type type :id id :api-key api-key)
+                 (message "Syncing remotely deleted data for %s %s...done" type id)
+
+                 (unless read-only
+                   (message "Syncing locally updated data for %s %s..." type id)
+                   (zotero-cache--sync-locally-updated :cache cache :type type :id id :api-key api-key)
+                   (message "Syncing locally updated data for %s %s...done" type id)
+
+                   (message "Syncing locally deleted data for %s %s..." type id)
+                   (zotero-cache--sync-locally-deleted :cache cache :type type :id id :api-key api-key)
+                   (message "Syncing locally deleted data for %s %s...done" type id))
+
+                 ;; After saving all remote changes without the remote version
+                 ;; changing during the process, save Last-Modified-Version
+                 ;; from the last run as the new local library version.
+                 (let* ((value (ht-get libraries id))
+                        (version (plist-get value :version)))
+                   (plist-put value :storage-version version)
+                   (plist-put value :last-sync (current-time))
+                   (ht-set! libraries id value)))))
+    (message "Syncing schema...")
+    (zotero-cache--sync-schema :cache cache)
+    (message "Syncing schema...done")
+    (message "Syncing templates...")
+    (zotero-cache--sync-templates :cache cache)
+    (message "Syncing templates...done")
+    cache))
+
+(defun zotero-cache-sync (&optional retries)
+  (interactive)
+  (let* ((token (zotero-auth-token))
+         (id (zotero-auth-userid token))
+         (api-key (zotero-auth-api-key token)))
+    (message "Syncing cache...")
+    (zotero-cache--maybe-initialize-cache)
+    (let* ((cache (copy-tree zotero-cache))
+           (result (zotero-cache--sync :cache cache :id id :api-key api-key))
+           (retries (or retries 0)))
+      (pcase result
+        ((pred ht?)
+         (message "Syncing cache...done")
+         (message "Writing cache...")
+         (setq zotero-cache result)
+         (zotero-cache-serialize)
+         (message "Writing cache...done"))
+        ;; For each response from the API, check the Last-Modified-Version to see
+        ;; if it has changed since the Last-Modified-Version returned from the
+        ;; first request (e.g., collections?since=). If it has, restart the
+        ;; process of retrieving updated and deleted data, waiting increasing
+        ;; amounts of time between restarts to give the other client the
+        ;; opportunity to finish.
+        ('concurrent-update
+         (cond
+          ((zerop zotero-cache-max-delay)
+           (user-error "Syncing cache failed: concurrent update."))
+          ((zerop zotero-cache-max-retries)
+           (user-error "Syncing cache failed: concurrent update."))
+          ((> retries zotero-cache-max-retries)
+           (user-error "Syncing cache failed: concurrent update and maximum of %d retries reached" zotero-cache-max-retries))
+          (t
+           (let* ((intervals (seq-map (lambda (elt) (expt 2 elt)) (number-sequence 1 retries))) ; exponential increase in delay
+                  (total-delay (seq-reduce #'+ intervals 0)))
+             (if (> total-delay zotero-cache-max-delay)
+                 (user-error "Syncing cache failed: concurrent update and maximum of %d seconds delay reached" zotero-cache-max-delay)
+               (sleep-for (expt 2 retries))
+               (zotero-cache-sync (1+ retries)))))))
+        ('quit
+         (message "Syncing cache...quit"))
+        (_ ; this should not happen
+         (error "Syncing cache failed: unknown error"))))))
+
+(defun zotero-cache-item-template (itemtype)
+  "Return the template for ITEMTYPE from CACHE.
+
+The template is cached for a period of time (e.g., one hour)
+without making further requests. Conditional requests are
+not (yet) implemented in the Zotero API."
+  (let* ((template (ht-get* zotero-cache "templates" "items" itemtype))
+         (last-sync (plist-get template :last-sync))
+         (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
+    (when (or (null template) (> seconds-since-last-sync zotero-cache-expire))
+      (zotero-cache--sync-item-template :cache zotero-cache :itemtype itemtype))
+    (plist-get template :object)))
+
+(defun zotero-cache-attachment-template (linkmode)
+  "Return the attachment template for LINKMODE from CACHE.
+
+The template is cached for a period of time (e.g., one hour)
+without making further requests. Conditional requests are
+not (yet) implemented in the Zotero API."
+  (let* ((template (ht-get* zotero-cache "templates" "attachments" linkmode))
+         (last-sync (plist-get template :last-sync))
+         (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
+    (when (or (null template) (> seconds-since-last-sync zotero-cache-expire))
+      (zotero-cache--sync-attachment-template :cache zotero-cache :linkmode linkmode))
+    (plist-get template :object)))
+
+(defun zotero-cache-schema ()
+  "Return the schema with item types, fields, and creator types.
+
+The schema is cached for a period of time (e.g., one hour)
+without making further requests."
+  (let* ((schema (ht-get zotero-cache "schema"))
+         (last-sync (plist-get schema :last-sync))
+         (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
+    (when (or (null schema) (> seconds-since-last-sync zotero-cache-expire))
+      (zotero-cache--sync-schema :cache zotero-cache))
+    schema))
+
+(cl-defun zotero-cache--sync-schema (&key cache)
+  "Store the schema in CACHE.
+
+The schema is downloaded as a single file from \"https://api.zotero.org/schema\"."
+  (let* ((schema (ht-get (or cache zotero-cache) "schema"))
+         (etag (plist-get schema :etag))
+         (response (zotero-lib--retrieve :url "https://api.zotero.org/schema" :if-none-match etag))
+         (status-code (plist-get response :status-code)))
+    (pcase status-code
+      (304
+       (plist-put schema :last-sync (current-time)))
+      (200
+       (let* ((data (plist-get response :data))
+              (etag (plist-get response :etag)))
+         (ht-set! cache "schema" data)
+         (plist-put (ht-get cache "schema") :etag etag)
+         (plist-put (ht-get cache "schema") :last-sync (current-time)))))
+    cache))
+
+(defun zotero-cache-itemtype-locale (itemtype &optional locale)
+  "Return translation of ITEMTYPE for LOCALE."
+  (let* ((schema (zotero-cache-schema))
+         (locale (zotero-lib-string->keyword (or locale zotero-lib-locale)))
+         (itemtype (zotero-lib-string->keyword itemtype))
+         (itemtypes (zotero-lib-plist-get* schema :locales locale :itemTypes)))
+    (plist-get itemtypes itemtype)))
+
+(defun zotero-cache-itemfield-locale (field &optional locale)
+  "Return translation of FIELD for LOCALE."
+  (let* ((schema (zotero-cache-schema))
+         (locale (zotero-lib-string->keyword (or locale zotero-lib-locale)))
+         (field (zotero-lib-string->keyword field))
+         (fields (zotero-lib-plist-get* schema :locales locale :fields)))
+    (plist-get fields field)))
+
+(defun zotero-cache-creatortype-locale (creatortype &optional locale)
+  "Return translation of CREATORTYPE for LOCALE."
+  (let* ((schema (zotero-cache-schema))
+         (locale (zotero-lib-string->keyword (or locale zotero-lib-locale)))
+         (creatortype (zotero-lib-string->keyword creatortype))
+         (creatortypes (zotero-lib-plist-get* schema :locales locale :creatorTypes)))
+    (plist-get creatortypes creatortype)))
+
+(defun zotero-cache-itemtypes ()
+  "Return a list of all item types."
+  (let* ((schema (ht-get* zotero-cache "schema"))
+         (itemtypes (plist-get schema :itemTypes)))
+    (seq-map (lambda (elt) (plist-get elt :itemType)) itemtypes)))
+
+(defun zotero-cache-itemtypefields (itemtype)
+  "Return all valid fields for ITEMTYPE.
+The first is the primary field."
+  (let* ((schema (zotero-cache-schema))
+         (itemtypes (seq-find (lambda (elt) (equal (plist-get elt :itemType) itemtype)) (plist-get schema :itemTypes)))
+         (fields (seq-map (lambda (elt) (plist-get elt :field)) (plist-get itemtypes :fields))))
+    fields))
+
+(defun zotero-cache-itemtypecreatortypes (itemtype)
+  "Return a list of all valid creator types for ITEMTYPE.
+The first is the primary creator type."
+  (let* ((schema (zotero-cache-schema))
+         (itemtypes (seq-find (lambda (elt) (equal (plist-get elt :itemType) itemtype)) (plist-get schema :itemTypes)))
+         (first (seq-filter (lambda (elt) (plist-member elt :primary)) (plist-get itemtypes :creatorTypes)))
+         (rest (seq-remove (lambda (elt) (plist-member elt :primary)) (plist-get itemtypes :creatorTypes)))
+         (all (seq-concatenate 'list first rest))
+         (creatortypes (seq-map (lambda (elt) (plist-get elt :creatorType)) all)))
+    creatortypes))
+
+(defun zotero-cache-valid-field-p (field itemtype)
+  "Return t if FIELD is valid for ITEMTYPE."
+  (member field (zotero-cache-itemtypefields itemtype)))
+
+(defun zotero-cache-valid-creatortype-p (creatortype itemtype)
+  "Return t if CREATORTYPE is valid for ITEMTYPE."
+  (member creatortype (zotero-cache-itemtypecreatortypes itemtype)))
+
+(cl-defun zotero-cache-save-item (&key cache type id data)
+  (let* ((table (ht-get* zotero-cache "synccache" id "items"))
+         (key (plist-get data :key))
+         (entry (ht-get table key))
+         (object (plist-get entry :object))
+         (updated-object (plist-put object :data data)))
+    (plist-put entry :synced nil)
+    (plist-put entry :object updated-object)))
 
 (provide 'zotero-cache)
 

@@ -66,42 +66,6 @@ Fetch an access token, secret, user ID and username from the service provider. T
   "Save the acces token for future sessions and return it."
   (customize-save-variable 'zotero-auth-token token))
 
-;; TODO: is this function necessary?
-(defun zotero-auth--token (&optional force)
-  "Return the access token.
-If optional argument FORCE is non-nil, authorize Zotero and
-obtain new token info."
-  (if (or (null zotero-auth-token) force)
-      ;; Not authorized or forcing: authorize Zotero
-      (zotero-auth-authorize)
-    ;; Already authorized: return access token
-    zotero-auth-token))
-
-;; TODO: is this function necessary?
-(defun zotero-auth--token-valid-p (token)
-  "Return t if the access token is valid, else return nil.
-  An access token is considered valid if it is a struct type called ‘zotero-auth-token’ that contains at least the two slots \"userID\" (the user ID) and \"oauth_token_secret\" (the API key)."
-  (when (and (zotero-auth-token-p token) (zotero-auth-token-token-secret token) (zotero-auth-token-userid token)) t))
-
-;; TODO: is this function necessary?
-(defun zotero-auth--api-key (token)
-  "Return the Zotero API key.
-In Zotero's case the token and secret are just the same Zotero
-API key."
-  (zotero-auth-token-token-secret token))
-
-;; TODO: is this function necessary?
-(defun zotero-auth--userid (token)
-  "Return the Zotero user ID.
-Zotero will send the userID associated with the key along too."
-  (zotero-auth-token-userid token))
-
-;; TODO: is this function necessary?
-(defun zotero-auth--username (token)
-  "Return the Zotero username.
-Zotero will send the username associated with the key along too."
-  (zotero-auth-token-username token))
-
 ;;;; Methods
 
 (defun zotero-auth-authorize ()
@@ -120,6 +84,43 @@ user manually, so keys should be considered sensitive."
          (token (oauth-access-token-auth-t response)))
     (zotero-auth--after-authorize-function)
     (zotero-auth--save-token token)))
+
+(defun zotero-auth-token (&optional force)
+  "Return the access token.
+If optional argument FORCE is non-nil, authorize Zotero and
+obtain new token info."
+  (cond
+   ((or (null zotero-auth-token) force)
+    ;; Not authorized or forcing: authorize Zotero
+    (zotero-auth-authorize))
+   ((not (zotero-auth-token-valid-p zotero-auth-token))
+    ;; Invalid token: authorize Zotero
+    (message "Invalid token. Forcing authorization...")
+    (zotero-auth-authorize))
+   (t
+    ;; Already authorized: return access token
+    zotero-auth-token)))
+
+(defun zotero-auth-token-valid-p (token)
+  "Return t if the access token is valid, else return nil.
+  An access token is considered valid if it is a struct type called ‘zotero-auth-token’ that contains at least the two slots \"userID\" (the user ID) and \"oauth_token_secret\" (the API key)."
+  (when (and (zotero-auth-token-p token) (zotero-auth-token-token-secret token) (zotero-auth-token-userid token)) t))
+
+(defun zotero-auth-api-key (token)
+  "Return the Zotero API key.
+In Zotero's case the token and secret are just the same Zotero
+API key."
+  (zotero-auth-token-token-secret token))
+
+(defun zotero-auth-userid (token)
+  "Return the Zotero user ID.
+Zotero will send the userID associated with the key along too."
+  (zotero-auth-token-userid token))
+
+(defun zotero-auth-username (token)
+  "Return the Zotero username.
+Zotero will send the username associated with the key along too."
+  (zotero-auth-token-username token))
 
 (provide 'zotero-auth)
 
