@@ -585,6 +585,17 @@ plist, except for the final prop, which may return any value."
                    (apply pred elt args))))
              table))
 
+(defun zotero-browser--sort (table pred prop)
+  "Sort TABLE, comparing PROP using PRED.
+Return a list of sorted keys."
+  (let* ((sort-func (lambda (elt1 elt2)
+                      (let ((val1 (zotero-lib-plist-get* (cdr elt1) :object :data prop))
+                            (val2 (zotero-lib-plist-get* (cdr elt2) :object :data prop)))
+                        (funcall pred val1 val2))))
+         (unsorted (ht->alist table))
+         (sorted (sort unsorted sort-func)))
+    (seq-map #'car sorted)))
+
 (defun zotero-browser--collection-pp (entry)
   "Pretty print ENTRY."
   (let* ((data (zotero-lib-plist-get* entry :object :data))
