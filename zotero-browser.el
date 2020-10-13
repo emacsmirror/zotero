@@ -511,7 +511,7 @@ All currently available key bindings:
         (while
             (let* ((node (ewoc-locate ewoc))
                    (key (ewoc-data node))
-                   (level (zotero-browser--get-level key)))
+                   (level (zotero-browser--level key)))
               (when (zotero-browser--has-children-p key)
                 (cond
                  ((and (zotero-browser--expanded-p ewoc node)
@@ -529,202 +529,11 @@ All currently available key bindings:
                   (ewoc-next ewoc node)
                 (ewoc-goto-next ewoc 1))))))))
 
-(defun zotero-browser--filter (pred table)
-  "Select elements from TABLE for which PRED returns non-`nil'.
-Return a list of the keys in TABLE. PRED is a function that takes
-a data element as its first argument."
-  (thread-last
-      table
-    (ht-select (lambda (key value)
-                 ;; keep the predicate nil-safe
-                 (ignore-error wrong-type-argument
-                   (funcall pred (zotero-lib-plist-get* value :object :data)))))))
-
-(defun zotero-browser--sort-by (function pred table)
-  "Sort TABLE using PRED as a comparison function.
-Return a list of the keys in TABLE. PRED is a function that takes
-two data elements as its arguments. Elements of TABLE are
-transformed by FUNCTION before being sorted. FUNCTION must be a
-function of one argument."
-  (thread-last
-      (ht->alist table)
-    (seq-sort-by (lambda (elt)
-                   (funcall function (zotero-lib-plist-get* (cdr elt) :object :data)))
-                 (lambda (a b)
-                   ;; keep the predicate nil-safe
-                   (ignore-error wrong-type-argument
-                     (funcall pred a b))))
-    (seq-map #'car)))
-
-(defun zotero-browser--some (pred table)
-  "Return non-nil if PRED is satisfied for at least one element of TABLE.
-PRED is a function that takes a data element as its first
-argument."
-  (if (ht-find (lambda (key value) (funcall pred (zotero-lib-plist-get* value :object :data))) table) t nil))
-
-(defun zotero-browser--library-pp (key)
-  "Pretty print KEY."
-  (let* ((table zotero-browser-table)
-         (value (ht-get table key))
-         (id (zotero-lib-plist-get* value :id))
-         (type (zotero-lib-plist-get* value :type))
-         (groups (ht-get zotero-cache "groups"))
-         (name (pcase type
-                 ("group" (zotero-lib-plist-get* (ht-get groups id) :data :name))
-                 ("user" "User library")))
-         (icon "treesource-library.png")
-         (dir (file-name-as-directory "img"))
-         (filename (expand-file-name (concat dir icon) zotero-browser-base)))
-    (when (file-readable-p filename)
-      (let ((image (create-image filename 'png)))
-        (insert-image image)
-        (insert " ")))
-    (insert name)))
-
-(defun zotero-browser--collection-pp (key)
-  "Pretty print KEY."
-  (let* ((table zotero-browser-table)
-         (value (ht-get table key))
-         (level (zotero-browser--get-level key))
-         (indentation (+ zotero-browser-padding level))
-         (prefix (make-string indentation ?\s))
-         (values (seq-map (lambda (key) (zotero-lib-plist-get* value :object :data key)) zotero-browser-collection-keys))
-         (text (string-join values " ")))
-    (add-text-properties 0 (length text) `(line-prefix ,prefix wrap-prefix ,prefix) text)
-    (insert text)))
-
-(defun zotero-browser--item-pp (key)
-  "Pretty print KEY."
-  (let* ((table zotero-browser-table)
-         (value (ht-get table key))
-         (itemtype (zotero-lib-plist-get* value :object :data :itemType))
-         (level (zotero-browser--get-level key))
-         (indentation (+ zotero-browser-padding level))
-         (prefix (make-string indentation ?\s)))
-    (let ((beg (point)))
-      (pcase itemtype
-        ("attachment"
-         (let* ((linkmode (zotero-lib-plist-get* value :object :data :linkMode))
-                (file (zotero-browser--attachment-icon linkmode)))
-           (when (file-readable-p file)
-             (let ((image (create-image file 'png)))
-               (insert-image image itemtype)
-               (insert " "))))
-         (when-let ((title (zotero-lib-plist-get* value :object :data :title)))
-           (insert title)))
-        ("note"
-         (let* ((itemtype (zotero-lib-plist-get* value :object :data :itemType))
-                (file (zotero-browser--itemtype-icon itemtype)))
-           (when file
-             (let ((image (create-image file 'png)))
-               (insert-image image itemtype)
-               (insert " "))))
-         (when-let ((note (zotero-lib-plist-get* value :object :data :note))
-                    (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
-                    (match (string-match "^.+$" text)) ; Match first non-empty line
-                    (first-line (match-string-no-properties 0 text)))
-           (insert first-line)))
-        (_
-         (dolist (key zotero-browser-item-keys)
-           (pcase key
-             ('key
-              (when-let ((key (zotero-lib-plist-get* value :object :data :key)))
-                (insert key)
-                (insert " ")))
-             ('version
-              (when-let ((version (number-to-string (zotero-lib-plist-get* value :object :data :version))))
-                (insert version)
-                (insert " ")))
-             ('itemtype
-              (let* ((itemtype (zotero-lib-plist-get* value :object :data :itemType))
-                     (file (zotero-browser--itemtype-icon itemtype)))
-                (when file
-                  (let ((image (create-image file 'png)))
-                    (insert-image image itemtype)
-                    (insert " ")))))
-             ('title
-              (when-let ((title (zotero-lib-plist-get* value :object :data :title)))
-                (insert title)
-                (insert " ")))
-             ('creators
-              (when-let ((creators (zotero-lib-plist-get* value :object :data :creators))
-                         (names (cond
-                                 ((seq-some (lambda (elt) (plist-get elt :lastName)) creators)
-                                  (seq-map (lambda (elt) (plist-get elt :lastName)) creators))
-                                 ((seq-some (lambda (elt) (plist-get elt :name)) creators)
-                                  (seq-map (lambda (elt) (plist-get elt :name)) creators)))))
-                (pcase (length names)
-                  (1 (insert (seq-elt names 0)))
-                  (2 (insert (concat (seq-elt names 0)
-                                     " and "
-                                     (seq-elt names 1))))
-                  ((pred (< 2))
-                   (let* ((selection (seq-take names 1)))
-                     (insert (concat (string-join selection ", ")
-                                     " et al.")))))
-                (insert " ")))
-             ('date
-              (when-let ((date (zotero-lib-plist-get* value :object :data :date)))
-                (insert date)
-                (insert " ")))
-             ('year
-              (when-let ((date (zotero-lib-plist-get* value :object :data :date))
-                         (match (string-match "[[:digit:]]\\{4\\}" date))
-                         (year (match-string 0 date)))
-                (insert year)
-                (insert " ")))
-             ('publisher
-              (when-let ((publisher (zotero-lib-plist-get* value :object :data :publisher)))
-                (insert publisher)
-                (insert " ")))
-             ('publication-title
-              (when-let ((publication-title (zotero-lib-plist-get* value :object :data :publicationTitle)))
-                (insert publication-title)
-                (insert " ")))
-             ('date-added
-              (when-let ((date-added (zotero-lib-plist-get* value :object :data :dateAdded)))
-                (insert date-added)
-                (insert " ")))
-             ('date-modified
-              (when-let ((date-modified (zotero-lib-plist-get* value :object :data :dateModified)))
-                (insert date-modified)
-                (insert " ")))
-             ('extra
-              (when-let ((extra (zotero-lib-plist-get* value :object :data :extra)))
-                (insert extra)
-                (insert " ")))
-             ('attachments
-              (when (zotero-browser--has-attachments-p value)
-                (let* ((icon "attach.png")
-                       (dir (file-name-as-directory "img"))
-                       (file (expand-file-name (concat dir icon) zotero-browser-base)))
-                  (when (file-readable-p file)
-                    (let ((image (create-image file 'png)))
-                      (insert-image image "attachments")
-                      (insert " "))))))
-             ('notes)))))
-      (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix)))))
-
-(defun zotero-browser--expand (ewoc node)
-  "Expand the children of NODE in EWOC."
-  (let* ((key (ewoc-data node))
-         (table (zotero-browser--get-children key)))
-    (zotero-browser--add ewoc node table)))
-
-(defun zotero-browser--collapse (ewoc node)
-  "Collapse the children of NODE in EWOC."
-  (let (parents nodes)
-    (while
-        (let* ((key (ewoc-data node))
-               (next-node (ewoc-next ewoc node))
-               (next-key (when next-node (ewoc-data next-node)))
-               (parent (zotero-browser--get-parent next-key)))
-          (when (equal parent key)
-            (push key parents))
-          (when (member parent parents)
-            (setq node next-node)
-            (push node nodes))))
-    (apply #'ewoc-delete ewoc nodes)))
+(defun zotero-browser-ensure-browser-buffer ()
+  (unless (or (eq major-mode 'zotero-browser-libraries-mode)
+              (eq major-mode 'zotero-browser-collections-mode)
+              (eq major-mode 'zotero-browser-items-mode))
+    (error "Current buffer is not a Zotero browser buffer")))
 
 (defun zotero-browser-edit ()
   "Edit current entry."
@@ -1045,12 +854,6 @@ With a `C-u' prefix, create a new top level attachment."
           (display-buffer (zotero-edit-create-attachment :type type :id id :parent parent :linkmode "imported_file" :content-type (plist-get attributes :contenttype) :filename (plist-get attributes :filename) :md5 (plist-get attributes :md5) :mtime (plist-get attributes :mtime) :accessdate (plist-get attributes :accessdate) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))
       (user-error "Library %s had no file access" id))))
 
-(defun zotero-browser-ensure-browser-buffer ()
-  (unless (or (eq major-mode 'zotero-browser-libraries-mode)
-              (eq major-mode 'zotero-browser-collections-mode)
-              (eq major-mode 'zotero-browser-items-mode))
-    (error "Current buffer is not a Zotero browser buffer")))
-
 (cl-defun zotero-browser-attachment (&key type id parent linkmode content-type charset filename accessdate)
   "Return an attachment object."
   ;; md5 and mtime can be edited directly in personal libraries for WebDAV-based
@@ -1143,6 +946,203 @@ With a `C-u' prefix, create a new top level attachment."
   (let ((url (zotero-lib-plist-get* object :object :data :url)))
     (browse-url url)))
 
+(defun zotero-browser--filter (pred table)
+  "Select elements from TABLE for which PRED returns non-`nil'.
+Return a list of the keys in TABLE. PRED is a function that takes
+a data element as its first argument."
+  (thread-last
+      table
+    (ht-select (lambda (key value)
+                 ;; keep the predicate nil-safe
+                 (ignore-error wrong-type-argument
+                   (funcall pred (zotero-lib-plist-get* value :object :data)))))))
+
+(defun zotero-browser--sort-by (function pred table)
+  "Sort TABLE using PRED as a comparison function.
+Return a list of the keys in TABLE. PRED is a function that takes
+two data elements as its arguments. Elements of TABLE are
+transformed by FUNCTION before being sorted. FUNCTION must be a
+function of one argument."
+  (thread-last
+      (ht->alist table)
+    (seq-sort-by (lambda (elt)
+                   (funcall function (zotero-lib-plist-get* (cdr elt) :object :data)))
+                 (lambda (a b)
+                   ;; keep the predicate nil-safe
+                   (ignore-error wrong-type-argument
+                     (funcall pred a b))))
+    (seq-map #'car)))
+
+(defun zotero-browser--some (pred table)
+  "Return non-nil if PRED is satisfied for at least one element of TABLE.
+PRED is a function that takes a data element as its first
+argument."
+  (if (ht-find (lambda (key value) (funcall pred (zotero-lib-plist-get* value :object :data))) table) t nil))
+
+(defun zotero-browser--library-pp (key)
+  "Pretty print KEY."
+  (let* ((table zotero-browser-table)
+         (value (ht-get table key))
+         (id (zotero-lib-plist-get* value :id))
+         (type (zotero-lib-plist-get* value :type))
+         (groups (ht-get zotero-cache "groups"))
+         (name (pcase type
+                 ("group" (zotero-lib-plist-get* (ht-get groups id) :data :name))
+                 ("user" "User library")))
+         (icon "treesource-library.png")
+         (dir (file-name-as-directory "img"))
+         (filename (expand-file-name (concat dir icon) zotero-browser-base)))
+    (when (file-readable-p filename)
+      (let ((image (create-image filename 'png)))
+        (insert-image image)
+        (insert " ")))
+    (insert name)))
+
+(defun zotero-browser--collection-pp (key)
+  "Pretty print KEY."
+  (let* ((table zotero-browser-table)
+         (value (ht-get table key))
+         (level (zotero-browser--level key))
+         (indentation (+ zotero-browser-padding level))
+         (prefix (make-string indentation ?\s))
+         (values (seq-map (lambda (key) (zotero-lib-plist-get* value :object :data key)) zotero-browser-collection-keys))
+         (text (string-join values " ")))
+    (add-text-properties 0 (length text) `(line-prefix ,prefix wrap-prefix ,prefix) text)
+    (insert text)))
+
+(defun zotero-browser--item-pp (key)
+  "Pretty print KEY."
+  (let* ((table zotero-browser-table)
+         (value (ht-get table key))
+         (itemtype (zotero-lib-plist-get* value :object :data :itemType))
+         (level (zotero-browser--level key))
+         (indentation (+ zotero-browser-padding level))
+         (prefix (make-string indentation ?\s)))
+    (let ((beg (point)))
+      (pcase itemtype
+        ("attachment"
+         (let* ((linkmode (zotero-lib-plist-get* value :object :data :linkMode))
+                (file (zotero-browser--attachment-icon linkmode)))
+           (when (file-readable-p file)
+             (let ((image (create-image file 'png)))
+               (insert-image image itemtype)
+               (insert " "))))
+         (when-let ((title (zotero-lib-plist-get* value :object :data :title)))
+           (insert title)))
+        ("note"
+         (let* ((itemtype (zotero-lib-plist-get* value :object :data :itemType))
+                (file (zotero-browser--itemtype-icon itemtype)))
+           (when file
+             (let ((image (create-image file 'png)))
+               (insert-image image itemtype)
+               (insert " "))))
+         (when-let ((note (zotero-lib-plist-get* value :object :data :note))
+                    (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
+                    (match (string-match "^.+$" text)) ; Match first non-empty line
+                    (first-line (match-string-no-properties 0 text)))
+           (insert first-line)))
+        (_
+         (dolist (key zotero-browser-item-keys)
+           (pcase key
+             ('key
+              (when-let ((key (zotero-lib-plist-get* value :object :data :key)))
+                (insert key)
+                (insert " ")))
+             ('version
+              (when-let ((version (number-to-string (zotero-lib-plist-get* value :object :data :version))))
+                (insert version)
+                (insert " ")))
+             ('itemtype
+              (let* ((itemtype (zotero-lib-plist-get* value :object :data :itemType))
+                     (file (zotero-browser--itemtype-icon itemtype)))
+                (when file
+                  (let ((image (create-image file 'png)))
+                    (insert-image image itemtype)
+                    (insert " ")))))
+             ('title
+              (when-let ((title (zotero-lib-plist-get* value :object :data :title)))
+                (insert title)
+                (insert " ")))
+             ('creators
+              (when-let ((creators (zotero-lib-plist-get* value :object :data :creators))
+                         (names (cond
+                                 ((seq-some (lambda (elt) (plist-get elt :lastName)) creators)
+                                  (seq-map (lambda (elt) (plist-get elt :lastName)) creators))
+                                 ((seq-some (lambda (elt) (plist-get elt :name)) creators)
+                                  (seq-map (lambda (elt) (plist-get elt :name)) creators)))))
+                (pcase (length names)
+                  (1 (insert (seq-elt names 0)))
+                  (2 (insert (concat (seq-elt names 0)
+                                     " and "
+                                     (seq-elt names 1))))
+                  ((pred (< 2))
+                   (let* ((selection (seq-take names 1)))
+                     (insert (concat (string-join selection ", ")
+                                     " et al.")))))
+                (insert " ")))
+             ('date
+              (when-let ((date (zotero-lib-plist-get* value :object :data :date)))
+                (insert date)
+                (insert " ")))
+             ('year
+              (when-let ((date (zotero-lib-plist-get* value :object :data :date))
+                         (match (string-match "[[:digit:]]\\{4\\}" date))
+                         (year (match-string 0 date)))
+                (insert year)
+                (insert " ")))
+             ('publisher
+              (when-let ((publisher (zotero-lib-plist-get* value :object :data :publisher)))
+                (insert publisher)
+                (insert " ")))
+             ('publication-title
+              (when-let ((publication-title (zotero-lib-plist-get* value :object :data :publicationTitle)))
+                (insert publication-title)
+                (insert " ")))
+             ('date-added
+              (when-let ((date-added (zotero-lib-plist-get* value :object :data :dateAdded)))
+                (insert date-added)
+                (insert " ")))
+             ('date-modified
+              (when-let ((date-modified (zotero-lib-plist-get* value :object :data :dateModified)))
+                (insert date-modified)
+                (insert " ")))
+             ('extra
+              (when-let ((extra (zotero-lib-plist-get* value :object :data :extra)))
+                (insert extra)
+                (insert " ")))
+             ('attachments
+              (when (zotero-browser--has-attachments-p value)
+                (let* ((icon "attach.png")
+                       (dir (file-name-as-directory "img"))
+                       (file (expand-file-name (concat dir icon) zotero-browser-base)))
+                  (when (file-readable-p file)
+                    (let ((image (create-image file 'png)))
+                      (insert-image image "attachments")
+                      (insert " "))))))
+             ('notes)))))
+      (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix)))))
+
+(defun zotero-browser--expand (ewoc node)
+  "Expand the children of NODE in EWOC."
+  (let* ((key (ewoc-data node))
+         (table (zotero-browser--children key)))
+    (zotero-browser--add ewoc node table)))
+
+(defun zotero-browser--collapse (ewoc node)
+  "Collapse the children of NODE in EWOC."
+  (let (parents nodes)
+    (while
+        (let* ((key (ewoc-data node))
+               (next-node (ewoc-next ewoc node))
+               (next-key (when next-node (ewoc-data next-node)))
+               (parent (zotero-browser--parent next-key)))
+          (when (equal parent key)
+            (push key parents))
+          (when (member parent parents)
+            (setq node next-node)
+            (push node nodes))))
+    (apply #'ewoc-delete ewoc nodes)))
+
 (defun zotero-browser--add (ewoc node table)
   "Add items of TABLE after NODE in ewoc"
   (let ((keys (pcase major-mode
@@ -1158,18 +1158,26 @@ With a `C-u' prefix, create a new top level attachment."
          (spacing (substring prefix 0 -1)))
     (put-text-property (point) (line-end-position) 'line-prefix (concat spacing string))))
 
-(defun zotero-browser--get-level (key)
+(defun zotero-browser--expanded-p (ewoc node)
+  "Return non-nil if NODE in EWOC is expanded."
+  (let* ((key (ewoc-data node))
+         (next-node (ewoc-next ewoc node))
+         (next-key (when next-node (ewoc-data next-node)))
+         (parent (zotero-browser--parent next-key)))
+    (equal parent key)))
+
+(defun zotero-browser--level (key)
   "Return the level of KEY."
   (let* ((table zotero-browser-table)
          (level 0))
     (while
-        (let ((parent (zotero-browser--get-parent key)))
+        (let ((parent (zotero-browser--parent key)))
           (setq level (1+ level))
           (unless (or (eq parent :json-false) (null parent))
             (setq key parent))))
     level))
 
-(defun zotero-browser--get-parent (key)
+(defun zotero-browser--parent (key)
   "Return the parent of KEY, or nil."
   (let* ((table zotero-browser-table)
          (value (ht-get table key)))
@@ -1179,19 +1187,19 @@ With a `C-u' prefix, create a new top level attachment."
       ('zotero-browser-items-mode
        (zotero-lib-plist-get* value :object :data :parentItem)))))
 
-(defun zotero-browser--get-children (key)
+(defun zotero-browser--children (key)
   "Return the children of KEY."
   (pcase major-mode
     ('zotero-browser-collections-mode
-     (zotero-browser--get-subcollections key))
+     (zotero-browser--subcollections key))
     ('zotero-browser-items-mode
-     (zotero-browser--get-subitems key))))
+     (zotero-browser--subitems key))))
 
-(defun zotero-browser--get-subitems (key)
+(defun zotero-browser--subitems (key)
   "Return the subcollections of KEY."
   (zotero-browser--filter (lambda (elt) (equal (plist-get elt :parentItem) key)) zotero-browser-table))
 
-(defun zotero-browser--get-subcollections (key)
+(defun zotero-browser--subcollections (key)
   "Return the subcollections of KEY."
   (zotero-browser--filter (lambda (elt) (equal (plist-get elt :parentCollection) key)) zotero-browser-table))
 
@@ -1226,14 +1234,6 @@ With a `C-u' prefix, create a new top level attachment."
                           (and (equal (plist-get elt :parentItem) key)
                                (equal (plist-get elt :itemType) "note")))
                         zotero-browser-table))
-
-(defun zotero-browser--expanded-p (ewoc node)
-  "Return non-nil if NODE in EWOC is expanded."
-  (let* ((key (ewoc-data node))
-         (next-node (ewoc-next ewoc node))
-         (next-key (when next-node (ewoc-data next-node)))
-         (parent (zotero-browser--get-parent next-key)))
-    (equal parent key)))
 
 (defun zotero-browser--itemtype-icon (itemtype)
   "Return the icon file for ITEMTYPE, or nil if none exists."
