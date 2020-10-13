@@ -833,19 +833,6 @@ If necessary, show a warning that the user no longer has sufficient access and o
                    (ht-set! libraries id value)))))
     cache))
 
-(cl-defun zotero-cache-sync-attachments (&key cache api-key)
-  "Sync the Zotero library."
-  (let ((libraries (ht-get cache "libraries")))
-    ;; Perform the following steps for each library:
-    (cl-loop for id being the hash-keys of libraries do
-             (let* ((value (ht-get libraries id))
-                    (type (plist-get value :type)))
-
-               (when zotero-cache-enable-storage
-                 (message "Syncing attachments to storage for %s %s..." type id)
-                 (zotero-cache--sync-attachments :cache cache :type type :id id :api-key api-key)
-                 (message "Syncing attachments to storage for %s %s...done" type id))))))
-
 (defun zotero-cache-sync (&optional retries)
   "Sync the Zotero library."
   (interactive)
@@ -911,6 +898,19 @@ If necessary, show a warning that the user no longer has sufficient access and o
     ;; TODO: check concurrent updates
     (when zotero-cache-enable-storage
       (zotero-cache-sync-attachments :cache cache :api-key api-key))))
+
+(cl-defun zotero-cache-sync-attachments (&key cache api-key)
+  "Sync the Zotero library."
+  (let ((libraries (ht-get cache "libraries")))
+    ;; Perform the following steps for each library:
+    (cl-loop for id being the hash-keys of libraries do
+             (let* ((value (ht-get libraries id))
+                    (type (plist-get value :type)))
+
+               (when zotero-cache-enable-storage
+                 (message "Syncing attachments to storage for %s %s..." type id)
+                 (zotero-cache--sync-attachments :cache cache :type type :id id :api-key api-key)
+                 (message "Syncing attachments to storage for %s %s...done" type id))))))
 
 (defun zotero-cache-item-template (itemtype)
   "Return the template for ITEMTYPE from CACHE.
