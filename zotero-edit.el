@@ -111,33 +111,6 @@ All currently available key bindings:
 (eval-when-compile
   (require 'wid-edit))
 
-(cl-defun zotero-edit-create-item (&key type id itemtype locale)
-  "Create a new item of ITEMTYPE."
-  (let ((template (zotero-cache-item-template itemtype)))
-    (zotero-edit-item :type type :id id :data template :locale locale)))
-
-(cl-defun zotero-edit-create-attachment (&key type id parent linkmode content-type charset filename md5 mtime accessdate locale)
-  "Create a new attachment of LINKTYPE."
-  (let* ((template (zotero-cache-attachment-template linkmode))
-         (new-template (copy-tree template)))
-    (when parent (plist-put new-template :parentItem parent))
-    (when content-type (plist-put new-template :contentType content-type))
-    (when charset (plist-put new-template :charset charset))
-    (when filename
-      (plist-put new-template :title filename)
-      (plist-put new-template :filename filename))
-    (when md5 (plist-put new-template :md5 md5))
-    (when mtime (plist-put new-template :mtime mtime))
-    (when accessdate (plist-put new-template :accessDate accessdate))
-    (zotero-edit-item :type type :id id :data new-template :locale locale)))
-
-(cl-defun zotero-edit-create-note (&key type id parent itemtype locale)
-  "Create a new note."
-  (let* ((template (zotero-cache-item-template "note"))
-         (new-template (copy-tree template)))
-    (when parent (plist-put new-template :parentItem parent))
-    (zotero-edit-item :type type :id id :data new-template :locale locale)))
-
 (cl-defun zotero-edit-item (&key type id data locale)
   "Create a new item buffer."
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
@@ -378,75 +351,6 @@ All currently available key bindings:
           (widget-setup))))
     buffer))
 
-(defun zotero-edit-reset ()
-  "Reset current item."
-  (interactive)
-  (let ((type zotero-edit-type)
-        (id zotero-edit-id)
-        (data zotero-edit-data)
-        (locale zotero-edit-locale))
-    (zotero-edit-item :type type :id id :data data :locale locale)))
-
-(defun zotero-edit-save ()
-  "Save current item."
-  (interactive)
-  (let ((type zotero-edit-type)
-        (id zotero-edit-id)
-        (data zotero-edit-data-copy)
-        (locale zotero-edit-locale))
-    (when-let ((saved-data (zotero-edit-save-item :type type :id id :data data)))
-      (zotero-edit-item :type type :id id :data saved-data :locale locale))))
-
-(cl-defun zotero-edit-save-item (&key type id data)
-  "Upload DATA and save to CACHE.
-Return the item data when successful, else `nil'."
-  (let* ((now (current-time))
-         ;; convert to ISO 8601 date format
-         (date (format-time-string "%FT%T%z" now))
-         (data (progn
-                 (unless (plist-member data :dateAdded)
-                   (plist-put data :dateAdded date))
-                 (plist-put data :dateModified date)))
-         (key (plist-get data :key))
-         (uploaded (zotero-edit-upload-item :type type :id id :data data))
-         object)
-    (cond
-     ;; If the object was successfully uploaded
-     (uploaded
-      (setq object uploaded))
-     ;; If the object was unchanged, it already should have a key
-     (key
-      (setq object (ht-get table key)))
-     ;; This shouldn't happen
-     (t (error "Unknown error")))
-    (if (zotero-cache-update-object object :type type :id id)
-        (zotero-lib-plist-get* object :object :data)
-      nil)))
-
-(cl-defun zotero-edit-upload-item (&key type id data)
-  "Upload DATA.
-Return the object if uploading was successful, or `nil' if failed."
-  (let* ((token (zotero-auth-token))
-         (api-key (zotero-auth-api-key token))
-         (status (zotero-lib-create-item data :type type :id id :api-key api-key))
-         (successful (plist-get status :successful))
-         (success (plist-get status :success))
-         (unchanged (plist-get status :unchanged))
-         (failed (plist-get status :failed)))
-    (cond
-     ((not (eq success :json-empty))
-      (plist-get successful :0))
-     ((not (eq failed :json-empty))
-      (let ((code (zotero-lib-plist-get* failed :0 :code))
-            (message (zotero-lib-plist-get* failed :0 :message)))
-        (error "Error code %d: %s" code message)))
-     ((not (eq unchanged :json-empty)) nil))))
-
-(cl-defun zotero-edit-create-collection (&key type id)
-  "Create a new collection."
-  (let ((template (zotero-lib-collection-template)))
-    (zotero-edit-collection :type type :id id :data template)))
-
 (cl-defun zotero-edit-collection (&key type id data)
   "Create a new collection."
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
@@ -524,6 +428,107 @@ Return the object if uploading was successful, or `nil' if failed."
         (use-local-map widget-keymap)
         (widget-setup)))
     buffer))
+
+(cl-defun zotero-edit-create-item (&key type id itemtype locale)
+  "Create a new item of ITEMTYPE."
+  (let ((template (zotero-cache-item-template itemtype)))
+    (zotero-edit-item :type type :id id :data template :locale locale)))
+
+(cl-defun zotero-edit-create-collection (&key type id)
+  "Create a new collection."
+  (let ((template (zotero-lib-collection-template)))
+    (zotero-edit-collection :type type :id id :data template)))
+
+(cl-defun zotero-edit-create-attachment (&key type id parent linkmode content-type charset filename md5 mtime accessdate locale)
+  "Create a new attachment of LINKTYPE."
+  (let* ((template (zotero-cache-attachment-template linkmode))
+         (new-template (copy-tree template)))
+    (when parent (plist-put new-template :parentItem parent))
+    (when content-type (plist-put new-template :contentType content-type))
+    (when charset (plist-put new-template :charset charset))
+    (when filename
+      (plist-put new-template :title filename)
+      (plist-put new-template :filename filename))
+    (when md5 (plist-put new-template :md5 md5))
+    (when mtime (plist-put new-template :mtime mtime))
+    (when accessdate (plist-put new-template :accessDate accessdate))
+    (zotero-edit-item :type type :id id :data new-template :locale locale)))
+
+(cl-defun zotero-edit-create-note (&key type id parent itemtype locale)
+  "Create a new note."
+  (let* ((template (zotero-cache-item-template "note"))
+         (new-template (copy-tree template)))
+    (when parent (plist-put new-template :parentItem parent))
+    (zotero-edit-item :type type :id id :data new-template :locale locale)))
+
+(defun zotero-edit-reset ()
+  "Reset current item."
+  (interactive)
+  (let ((type zotero-edit-type)
+        (id zotero-edit-id)
+        (data zotero-edit-data)
+        (locale zotero-edit-locale))
+    (message "Item reset.")
+    (zotero-edit-item :type type :id id :data data :locale locale)))
+
+(defun zotero-edit-save ()
+  "Save current item."
+  (interactive)
+  (let ((type zotero-edit-type)
+        (id zotero-edit-id)
+        (data zotero-edit-data-copy)
+        (locale zotero-edit-locale))
+    (when-let ((saved-data (zotero-edit-save-item :type type :id id :data data)))
+      (message "Item saved.")
+      (zotero-edit-item :type type :id id :data saved-data :locale locale))))
+
+(cl-defun zotero-edit-save-item (&key type id data)
+  "Upload DATA and save to CACHE.
+Return the item data when successful, else `nil'."
+  (let* ((now (current-time))
+         ;; convert to ISO 8601 date format
+         (date (format-time-string "%FT%T%z" now))
+         (data (progn
+                 (unless (plist-member data :dateAdded)
+                   (plist-put data :dateAdded date))
+                 (plist-put data :dateModified date)))
+         (key (plist-get data :key))
+         (uploaded (zotero-edit-upload-item :type type :id id :data data))
+         object)
+    (cond
+     ;; If the object was successfully uploaded
+     (uploaded
+      (message "Item successfully uploaded.")
+      (setq object uploaded))
+     ;; If the object was unchanged, it already should have a key
+     (key
+      (message "Item unchanged.")
+      (setq object (ht-get table key)))
+     ;; This shouldn't happen
+     (t (error "Unknown error")))
+    (if (zotero-cache-update-object object :type type :id id)
+        (zotero-lib-plist-get* object :object :data)
+      nil)))
+
+(cl-defun zotero-edit-upload-item (&key type id data)
+  "Upload DATA.
+Return the object if uploading was successful, or `nil' if failed."
+  (let* ((token (zotero-auth-token))
+         (api-key (zotero-auth-api-key token))
+         (status (zotero-lib-create-item data :type type :id id :api-key api-key))
+         (successful (plist-get status :successful))
+         (success (plist-get status :success))
+         (unchanged (plist-get status :unchanged))
+         (failed (plist-get status :failed)))
+    (cond
+     ((not (eq success :json-empty))
+      (plist-get successful :0))
+     ((not (eq failed :json-empty))
+      (let ((code (zotero-lib-plist-get* failed :0 :code))
+            (message (zotero-lib-plist-get* failed :0 :message)))
+        (error "Error code %d: %s" code message)))
+     ((not (eq unchanged :json-empty)) nil))))
+
 
 (define-minor-mode zotero-edit-text-mode
   "Minor mode for Zotero Edit buffers.
