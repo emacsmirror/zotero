@@ -355,6 +355,7 @@ All currently available key bindings:
 (defun zotero-browser-display ()
   "Display current library or collection."
   (interactive)
+  (zotero-browser-ensure-browser-buffer)
   (pcase major-mode
     ('zotero-browser-libraries-mode
      (let* ((node (ewoc-locate zotero-browser-ewoc))
@@ -394,6 +395,7 @@ All currently available key bindings:
 (defun zotero-browser-goto-next ()
   "Move point to the next item."
   (interactive)
+  (zotero-browser-ensure-browser-buffer)
   (let ((ewoc zotero-browser-ewoc))
     (when (ewoc-nth ewoc 0)
       (ewoc-goto-next ewoc 1)
@@ -402,6 +404,7 @@ All currently available key bindings:
 (defun zotero-browser-goto-prev ()
   "Move point to the previous item."
   (interactive)
+  (zotero-browser-ensure-browser-buffer)
   (let ((ewoc zotero-browser-ewoc))
     (when (ewoc-nth ewoc 0)
       (ewoc-goto-prev ewoc 1)
@@ -410,6 +413,7 @@ All currently available key bindings:
 (defun zotero-browser-next-collection ()
   "Move point to the next collection."
   (interactive)
+  (zotero-browser-ensure-browser-buffer)
   (let ((buffer (current-buffer)))
     (pop-to-buffer zotero-browser-collections-buffer-name)
     (zotero-browser-goto-next)
@@ -418,6 +422,7 @@ All currently available key bindings:
 (defun zotero-browser-prev-collection ()
   "Move point to the previous collection."
   (interactive)
+  (zotero-browser-ensure-browser-buffer)
   (let ((buffer (current-buffer)))
     (pop-to-buffer zotero-browser-collections-buffer-name)
     (zotero-browser-goto-prev)
@@ -426,6 +431,7 @@ All currently available key bindings:
 (defun zotero-browser-toggle ()
   "Expand or collapse the children of the current item."
   (interactive)
+  (zotero-browser-ensure-browser-buffer)
   (let* ((inhibit-read-only t)
          (ewoc zotero-browser-ewoc)
          (node (ewoc-locate ewoc))
@@ -441,6 +447,7 @@ All currently available key bindings:
 (defun zotero-browser-cycle ()
   "Cycle the visibility of children."
   (interactive)
+  (zotero-browser-ensure-browser-buffer)
   ;; Only cycle if the ewoc is not empty
   (when (ewoc-nth zotero-browser-ewoc 0)
     (cond
@@ -459,6 +466,7 @@ All currently available key bindings:
 (defun zotero-browser-expand-all ()
   "Expand all children."
   (interactive)
+  (zotero-browser-ensure-browser-buffer)
   (let ((ewoc zotero-browser-ewoc)
         (inhibit-read-only t))
     (save-excursion
@@ -476,6 +484,7 @@ All currently available key bindings:
 (defun zotero-browser-collapse-all ()
   "Collapse all children."
   (interactive)
+  (zotero-browser-ensure-browser-buffer)
   (let ((ewoc zotero-browser-ewoc)
         (inhibit-read-only t))
     (save-excursion
@@ -489,11 +498,12 @@ All currently available key bindings:
                   (ewoc-next ewoc node)
                 (ewoc-goto-next ewoc 1))))))))
 
-
-(defun zotero-browser-expand-level (num)
+(defun zotero-browser-expand-level (&optional num)
   "Expand children till LEVEL."
-  (interactive)
-  (let ((ewoc zotero-browser-ewoc)
+  (interactive "P")
+  (zotero-browser-ensure-browser-buffer)
+  (let ((num (or num 1))
+        (ewoc zotero-browser-ewoc)
         (inhibit-read-only t))
     (save-excursion
       (when-let ((node (ewoc-nth ewoc 0)))
@@ -923,6 +933,7 @@ If region is active, delete entries in active region instead."
 (defun zotero-browser-find-attachment ()
   "Return the path of attachment at point."
   (interactive)
+  (zotero-browser-ensure-browser-buffer)
   (when-let ((ewoc zotero-browser-ewoc)
              (key (ewoc-data (ewoc-locate ewoc)))
              (table zotero-browser-table)
@@ -943,6 +954,8 @@ If region is active, delete entries in active region instead."
 
 (defun zotero-browser-download-attachment (&optional dir)
   "Download the attachment at point."
+  (interactive)
+  (zotero-browser-ensure-browser-buffer)
   (let* ((ewoc zotero-browser-ewoc)
          (key (ewoc-data (ewoc-locate ewoc)))
          (table zotero-browser-table)
