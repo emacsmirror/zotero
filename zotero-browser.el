@@ -40,33 +40,36 @@
 
 ;;;; Variables
 
-;; (defcustom zotero-browser-collections-buffer-window-width 0.3
-;;   "- `nil' means to leave the width of the chosen window alone.
+(defvar zotero-browser-items-buffer-action
+  '((display-buffer-same-window) . ((window-width . 0.4)
+                                    (preserve-size . (t . nil)))))
 
-;;   - An integer specifies the desired total width of the chosen
-;;   window in columns.
+(defvar zotero-browser-libraries-buffer-action
+  '((display-buffer-reuse-window display-buffer-in-side-window) . ((side . left)
+                                                                   (slot . -1)
+                                                                   (window-width . 0.3)
+                                                                   (window-height . fit-window-to-buffer)
+                                                                   (preserve-size . (t . nil))
+                                                                   (reusable-frames . nil))))
 
-;;   - A floating-point number specifies the fraction of the chosen
-;;   window’s desired total width with respect to the total width
-;;   of the frame’s root window."
-;;   :group 'zotero-browser
-;;   :type '(choice (const :tag "Leave width alone" nil)
-;;                  (float :tag "Fraction of total width")
-;;                  (integer :tag "Width in columns")))
+(defvar zotero-browser-collections-buffer-action
+  '((display-buffer-reuse-window display-buffer-in-side-window) . ((side . left)
+                                                                   (slot . 0)
+                                                                   (window-width . 0.3)
+                                                                   (preserve-size . (t . nil))
+                                                                   (reusable-frames . nil))))
 
-;; (defcustom zotero-browser-show-buffer-window-width 0.3
-;;   "- `nil' means to leave the width of the chosen window alone.
+(defvar zotero-browser-edit-buffer-action
+  '((display-buffer-reuse-window display-buffer-in-side-window) . ((side . right)
+                                                                   (slot . 0)
+                                                                   (window-width . 0.3)
+                                                                   (preserve-size . (t . nil))
+                                                                   (reusable-frames . nil))))
 
-;;   - An integer specifies the desired total width of the chosen
-;;   window in columns.
+(defconst zotero-browser-base (file-name-directory load-file-name))
 
-;;   - A floating-point number specifies the fraction of the chosen
-;;   window’s desired total width with respect to the total width
-;;   of the frame’s root window."
-;;   :group 'zotero-browser
-;;   :type '(choice (const :tag "Leave width alone" nil)
-;;                  (float :tag "Fraction of total width")
-;;                  (integer :tag "Width in columns")))
+(defvar zotero-browser-padding 1
+  "Set the number of characters preceding each entry")
 
 (defvar zotero-browser-default-itemtypes nil
   "Default itemtypes when creating a new item.")
@@ -74,33 +77,16 @@
 (defvar zotero-browser-default-linkmodes nil
   "Default linkmodes when creating a new item.")
 
-(defvar zotero-browser-libraries-update-hook nil
-  "Hook run when the libraries list changes.")
-
-(defvar zotero-browser-collections-update-hook nil
-  "Hook run when the collections list changes.")
-
-(defvar zotero-browser-items-update-hook nil
-  "Hook run when the items list changes.")
-
-(defvar zotero-browser-items-buffer-action '((display-buffer-same-window) . ((window-width . 0.4)(preserve-size . (t . nil)))))
-
-(defvar zotero-browser-libraries-buffer-action '((display-buffer-reuse-window display-buffer-in-side-window) . ((side . left)(slot . -1)(window-width . 0.3)(window-height . fit-window-to-buffer)(preserve-size . (t . nil))(reusable-frames . nil))))
-
-(defvar zotero-browser-collections-buffer-action '((display-buffer-reuse-window display-buffer-in-side-window) . ((side . left)(slot . 0)(window-width . 0.3)(preserve-size . (t . nil))(reusable-frames . nil))))
-
-(defvar zotero-browser-show-buffer-action '((display-buffer-reuse-window display-buffer-in-side-window) . ((side . right)(slot . 0)(window-width . 0.3)(preserve-size . (t . nil))(reusable-frames . nil))))
-
-(defconst zotero-browser-base (file-name-directory load-file-name))
-
-(defvar zotero-browser-padding 1
-  "Set the number of characters preceding each entry")
-
 (defvar-local zotero-browser-ewoc nil)
+
 (defvar-local zotero-browser-type nil)
+
 (defvar-local zotero-browser-id nil)
+
 (defvar-local zotero-browser-collections nil)
+
 (defvar-local zotero-browser-table nil)
+
 (defvar-local zotero-browser-status nil)
 
 ;;;; Keymap
