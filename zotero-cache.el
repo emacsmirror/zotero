@@ -194,35 +194,35 @@ Two plists are considered mergable when the same keys don't have different value
           (plist-put plist1 key val))
         finally return plist1))
 
-(defun zotero-cache--read-access-p (plist)
+(defun zotero-cache-read-access-p (plist)
   "Return t if read access is permitted, else return nil.
 
 Argument PLIST is the permissions of the user or group library as
 returned by `zotero-lib-get-key'."
   (eq (plist-get plist :library) t))
 
-(defun zotero-cache--write-access-p (plist)
+(defun zotero-cache-write-access-p (plist)
   "Return t if write access is permitted, else return nil.
 
 Argument PLIST is the permissions of the user or group library as
 returned by `zotero-lib-get-key'."
   (eq (plist-get plist :write) t))
 
-(defun zotero-cache--read-only-p (plist)
+(defun zotero-cache-read-only-p (plist)
   "Return t if read only, else return nil.
 
 Argument PLIST is the permissions of the user or group library as
 returned by `zotero-lib-get-key'."
-  (and (zotero-cache--read-access-p plist) (not (zotero-cache--write-access-p plist))))
+  (and (zotero-cache-read-access-p plist) (not (zotero-cache-write-access-p plist))))
 
-(defun zotero-cache--note-access-p (plist)
+(defun zotero-cache-note-access-p (plist)
   "Return t if note access is permitted, else return nil.
 
 Argument PLIST is the permissions of the user or group library as
 returned by `zotero-lib-get-key'."
   (eq (plist-get plist :notes) t))
 
-(defun zotero-cache--file-access-p (plist)
+(defun zotero-cache-file-access-p (plist)
   "Return t if file access is permitted, else return nil.
 
 Argument PLIST is the permissions of the user or group library as
@@ -384,7 +384,7 @@ If necessary, show a warning that the user no longer has sufficient access and o
       ;; TODO: include note and file access of user library
       (pcase permissions
         ;; For each library without read access: offer to remove the library
-        ((guard (not (zotero-cache--read-access-p permissions)))
+        ((guard (not (zotero-cache-read-access-p permissions)))
          (if (y-or-n-p (format "User library %s has no read access. Remove from cache? " id))
              (progn
                (ht-remove! libraries id)
@@ -398,7 +398,7 @@ If necessary, show a warning that the user no longer has sufficient access and o
              (ht-set! libraries id `(:id ,id :type "user" :library :json-false :write :json-false)))
            (message "User library %s has no read access, so cannot be synced. " id)))
         ;; For each library without write access: offer to reset local changes
-        ((pred zotero-cache--read-only-p) ; read only
+        ((pred zotero-cache-read-only-p) ; read only
          (if (ht-contains? libraries id)
              (let ((value (ht-get libraries id)))
                (plist-put value :library t)
@@ -432,7 +432,7 @@ If necessary, show a warning that the user no longer has sufficient access and o
                               (ht-remove! table key))))
                  (message "All local deletions in user library %s are reset." id))))))
         ;; For each library with read and write access: continue to sync
-        ((and (pred zotero-cache--read-access-p) (pred zotero-cache--write-access-p)) ; read/write
+        ((and (pred zotero-cache-read-access-p) (pred zotero-cache-write-access-p)) ; read/write
          (if (ht-contains? libraries id)
              (let ((value (ht-get libraries id)))
                (plist-put value :library t)
@@ -447,7 +447,7 @@ If necessary, show a warning that the user no longer has sufficient access and o
                    ;; TODO: only write if changed
                    (pcase permissions
                      ;; For each library without read access: offer to remove the library
-                     ((guard (not (zotero-cache--read-access-p permissions))) ; none
+                     ((guard (not (zotero-cache-read-access-p permissions))) ; none
                       (if (y-or-n-p (format "Group %s has no read access. Remove from cache? " id))
                           (progn
                             (ht-remove! libraries id)
@@ -462,7 +462,7 @@ If necessary, show a warning that the user no longer has sufficient access and o
                           (ht-set! libraries id `(:id ,id :type "group" :library :json-false :write :json-false)))
                         (message "Group %s has no read access, so cannot be synced." id)))
                      ;; For each library without write access: offer to reset local changes
-                     ((pred zotero-cache--read-only-p) ; read only
+                     ((pred zotero-cache-read-only-p) ; read only
                       (if (ht-contains? libraries id)
                           (let ((value (ht-get libraries id)))
                             (plist-put value :library t)
@@ -496,7 +496,7 @@ If necessary, show a warning that the user no longer has sufficient access and o
                                            (ht-remove! table key))))
                               (message "All local deletions in group library %s are reset." id))))))
                      ;; For each library with read and write access: continue to sync
-                     ((and (pred zotero-cache--read-access-p) (pred zotero-cache--write-access-p)) ; read/write
+                     ((and (pred zotero-cache-read-access-p) (pred zotero-cache-write-access-p)) ; read/write
                       (if (ht-contains? libraries id)
                           (let ((value (ht-get libraries id)))
                             (plist-put value :library t)
@@ -802,7 +802,7 @@ If necessary, show a warning that the user no longer has sufficient access and o
       (cl-loop for id being the hash-keys of libraries do
                (let* ((value (ht-get libraries id))
                       (type (plist-get value :type))
-                      (read-only (zotero-cache--read-only-p value)))
+                      (read-only (zotero-cache-read-only-p value)))
 
                  (zotero-cache--maybe-initialize-library :cache cache :id id)
 

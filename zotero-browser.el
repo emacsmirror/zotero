@@ -384,7 +384,7 @@ All currently available key bindings:
             (id zotero-browser-id)
             (value (ht-get table key))
             (data (zotero-lib-plist-get* value :object :data)))
-       (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-show-buffer-action)))))
+       (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))))
 
 (defun zotero-browser-revert ()
   "Revert the buffer."
@@ -440,9 +440,9 @@ All currently available key bindings:
       (if (zotero-browser--expanded-p ewoc node)
           (progn
             (zotero-browser--prefix "▸" (ewoc-location node))
-            (zotero-browser-collapse ewoc node))
+            (zotero-browser--collapse ewoc node))
         (zotero-browser--prefix "▾" (ewoc-location node))
-        (zotero-browser-expand ewoc node)))))
+        (zotero-browser--expand ewoc node)))))
 
 (defun zotero-browser-cycle ()
   "Cycle the visibility of children."
@@ -475,7 +475,7 @@ All currently available key bindings:
         (while
             (let ((node (ewoc-locate ewoc)))
               (unless (zotero-browser--expanded-p ewoc node)
-                (zotero-browser-expand ewoc node))
+                (zotero-browser--expand ewoc node))
               (prog1
                   ;; End-test of while loop
                   (ewoc-next ewoc node)
@@ -493,7 +493,7 @@ All currently available key bindings:
         (while
             (let ((node (ewoc-locate ewoc)))
               (when (zotero-browser--expanded-p ewoc node)
-                (zotero-browser-collapse ewoc node))
+                (zotero-browser--collapse ewoc node))
               (prog1
                   (ewoc-next ewoc node)
                 (ewoc-goto-next ewoc 1))))))))
@@ -517,11 +517,11 @@ All currently available key bindings:
                  ((and (zotero-browser--expanded-p ewoc node)
                        (>= level num))
                   (zotero-browser--prefix "▸" (ewoc-location node))
-                  (zotero-browser-collapse ewoc node))
+                  (zotero-browser--collapse ewoc node))
                  ((and (not (zotero-browser--expanded-p ewoc node))
                        (or (< level num) (eq num 0)))
                   (zotero-browser--prefix "▾" (ewoc-location node))
-                  (zotero-browser-expand ewoc node))
+                  (zotero-browser--expand ewoc node))
                  (t
                   (zotero-browser--prefix "▸" (ewoc-location node)))))
               (prog1
