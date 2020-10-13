@@ -200,8 +200,8 @@ available at URL `https://github.com/zotero/cross-poppler'."
                         (zotero-fulltext--index-pandoc file mimetype))
                        ((equal contenttype "application/msword")
                         (zotero-fulltext--index-antiword file))))
-         (json (zotero-lib--encode-object object)))
-    (zotero-lib--submit :method PUT :resource 'item-fulltext :user user :group group :key key :data json :content-type "application/json" :expect "" :api-key api-key)))
+         (json (zotero-lib-encode-object object)))
+    (zotero-lib-submit :method PUT :resource 'item-fulltext :user user :group group :key key :data json :content-type "application/json" :expect "" :api-key api-key)))
 
 (provide 'zotero-fulltext)
 

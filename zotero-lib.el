@@ -110,7 +110,7 @@
       default-directory)
   "The directory from where this library was first loaded.")
 
-(defcustom zotero-lib-timeout 5
+(defcustom zotero-lib-timeout 30
   "Default timeout in seconds.
 `nil' means no timeout."
   :group 'zotero-lib
@@ -189,7 +189,7 @@ The number should be an integer between 1 and 100."
   :type 'boolean)
 
 (defcustom zotero-lib-locale "en-US"
-  "Bibliography locale.
+  "Locale used in translations.
 See the available CSL locales. Note that some styles use a fixed
 locale and cannot be localized."
   :group 'zotero-lib
@@ -437,7 +437,7 @@ OBJECT may be:
         data
       (zotero-lib--after-read-function))))
 
-(defun zotero-lib--encode-object (&rest objects)
+(defun zotero-lib-encode-object (objects)
   "Return a JSON array with OBJECTS.
 
 OBJECTS should be a list of objects, each of which may be:
@@ -724,6 +724,9 @@ response. If the response is paginated the data is concatenated."
     ;; maintain data consistency and then refrain from making further
     ;; requests for the number of seconds indicated. Backoff can be included
     ;; in any response, including successful ones.
+    ;; REVIEW: throw an error?
+    ;; (when-let ((error-thrown (plist-get response :error-thrown)))
+    ;;   (signal (car error-thrown) (cdr error-thrown)))
     (pcase (plist-get response :status-code)
       ;; OK
       (200
@@ -734,21 +737,7 @@ response. If the response is paginated the data is concatenated."
                     (handle (plist-put handle :url next-url)))
                (zotero-lib--dispatch handle total)
              (plist-put response :data total))
-         response)
-       ;; (pcase (plist-get response :content-type)
-       ;;   ("application/pdf"
-       ;;    response)
-       ;;   ((rx "application/json" (zero-or-more anything))
-       ;;    ;; When the total number of results matched by a read
-       ;;    ;; request is greater than the current limit, the API will
-       ;;    ;; include pagination links in the HTTP Link header.
-       ;;    (let* ((data (plist-get response :data))
-       ;;           (total (seq-concatenate 'vector total data)))
-       ;;      (if-let ((next-url (plist-get response :next-url))
-       ;;               (handle (plist-put handle :url next-url)))
-       ;;          (zotero-lib--dispatch handle total)
-       ;;        (plist-put response :data total)))))
-       )
+         response))
       ;; No Content
       (204
        response)
@@ -761,6 +750,7 @@ response. If the response is paginated the data is concatenated."
          (user-error message)))
       ;; Forbidden
       (403
+       ;; TODO: 403 Forbidden File editing is denied.
        (pcase (plist-get response :data)
          ("Invalid key"
           ;; Authorize and return a new handle, but no data
@@ -775,9 +765,14 @@ response. If the response is paginated the data is concatenated."
       ;; Not found
       (404
        (user-error "404 Not found"))
+      (409
+       (user-error "409 Conflict: The target library is locked."))
+      ;; 412 Precondition Failed 	The file has changed remotely since retrieval (i.e., the provided ETag no longer matches). Conflict resolution is left to the client.
       ;; Precondition failed
       (412
        response)
+      (413
+       (user-error "413 Request Entity Too Large: The upload would exceed the storage quota of the library owner."))
       ;; Precondition Required
       (428
        (user-error "428 Precondition Required: the \"If-Match\" or \"If-None-Match\" header was not provided."))
@@ -789,13 +784,14 @@ response. If the response is paginated the data is concatenated."
        ;; wait the number of seconds indicated in the header before
        ;; retrying the request.
        (let ((seconds (plist-get response :retry-after)))
+         (message "Too Many Requests: Trying again after %d seconds as specified in the Retry-After header." seconds)
          (sleep-for seconds)
          (zotero-lib--dispatch handle)))
       ;; Service unavailable
       (503
-       (user-error "Service Unavailable")))))
+       (user-error Service" Unavailable")))))
 
-(cl-defun zotero-lib--retrieve (&key url type id resource key api-key version last-modified-version locale if-match if-none-match itemtype linkmode format since itemkey collectionkey searchkey)
+(cl-defun zotero-lib-retrieve (&key url type id resource key api-key version last-modified-version locale if-match if-none-match itemtype linkmode format since itemkey collectionkey searchkey)
   "Return the last-modified-version and the data returned by the Zotero request.
 The result is a cons of (version . data).
 
@@ -813,7 +809,7 @@ libraries, the ID can be found by opening the group's page at
          (handle `(:url ,url :method "GET" :api-key ,api-key :api-version ,zotero-lib-api-version :collectionkey ,collectionkey :format ,format :if-modified-since-version ,version :itemkey ,itemkey :if-match ,if-match :if-none-match ,if-none-match :itemtype ,itemtype :last-modified-version ,last-modified-version :linkmode ,linkmode :locale ,locale :searchkey ,searchkey :since ,since)))
     (zotero-lib--dispatch handle)))
 
-(cl-defun zotero-lib--submit (&key method url type id resource key data api-key version content-type expect if-match if-none-match write-token)
+(cl-defun zotero-lib-submit (&key method url type id resource key data api-key version content-type expect if-match if-none-match write-token)
   "Return a plist with the response of the Zotero request.
 
 KEY is the item key, collection key, or search key. Which key is
@@ -852,7 +848,7 @@ be omitted."
       (let ((char (elt characters (random 36))))
         (setq token (concat token (string char)))))))
 
-(defun zotero-lib--file-attributes (file)
+(defun zotero-lib-file-attributes (file)
   "Get the file attributes."
   (when (file-readable-p file)
     (let* ((md5 (with-temp-buffer
@@ -867,18 +863,16 @@ be omitted."
                     (format-time-string "%s")
                     ;; convert to number
                     (string-to-number)
-                    ;; and multiply by 1000
+                    ;; multiply by 1000
                     (* 1000)))
-           (accessdate (thread-last
-                           (file-attribute-access-time attributes)
-                         ;; convert to ISO 8601 date format
-                         (format-time-string "%F")))
+           ;; convert to ISO 8601 date format
+           (accessdate (format-time-string "%FT%T%z" (file-attribute-access-time attributes)))
            ;; filename without its directory
            (filename (file-name-nondirectory file))
            ;; filesize in bytes
            (filesize (file-attribute-size attributes))
-           (contenttype (or (mailcap-file-name-to-mime-type filename) "application/octet-stream")))
-      `(:filename ,filename :filesize ,filesize :contenttype ,contenttype :md5 ,md5 :mtime ,mtime :accessdate ,accessdate))))
+           (content-type (or (mailcap-file-name-to-mime-type filename) "application/octet-stream")))
+      `(:filename ,filename :filesize ,filesize :content-type ,content-type :md5 ,md5 :mtime ,mtime :accessdate ,accessdate))))
 
 ;;;; Methods
 
@@ -888,7 +882,8 @@ be omitted."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "collections" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "collections" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-collections-top (&key type id api-key)
   "Top-level collections in the library.
@@ -896,7 +891,8 @@ be omitted."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "collections-top" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "collections-top" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-collection (&key type id key api-key)
   "A specific collection in the library.
@@ -904,7 +900,8 @@ be omitted."
   your personal library, and \"group\" for the group libraries.
   Keyword argument ID is the ID of the personal or group library
   you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "collection" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "collection" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-subcollections (&key type id key api-key)
   "Subcollections within a specific collection in the library.
@@ -912,7 +909,8 @@ be omitted."
   your personal library, and \"group\" for the group libraries.
   Keyword argument ID is the ID of the personal or group library
   you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "subcollections" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "subcollections" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 ;; FIXME: too slow
 (cl-defun zotero-lib-get-items (&key type id api-key)
@@ -921,7 +919,8 @@ be omitted."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "items" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "items" :api-key api-key)))
+    (plist-get response :data)))
 
 ;; FIXME: too slow
 (cl-defun zotero-lib-get-items-top (&key type id api-key)
@@ -930,7 +929,8 @@ be omitted."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "items-top" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "items-top" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-trash-items (&key type id api-key)
   "Items in the trash.
@@ -938,7 +938,8 @@ be omitted."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "trash-items" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "trash-items" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-item (&key type id key api-key)
   "A specific item in the library.
@@ -946,7 +947,8 @@ be omitted."
   your personal library, and \"group\" for the group libraries.
   Keyword argument ID is the ID of the personal or group library
   you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "item" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "item" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-item-children (&key type id key api-key)
   "Child items under a specific item.
@@ -954,7 +956,8 @@ be omitted."
   your personal library, and \"group\" for the group libraries.
   Keyword argument ID is the ID of the personal or group library
   you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "item-children" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "item-children" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-publication-items (&key type id api-key)
   "Items in My Publications.
@@ -962,7 +965,8 @@ be omitted."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "publication-items" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "publication-items" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-collection-items (&key type id key api-key)
   "Items within a specific collection in the library.
@@ -970,7 +974,8 @@ be omitted."
   your personal library, and \"group\" for the group libraries.
   Keyword argument ID is the ID of the personal or group library
   you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "collection-items" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "collection-items" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-collection-items-top (&key type id key api-key)
   "Top-level items within a specific collection in the library.
@@ -978,7 +983,8 @@ be omitted."
   your personal library, and \"group\" for the group libraries.
   Keyword argument ID is the ID of the personal or group library
   you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "collection-items-top" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "collection-items-top" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-searches (&key type id api-key)
   "All saved searches in the library.
@@ -988,7 +994,8 @@ be omitted."
   ID\" or \"group ID\".
 
   Note: Only search metadata is currently available, not search results."
-  (zotero-lib--retrieve :type type :id id :resource "searches" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "searches" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-search (&key type id key api-key)
   "A specific saved search in the library.
@@ -999,7 +1006,8 @@ be omitted."
   you want to access, e.g. the \"user ID\" or \"group ID\".
 
   Note: Only search metadata is currently available, not search results."
-  (zotero-lib--retrieve :type type :id id :resource "search" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "search" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 ;; FIXME: too slow
 (cl-defun zotero-lib-get-all-tags (&key type id api-key)
@@ -1009,7 +1017,8 @@ be omitted."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "tags" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "tags" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-tags (&key type id key api-key)
   "Tags of all types matching a specific name.
@@ -1018,7 +1027,8 @@ be omitted."
   your personal library, and \"group\" for the group libraries.
   Keyword argument ID is the ID of the personal or group library
   you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "tags" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "tags" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-item-tags (&key type id key api-key)
   "Tags associated with a specific item.
@@ -1027,7 +1037,8 @@ KEY is the item key. Keyword argument TYPE is \"user\" for your
 personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "item-tags" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "item-tags" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-collection-tags (&key type id key api-key)
   "Tags within a specific collection in the library.
@@ -1036,7 +1047,8 @@ KEY is the collection key. Keyword argument TYPE is \"user\" for
 your personal library, and \"group\" for the group libraries.
 Keyword argument ID is the ID of the personal or group library
 you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "collection-tags" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "collection-tags" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-items-tags (&key type id api-key)
   "All tags in the library, with the ability to filter based on the items.
@@ -1045,7 +1057,8 @@ Keyword argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID of
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "items-tags" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "items-tags" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-items-top-tags (&key type id api-key)
   "Tags assigned to top-level items.
@@ -1053,7 +1066,8 @@ ID\" or \"group ID\"."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "items-top-tags" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "items-top-tags" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-trash-items-tags (&key type id api-key)
   "Tags assigned to items in the trash.
@@ -1061,7 +1075,8 @@ ID\" or \"group ID\"."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "trash-items-tags" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "trash-items-tags" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-collection-items-tags (&key type id key api-key)
   "Tags assigned to items in a given collection.
@@ -1069,7 +1084,8 @@ ID\" or \"group ID\"."
   your personal library, and \"group\" for the group libraries.
   Keyword argument ID is the ID of the personal or group library
   you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "collection-items-tags" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "collection-items-tags" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-collection-items-top-tags (&key type id key api-key)
   "Tags assigned to top-level items in a given collection.
@@ -1077,7 +1093,8 @@ ID\" or \"group ID\"."
   your personal library, and \"group\" for the group libraries.
   Keyword argument ID is the ID of the personal or group library
   you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "collection-items-top-tags" :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "collection-items-top-tags" :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-publication-items-tags (&key type id api-key)
   "Tags assigned to items in My Publications.
@@ -1085,11 +1102,12 @@ ID\" or \"group ID\"."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :type type :id id :resource "publication-items-tags" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type type :id id :resource "publication-items-tags" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-key (&key api-key)
   "Return the user id and privileges of the API-KEY."
-  (let ((response (zotero-lib--retrieve :resource "keys" :key api-key)))
+  (let ((response (zotero-lib-retrieve :resource "keys" :key api-key)))
     (plist-get response :data)))
 
 (cl-defun zotero-lib-get-groups (&key id api-key)
@@ -1098,40 +1116,46 @@ Argument ID is the ID of the personal library, e.g. the \"user ID\". All
 groups are returned, including public groups the key owner
 belongs to even if the key doesn't have explicit permissions for
 them."
-  (zotero-lib--retrieve :id id :resource "groups" :api-key api-key))
+  (let ((response (zotero-lib-retrieve :id id :resource "groups" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-group (&key id api-key)
   "Retrieve the group metadata.
 Argument ID is the ID of the group library you want to access,
 e.g. the \"group ID\"."
-  (zotero-lib--retrieve :type "group" :id id :api-key api-key))
+  (let ((response (zotero-lib-retrieve :type "group" :id id :api-key api-key)))
+    (plist-get response :data)))
 
+;; REVIEW: version?
 (cl-defun zotero-lib-get-all-fulltext (&key type id api-key)
   "For each item with a full-text content VERSION greater than stored locally, get the item's full-text content.
   Keyword argument TYPE is \"user\" for your personal library, and
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (zotero-lib--retrieve :resource "all-fulltext" :type type :id id :api-key api-key))
+  (let ((response (zotero-lib-retrieve :resource "all-fulltext" :type type :id id :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-item-fulltext (&key type id key api-key)
-  "Getting an item's full-text content.
+  "Get an item's full-text content.
   KEY is the item key. Keyword argument TYPE is \"user\" for your
   personal library, and \"group\" for the group libraries. Keyword
   argument ID is the ID of the personal or group library you want
   to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :resource "item-fulltext" :type type :id id :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :resource "item-fulltext" :type type :id id :key key :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-get-file (&key type id key api-key)
-  "Return the raw content of a specific item in the library.
+  "Get the raw content of a specific item in the library.
   KEY is the item key. Keyword argument TYPE is \"user\" for your
   personal library, and \"group\" for the group libraries. Keyword
   argument ID is the ID of the personal or group library you want
   to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--retrieve :resource "file" :type type :id id :key key :api-key api-key))
+  (let ((response (zotero-lib-retrieve :resource "file" :type type :id id :key key :api-key api-key)))
+    (plist-get response :data)))
 
-(cl-defun zotero-lib-download-file (&key file dir type id key api-key)
-  "A convenient wrapper around `zotero-lib-file'.
+(cl-defun zotero-lib-download-file (&key file dir type id key api-key confirm)
+  "A convenient wrapper around `zotero-lib-get-file'.
   Write an attachment to disk using the optional DIR and FILE. DIR
   is directory to start with if FILE is relative
   (does not start with slash or tilde). If DIR is nil, the current
@@ -1139,27 +1163,27 @@ e.g. the \"group ID\"."
   supplied, a `zotero-lib-item' call is made to determine the
   attachment filename. If successful, the full path including the
   file name is returned."
-  (let* ((content (zotero-lib-file :type type :id id :key key :api-key api-key))
+  (let* ((response (zotero-lib-retrieve :resource "file" :type type :id id :key key :api-key api-key))
+         (data (plist-get response :data))
          (coding-system-for-write 'binary)
          (filename (or file
-                       (let ((object (zotero-lib-item :type type :id id :key key :api-key api-key)))
-                         (thread-first
-                             (plist-get object :data)
-                           (plist-get :filename)))))
-         (full-filename (expand-file-name filename dir))
-         (md5 (zotero-lib-attachment-md5 :type type :id id :key key :api-key api-key))
-         (attributes (zotero-lib--file-attributes full-filename)))
-    (write-region content nil full-filename nil nil nil t)
+                       (let ((item (zotero-lib-get-item :type type :id id :key key :api-key api-key)))
+                         (zotero-lib-plist-get* item :data :filename))))
+         (full-filename (expand-file-name filename dir)))
+    (write-region data nil full-filename nil nil nil confirm)
     ;; Check the ETag header of the response to make sure it matches
     ;; the attachment item's md5 value. If it doesn't, offer to
     ;; download the attachment item again.
-    (if (equal md5 (plist-get attributes :md5))
-        full-filename
-      (if (y-or-n-p (format "MD5 value doesn't match the response header. Retry? "))
-          (zotero-lib-download-file :file file :dir dir :type type :id id :key key :api-key api-key)
-        (warn "Item has the wrong hash. The latest version of the
-  file may be available only via WebDAV, not via Zotero
-  File Storage.")))))
+    (let* ((attributes (zotero-lib-file-attributes full-filename))
+           (etag (plist-get response :etag))
+           (md5 (substring etag 1 -1)))
+      (if (equal md5 (plist-get attributes :md5))
+          full-filename
+        (if (y-or-n-p (format "MD5 value doesn't match the response header. Retry? "))
+            (zotero-lib-download-file :file file :dir dir :type type :id id :key key :api-key api-key)
+          (warn "Item has the wrong hash. The latest version of
+  the file may be available only via WebDAV, not via Zotero File
+  Storage."))))))
 
 (cl-defun zotero-lib-attachment-attributes (&key type id key api-key)
   "Get the attachment attributes."
@@ -1167,56 +1191,52 @@ e.g. the \"group ID\"."
          (data (plist-get item :data)))
     `(:filename ,(plist-get data :filename) :contenttype ,(plist-get data :contentType) :md5 ,(plist-get data :md5) :mtime ,(plist-get data :mtime))))
 
-;; TODO: should this be merged with one of the attachment functions above?
-(cl-defun zotero-lib-attachment-md5 (&key type id key api-key)
-  (let* ((url (zotero-lib--endpoint :resource "file" :key key :type type :id id))
-         (handle `(:url ,url :method "HEAD" :api-version ,zotero-lib-api-version :api-key ,api-key))
-         (response (zotero-lib--request handle))
-         (etag (plist-get response :etag)))
-    etag))
-
 ;;;; Item Type/Field Requests
 
 (cl-defun zotero-lib-itemtypes (&key locale since)
-  "Return all item types."
+  "Get all item types."
   (let* ((url (concat zotero-lib-base-url "/itemTypes"))
-         (response (zotero-lib--retrieve :url url :locale (or locale zotero-lib-locale) :since since)))
+         (response (zotero-lib-retrieve :url url :locale (or locale zotero-lib-locale) :since since)))
     (plist-get response :data)))
 
 (cl-defun zotero-lib-itemfields (&key locale since)
   "Get all item fields."
   (let* ((url (concat zotero-lib-base-url "/itemFields"))
-         (response (zotero-lib--retrieve :url url :locale (or locale zotero-lib-locale) :since since)))
+         (response (zotero-lib-retrieve :url url :locale (or locale zotero-lib-locale) :since since)))
     (plist-get response :data)))
 
 (cl-defun zotero-lib-itemtypefields (&key itemtype locale since)
   "Get all valid fields for an item type."
   (let* ((url (concat zotero-lib-base-url "/itemTypeFields"))
-         (response (zotero-lib--retrieve :url url :itemtype itemtype :locale (or locale zotero-lib-locale) :since since)))
+         (response (zotero-lib-retrieve :url url :itemtype itemtype :locale (or locale zotero-lib-locale) :since since)))
     (plist-get response :data)))
 
 (cl-defun zotero-lib-itemtypecreatortypes (&key itemtype locale since)
-  "Get valid creator types for an item type."
+  "Get the valid creator types for an item type."
   (let* ((url (concat zotero-lib-base-url "/itemTypeCreatorTypes"))
-         (response (zotero-lib--retrieve :url url :itemtype itemtype :locale (or locale zotero-lib-locale) :since since)))
+         (response (zotero-lib-retrieve :url url :itemtype itemtype :locale (or locale zotero-lib-locale) :since since)))
     (plist-get response :data)))
 
 (cl-defun zotero-lib-creatorfields (&key locale since)
-  "Get localized creator fields."
+  "Get the localized creator fields."
   (let* ((url (concat zotero-lib-base-url "/creatorFields"))
-         (response (zotero-lib--retrieve :url url :locale (or locale zotero-lib-locale) :since since)))
+         (response (zotero-lib-retrieve :url url :locale (or locale zotero-lib-locale) :since since)))
     (plist-get response :data)))
 
 (defun zotero-lib-attachment-linkmodes ()
-  "Get linkmode types."
+  "Return the linkmode types."
   '("imported_file" "imported_url" "linked_file" "linked_url"))
 
 ;;;; Template Requests
 
+(defun zotero-lib-collection-template ()
+  "Return the template for a new collections."
+  '(:name "" :parentCollection :json-false :relations :json-empty))
+
 (defun zotero-lib-item-template (itemtype)
-  "Get a template for a new item."
+  "Get the template for a new item of ITEMTYPE."
   (let* ((url (concat zotero-lib-base-url "/items/new"))
-         (response (zotero-lib--retrieve :url url :itemtype itemtype)))
+         (response (zotero-lib-retrieve :url url :itemtype itemtype)))
     (plist-get response :data)))
 
 (defun zotero-lib-attachment-template (linkmode)
@@ -1227,7 +1247,7 @@ e.g. the \"group ID\"."
   \"linked_file\", or
   \"linked_url\"."
   (let* ((url (concat zotero-lib-base-url "/items/new"))
-         (response (zotero-lib--retrieve :url url :itemtype "attachment" :linkmode linkmode)))
+         (response (zotero-lib-retrieve :url url :itemtype "attachment" :linkmode linkmode)))
     (plist-get response :data)))
 
 ;;;; Write Requests
@@ -1246,9 +1266,10 @@ e.g. the \"group ID\"."
   \"group\" for the group libraries. Keyword argument ID is the ID of
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
-  (let ((write-token (zotero-lib--write-token))
-        (json (zotero-lib--encode-object object)))
-    (zotero-lib--submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :write-token write-token :api-key api-key  :expect "")))
+  (let* ((write-token (zotero-lib--write-token))
+         (json (zotero-lib-encode-object (list object)))
+         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :write-token write-token :api-key api-key  :expect "")))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-create-items (&rest objects &key type id api-key)
   "Create multiple items.
@@ -1272,8 +1293,8 @@ e.g. the \"group ID\"."
   ;; result in a 417 Expectation Failed response. Setting "Expect: "
   ;; explicitly disables this automatic behaviour.
   (let ((write-token (zotero-lib--write-token))
-        (json (zotero-lib--encode-object objects)))
-    (zotero-lib--submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :write-token write-token :api-key api-key :expect "")))
+        (json (zotero-lib-encode-object objects)))
+    (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :write-token write-token :api-key api-key :expect "")))
 
 (cl-defun zotero-lib-update-item (object &key type id key version api-key)
   "Update an existing item in the library.
@@ -1312,8 +1333,8 @@ KEY is the item key. Keyword argument LIBRARY is user' for your
 personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
-  (let ((json (zotero-lib--encode-object object)))
-    (zotero-lib--submit :method "PUT" :resource "item" :type type :id id :key key :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+  (let ((json (zotero-lib-encode-object object)))
+    (zotero-lib-submit :method "PUT" :resource "item" :type type :id id :key key :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
 
 (cl-defun zotero-lib-update-items (&rest data &key type id version api-key)
   "Update existing items in the library.
@@ -1352,8 +1373,8 @@ Keyword argument LIBRARY is user' for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID of
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
-  (let ((json (zotero-lib--encode-object data)))
-    (zotero-lib--submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+  (let ((json (zotero-lib-encode-object data)))
+    (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
 
 (cl-defun zotero-lib-delete-item (&key type id key version api-key)
   "Delete an item.
@@ -1363,7 +1384,7 @@ Keyword argument LIBRARY is user' for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID of
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
-  (zotero-lib--submit :method "DELETE" :resource "item" :type type :id id :key key :version version :api-key api-key))
+  (zotero-lib-submit :method "DELETE" :resource "item" :type type :id id :key key :version version :api-key api-key))
 
 (cl-defun zotero-lib-delete-items (&rest keys &key type id version api-key)
   "Delete multiple items.
@@ -1382,7 +1403,7 @@ ID\" or \"group ID\"."
     (user-error "Up to 50 items can be deleted in a single request."))
    (t
     (let* ((items (s-join "," keys)))
-      (zotero-lib--submit :method "DELETE" :resource "items" :type type :id id :itemkey items :version version :api-key api-key)))))
+      (zotero-lib-submit :method "DELETE" :resource "items" :type type :id id :itemkey items :version version :api-key api-key)))))
 
 (cl-defun zotero-lib-create-collection (object &key type id version api-key)
   "Create a collection.
@@ -1392,8 +1413,8 @@ last-known library version. Keyword argument LIBRARY is user'
 for your personal library, and \"group\" for the group libraries.
 Keyword argument ID is the ID of the personal or group library
 you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (let ((json (zotero-lib--encode-object object)))
-    (zotero-lib--submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+  (let ((json (zotero-lib-encode-object object)))
+    (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
 
 (cl-defun zotero-lib-update-collection (object &key type id key version api-key)
   "Update an existing collection.
@@ -1415,8 +1436,8 @@ KEY is the collection key. Keyword argument LIBRARY is user' for your
 personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
-  (let ((json (zotero-lib--encode-object object)))
-    (zotero-lib--submit :method "PUT" :resource "collection" :type type :id id :key key :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+  (let ((json (zotero-lib-encode-object object)))
+    (zotero-lib-submit :method "PUT" :resource "collection" :type type :id id :key key :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
 
 (cl-defun zotero-lib-update-collections (&rest data &key type id version api-key)
   "Update existing collections in the library.
@@ -1429,8 +1450,8 @@ Keyword argument LIBRARY is user' for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID of
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
-  (let ((json (zotero-lib--encode-object data)))
-    (zotero-lib--submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+  (let ((json (zotero-lib-encode-object data)))
+    (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
 
 (cl-defun zotero-lib-delete-collection (&key type id key version api-key)
   "Delete a collection.
@@ -1440,7 +1461,7 @@ version number. Keyword argument LIBRARY is user' for your
 personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib--submit :method "DELETE" :resource "collection" :type type :id id :key key :version version :api-key api-key))
+  (zotero-lib-submit :method "DELETE" :resource "collection" :type type :id id :key key :version version :api-key api-key))
 
 (cl-defun zotero-lib-delete-collections (&rest keys &key type id version api-key)
   "Delete multiple collections.
@@ -1459,7 +1480,7 @@ or group library you want to access, e.g. the \"user ID\" or
     (user-error "Up to 50 collections can be deleted in a single request."))
    (t
     (let* ((collections (s-join "," keys)))
-      (zotero-lib--submit :method "DELETE" :resource "collections" :type type :id id :collectionkey collections :version version :api-key api-key)))))
+      (zotero-lib-submit :method "DELETE" :resource "collections" :type type :id id :collectionkey collections :version version :api-key api-key)))))
 
 (cl-defun zotero-lib-create-search (object &key type id api-key)
   "Create a saved search.
@@ -1468,8 +1489,8 @@ user' for your personal library, and \"group\" for the group
 libraries. Keyword argument ID is the ID of the personal or
 group library you want to access, e.g. the \"user ID\" or \"group
 ID\"."
-  (let ((json (zotero-lib--encode-object object)))
-    (zotero-lib--submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json"  :expect "" :api-key api-key)))
+  (let ((json (zotero-lib-encode-object object)))
+    (zotero-lib-submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json"  :expect "" :api-key api-key)))
 
 (cl-defun zotero-lib-update-searches (&rest data &key type id version api-key)
   "Update existing searches in the library.
@@ -1482,8 +1503,8 @@ Keyword argument LIBRARY is user' for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID of
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
-  (let ((json (zotero-lib--encode-object data)))
-    (zotero-lib--submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json" :expect "" :api-key api-key)))
+  (let ((json (zotero-lib-encode-object data)))
+    (zotero-lib-submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json" :expect "" :api-key api-key)))
 
 (cl-defun zotero-lib-delete-searches (&rest keys &key type id version api-key)
   "Delete multiple searches.
@@ -1499,7 +1520,7 @@ e.g. the \"user ID\" or \"group ID\"."
     (user-error "Up to 50 searches can be deleted in a single request."))
    (t
     (let ((searches (s-join "," keys)))
-      (zotero-lib--submit :method "DELETE" :resource "searches" :type type :id id :searchkey searches :version version :api-key api-key)))))
+      (zotero-lib-submit :method "DELETE" :resource "searches" :type type :id id :searchkey searches :version version :api-key api-key)))))
 
 (cl-defun zotero-lib-delete-tags (&rest tags &key type id version api-key)
   "Delete multiple tags.
@@ -1516,11 +1537,26 @@ e.g. the \"user ID\" or \"group ID\"."
    (t
     (let* ((url-encoded-tags (mapcar #'url-hexify-string tags))
            (value (s-join "||" url-encoded-tags)))
-      (zotero-lib--submit :method "DELETE" :resource "tags" :type type :id id :tag value :version version :api-key api-key)))))
+      (zotero-lib-submit :method "DELETE" :resource "tags" :type type :id id :tag value :version version :api-key api-key)))))
 
 (cl-defun zotero-lib-delete-key (&key api-key)
   "Delete the API key."
-  (zotero-lib--submit :method "DELETE" :resource "keys" :key api-key))
+  (zotero-lib-submit :method "DELETE" :resource "keys" :key api-key))
+
+(cl-defun zotero-lib-set-item-fulltext (object &key type id key)
+  "Set an item's full-text content.
+
+OBJECT should be a a plist containing three props:
+- `:content': the full-text content, and either
+- `:indexedChars' and `:totalChars' for text documents, or
+- `:indexedPages' and `:totalPages' for PDFs.
+
+KEY is the item key. Keyword argument TYPE is \"user\" for your
+personal library, and \"group\" for the group libraries. Keyword
+argument ID is the ID of the personal or group library you want
+to access, e.g. the \"user ID\" or \"group ID\"."
+  (let ((json (zotero-lib-encode-object object)))
+    (zotero-lib-submit :method PUT :resource "item-fulltext" :type type :id id :key key :data json :api-key api-key)))
 
 ;;;; File Uploads
 
@@ -1561,8 +1597,8 @@ allowed as top-level items, as in the Zotero client."
   ;; an empty string explicitly disables this
   ;; automatic behaviour.
   (let ((write-token (zotero-lib--write-token))
-        (json (zotero-lib--encode-object object)))
-    (zotero-lib--submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :api-key api-key)))
+        (json (zotero-lib-encode-object object)))
+    (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :api-key api-key)))
 
 ;; TODO: test
 (cl-defun zotero-lib-update-attachment (object &key md5 user group api-key)
@@ -1575,8 +1611,8 @@ setting the properties along with the corresponding file.
 Argument `:md5' is the previous MD5 hash of the file
 (as provided in the ETag header when downloading it)."
   (let ((write-token (zotero-lib--write-token))
-        (json (zotero-lib--encode-object object)))
-    (zotero-lib--submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :if-match md5 :api-key api-key)))
+        (json (zotero-lib-encode-object object)))
+    (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :if-match md5 :api-key api-key)))
 
 ;;;;; 1b) Modify an existing attachment
 ;; https://www.zotero.org/support/dev/web_api/v3/file_upload#b_modify_an_existing_attachment
@@ -1608,32 +1644,20 @@ Argument `:md5' is the previous MD5 hash of the file
 ;;;;; 2) Get upload authorization
 ;; https://www.zotero.org/support/dev/web_api/v3/file_upload#get_upload_authorization
 
-(cl-defun zotero-lib-set-item-fulltext (object &key type id key)
-  "Set an item's full-text content.
-
-OBJECT should be a a plist containing three props:
-- `:content': the full-text content, and either
-- `:indexedChars' and `:totalChars' for text documents, or
-- `:indexedPages' and `:totalPages' for PDFs.
-
-KEY is the item key. Keyword argument TYPE is \"user\" for your
-personal library, and \"group\" for the group libraries. Keyword
-argument ID is the ID of the personal or group library you want
-to access, e.g. the \"user ID\" or \"group ID\"."
-  (let ((json (zotero-lib--encode-object object)))
-    (zotero-lib--submit :method PUT :resource "item-fulltext" :type type :id id :key key :data json :api-key api-key)))
-
-(cl-defun zotero-lib-authorize-upload (&key type id key api-key filename filesize md5 mtime etag)
+(cl-defun zotero-lib-authorize-upload (&key type id key filename filesize md5 mtime hash api-key)
   "Get upload authorisation for a file.
 
 For existing attachments, use If-Match: <hash> in place of
 If-None-Match: *, where <hash> is the previous MD5 hash of the
 file (as provided in the ETag header when downloading it)."
-  (let ((data (url-build-query-string `(("filename" ,filename)
-                                        ("filesize" ,filesize)
-                                        ("md5" ,md5)
-                                        ("mtime" ,mtime)))))
-    (apply #'zotero-lib--submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key (if hash `(:if-match ,hash) '(:if-none-match "*")))))
+  (let* ((data (url-build-query-string `(("filename" ,filename)
+                                         ("filesize" ,filesize)
+                                         ("md5" ,md5)
+                                         ("mtime" ,mtime))))
+         (response (if hash
+                       (zotero-lib-submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key :if-match hash)
+                     (zotero-lib-submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key :if-none-match "*"))))
+    (plist-get response :data)))
 
 ;; A successful 200 response returns one of two possible JSON objects:
 
@@ -1666,13 +1690,13 @@ file (as provided in the ETag header when downloading it)."
 ;; to retrieve the individual parameters in a params array, which will
 ;; replace contentType, prefix, and suffix.
 
-(defun zotero-lib-upload-file (file url contenttype prefix suffix)
+(defun zotero-lib-upload-file (file url content-type prefix suffix)
   "Upload file."
   (let ((content (with-temp-buffer
                    (insert-file-contents-literally file)
                    (buffer-string))))
     (request url
-      :headers `(("Content-Type" . ,contenttype))
+      :headers `(("Content-Type" . ,content-type))
       :data (concat prefix content suffix)
       :parser #'buffer-string
       :sync t)))
@@ -1682,11 +1706,14 @@ file (as provided in the ETag header when downloading it)."
 
 (cl-defun zotero-lib-register-upload (&key type id key uploadkey hash api-key)
   "Register upload."
-  (let ((data (url-build-query-string `(("upload" ,uploadkey)))))
-    ;; For existing attachments, use If-Match: <hash>, where <hash> is
-    ;; the previous MD5 hash of the file, provided as the md5 property
-    ;; in the attachment item.
-    (apply #'zotero-lib--submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded"  :api-key api-key (if hash `(:if-match ,hash) '(:if-none-match "*")))))
+  (let* ((data (url-build-query-string `(("upload" ,uploadkey))))
+         ;; For existing attachments, use If-Match: <hash>, where <hash> is
+         ;; the previous MD5 hash of the file, provided as the md5 property
+         ;; in the attachment item.
+         (response (if hash
+                       (zotero-lib-submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key :if-match hash)
+                     (zotero-lib-submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key :if-none-match "*"))))
+    (plist-get response :data)))
 
 ;; After the upload has been registered, the attachment item will reflect the new metadata.
 ;; 3b) Partial upload
@@ -1695,7 +1722,7 @@ file (as provided in the ETag header when downloading it)."
 ;; TODO: is this one necessary?
 (cl-defun zotero-lib-add-attachment (&key file linkmode parent user group)
   "A convenient wrapper."
-  (let* ((attributes (zotero-lib--file-attributes file))
+  (let* ((attributes (zotero-lib-file-attributes file))
          (filename (plist-get attributes :filename))
          (contenttype (plist-get attributes :contenttype))
          (accessdate (plist-get attributes :accessdate))
@@ -1712,7 +1739,7 @@ file (as provided in the ETag header when downloading it)."
 (cl-defun zotero-lib-upload-attachment (&key file user group key hash api-key)
   "A convenient wrapper to authorize, upload and register an attachment."
   (message "Authorize upload...")
-  (let* ((attributes (zotero-lib--file-attributes file))
+  (let* ((attributes (zotero-lib-file-attributes file))
          (filename (plist-get attributes :filename))
          (filesize (plist-get attributes :filesize))
          (md5 (plist-get attributes :md5))

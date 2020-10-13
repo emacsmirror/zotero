@@ -33,7 +33,7 @@ algorithms and known metadata from CrossRef. The Zotero lookup
 service doesn't require a Zotero account, and data about the
 content or results of searches are not logged."
   (let ((url (concat zotero-recognize-base-url "/recognize")))
-    (zotero-lib--submit :method "POST" :url url :data json :content-type "application/json" :expect "")))
+    (zotero-lib-submit :method "POST" :url url :data json :content-type "application/json" :expect "")))
 
 (defun zotero-recognize (file)
   "Return metadata recognized from PDF FILE.
@@ -54,8 +54,8 @@ by `zotero-recognize'. METADATA-ITEM is the attachment
 item metadata. Optional argument DESCRIPTION is a
 string for the report."
   (let ((url (concat zotero-recognize-base-url "/report"))
-        (json (zotero-lib--encode-object `(,description ,zotero-lib-api-version ,metadata-pdf ,metadata-item))))
-    (zotero-lib--submit :method "POST" :url url :data json :content-type "application/json" :expect "")))
+        (json (zotero-lib-encode-object `(,description ,zotero-lib-api-version ,metadata-pdf ,metadata-item))))
+    (zotero-lib-submit :method "POST" :url url :data json :content-type "application/json" :expect "")))
 
 (provide 'zotero-recognize)
 

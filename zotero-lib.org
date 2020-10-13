@@ -1,0 +1,155 @@
+* Create request
+** Create URL
+
+*** GET
+**** Cache enabled?
+***** Multi-object read request?
+      - Conditional GET request: pass "If-Modified-Since-Version"
+**** Cache-time enabled
+     - TODO
+**** Request headers
+***** Zotero-API-Version
+- Zotero-API-Version: 3
+***** Authorization
+- Authorization: Bearer <api-key>
+***** If-Modified-Since-Version
+- If-Modified-Since-Version: <libraryVersion>
+**** Status code
+***** 1xx informational response – the request was received, continuing process
+***** 2xx successful – the request was successfully received, understood, and accepted
+****** 200 OK (Successful GET request)
+******* Pagination
+        - No:
+          + Parse json
+          + return response
+        - Yes:
+          + Parse json
+          + Concat batches
+***** 3xx redirection – further action needs to be taken in order to complete the request
+****** 304 Not Modified (Conditional GET request)
+       - Retrieve response from cache
+***** 4xx client error – the request contains bad syntax or cannot be fulfilled
+****** 403 Forbidden
+       Authentication errors (e.g., invalid API key or insufficient privileges)
+       - Reauthenticate
+       - Modify privileges
+****** 412 Precondition Failed or 428 Precondition Required
+       Library/object versioning
+****** 429 Too Many Requests
+******* no-retry?
+ - Yes: return response
+ - No:
+   + Check "Retry-After" header
+   + Retry the request after the number of seconds indicated in the header
+
+****** Other errors
+       - Return status code and data as string
+***** 5xx server error
+****** 503 Service Unavailable
+- Server is undergoing maintenance
+******* no-retry?
+ - Yes: return response
+ - No:
+   + Check "Retry-After" header
+   + Retry the request after the number of seconds indicated in the header
+
+**** Response headers
+***** Total-Results
+- The total number of results matched by the request. The actual number of results provided in a given response will be no more than 100.
+***** Link
+- When the total number of results matched by a read request is greater than the current limit, the API will include pagination links in the HTTP Link header. Possible values are rel=first, rel=prev, rel=next, and rel=last. For some requests, the header may also include a rel=alternate link for the relevant page on the Zotero website.
+***** Last-Modified-Version
+ - The item's current version number is included in the version JSON property, as well as in the Last-Modified-Version header of single-item requests.
+***** Backoff: <seconds>
+API server is overloaded. The client should perform the minimum number of requests necessary to maintain data consistency and then refrain from making further requests for the number of seconds indicated. Backoff can be included in any response, including successful ones.
+
+
+*** POST
+**** Status codes
+***** 200 OK
+ - The request completed. See the response JSON for status of
+   individual writes. The keys of the successful, unchanged, and
+   failed objects are the numeric indexes of the Zotero objects in the
+   uploaded array. The Last-Modified-Version is the version that has
+   been assigned to any Zotero objects in the successful object — that
+   is, objects that were modified in this request.
+
+ {
+   "success": {
+     "0": "<itemKey>"
+   },
+   "unchanged": {},
+   "failed": {},
+   }
+ }
+
+{
+  "successful": {
+    "0": "<saved object>",
+    "2": "<saved object>"
+  },
+  "unchanged": {
+    "4": "<objectKey>"
+  }
+  "failed": {
+    "1": {
+      "key": "<objectKey>",
+      "code": <HTTP response code>,
+      "message": "<error message>"
+    },
+    "3": {
+      "key": "<objectKey>",
+      "code": <HTTP response code>,
+      "message": "<error message>"
+    },
+  }
+}
+***** 400 Bad Request
+ - Invalid type/field; unparseable JSON
+***** 409 Conflict
+ - The target library is locked.
+***** 412 Precondition Failed
+- The version provided in If-Unmodified-Since-Version is out of date, or the provided Zotero-Write-Token has already been submitted.
+***** 413 Request Entity Too Large
+ - Too many items submitted
+
+**** Headers
+***** Last-Modified-Version: <version>
+
+*** PUT
+**** Version
+- The item's current version number is included in the version JSON property, as well as in the Last-Modified-Version header of single-item requests.
+- Include the item's current version number in either the version property or the If-Unmodified-Since-Version header. (version is included in responses from the API, so clients that simply modify the editable data do not need to bother with a version header.)
+
+**** Status codes
+***** 204 No Content
+- The item was successfully updated.
+***** 400 Bad Request
+- Invalid type/field; unparseable JSON
+***** 409 Conflict
+- The target library is locked.
+***** 412 Precondition Failed
+- The item has changed since retrieval (i.e., the provided item version no longer matches).
+
+**** Headers
+***** Last-Modified-Version: <version>
+
+*** DELETE
+**** Version
+- "If-Unmodified-Since-Version": <last known item version>
+**** Status codes
+***** 204 No Content
+The item was deleted.
+***** 409 Conflict
+The target library is locked.
+***** 412 Precondition Failed
+The item has changed since retrieval (i.e., the provided item version no longer matches).
+***** 428 Precondition Required
+"If-Unmodified-Since-Version" was not provided.
+
+
+* dispatch
+** worker
+handle -> response
+** decider (handle response)
+* dispatch
