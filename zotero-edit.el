@@ -45,6 +45,10 @@
 (defvar-local zotero-edit-locale nil)
 (defvar-local zotero-edit-widget nil)
 
+(defconst zotero-edit-usage-message "Type
+\\[zotero-edit-text-exit] to finish, \\[zotero-edit-text-save] to
+save, or \\[zotero-edit-text-abort] to abort.")
+
 ;;;; Keymap
 
 ;;;; Menu
@@ -106,53 +110,6 @@ All currently available key bindings:
 
 (eval-when-compile
   (require 'wid-edit))
-
-;; (defun zotero-edit-fontify-doi (&optional start end)
-;;   "Fontify the DOIS in the current buffer.
-;; This function implements `goto-address-highlight-p'
-;; and `goto-address-fontify-p'."
-;;   (interactive)
-;;   (save-excursion
-;;     (goto-char (or start (point-min)))
-;;     (when (or (eq t goto-address-fontify-maximum-size)
-;; 	      (< (- (or end (point-max)) (point))
-;;                  goto-address-fontify-maximum-size))
-;;       (while (re-search-forward zotero-edit-doi-regexp end t)
-;; 	(let* ((s (match-beginning 0))
-;; 	       (e (match-end 0))
-;; 	       this-overlay)
-;; 	  (setq this-overlay (make-overlay s e))
-;; 	  (and goto-address-fontify-p
-;; 	       (overlay-put this-overlay 'face goto-address-url-face))
-;; 	  (overlay-put this-overlay 'evaporate t)
-;; 	  (overlay-put this-overlay
-;; 		       'mouse-face goto-address-url-mouse-face)
-;; 	  (overlay-put this-overlay 'follow-link t)
-;; 	  (overlay-put this-overlay
-;; 		       'help-echo "mouse-2, C-c RET: follow URL")
-;; 	  (overlay-put this-overlay
-;; 		       'keymap goto-address-highlight-keymap)
-;; 	  (overlay-put this-overlay 'goto-address t))))))
-
-;; (defun zotero-edit-find-doi-at-point ()
-;;   "Find DOI around or before point.
-;; Then search backwards to beginning of line for the start of DOI.
-;; If no DOI found, return nil."
-;;   (re-search-backward zotero-edit-doi-regexp (line-beginning-position) 'lim)
-;;   (if (or (looking-at zotero-edit-doi-regexp)
-;; 	  (and (re-search-forward zotero-edit-doi-regexp
-;; 		                  (line-end-position) 'lim)
-;; 	       (goto-char (match-beginning 0))))
-;;       (match-string-no-properties 0)))
-
-;; (defun zotero-edit-goto-doi-at-point (&optional event)
-;;   "Load the DOI at point."
-;;   (interactive (list last-input-event))
-;;   (save-excursion
-;;     (if event (posn-set-point (event-end event)))
-;;     (if-let ((doi (save-excursion (zotero-edit-find-doi-at-point))))
-;;         (browse-url (concat "https://doi.org/" doi))
-;;       (user-error "No DOI found"))))
 
 (cl-defun zotero-edit-create-item (&key type id itemtype locale)
   "Create a new item of ITEMTYPE."
@@ -599,7 +556,8 @@ name of the sub-editing buffer."
       ;; Switch to edit buffer.
       (pop-to-buffer buffer zotero-edit-text-buffer-action)
       (zotero-edit-text-mode)
-      (setq zotero-edit-widget widget))))
+      (setq zotero-edit-widget widget)
+      (message (substitute-command-keys zotero-edit-usage-message)))))
 
 (defun zotero-edit-text-buffer-p (&optional buffer)
   "Non-nil when current buffer is a source editing buffer.
