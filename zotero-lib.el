@@ -1661,22 +1661,6 @@ file (as provided in the ETag header when downloading it)."
                      (zotero-lib-submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key :if-none-match "*"))))
     (plist-get response :data)))
 
-;; A successful 200 response returns one of two possible JSON objects:
-
-;; {
-;; "url": ...,
-;; "contentType": ...,
-;; "prefix": ...,
-;; "suffix": ...,
-;; "uploadKey": ...
-;; }
-
-;; or
-
-;; { "exists": 1 }
-
-;; In the latter case, the file already exists on the server and was successfully associated with the specified item. No further action is necessary.
-
 ;;;;; 3a) Full upload
 ;; https://www.zotero.org/support/dev/web_api/v3/file_upload#a_full_upload
 
