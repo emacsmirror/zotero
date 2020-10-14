@@ -397,7 +397,7 @@ All currently available key bindings:
   "Revert the buffer."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (ewoc-refresh zotero-browser-ewoc))
+  (display-buffer (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource zotero-browser-resource :key zotero-browser-collection)))
 
 (defun zotero-browser-goto-next ()
   "Move point to the next item."
