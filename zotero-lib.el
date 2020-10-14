@@ -1691,15 +1691,18 @@ file (as provided in the ETag header when downloading it)."
 ;; https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_register_upload
 
 (cl-defun zotero-lib-register-upload (&key type id key uploadkey hash api-key)
-  "Register upload."
+  "Register upload.
+Return t if the upload was registerd successfully, else return
+nil."
   (let* ((data (url-build-query-string `(("upload" ,uploadkey))))
          ;; For existing attachments, use If-Match: <hash>, where <hash> is
          ;; the previous MD5 hash of the file, provided as the md5 property
          ;; in the attachment item.
          (response (if hash
                        (zotero-lib-submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key :if-match hash)
-                     (zotero-lib-submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key :if-none-match "*"))))
-    (plist-get response :data)))
+                     (zotero-lib-submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key :if-none-match "*")))
+         (status-code (plist-get response :status-code)))
+    (if (eq status-code 204) t nil)))
 
 ;; After the upload has been registered, the attachment item will reflect the new metadata.
 ;; 3b) Partial upload
