@@ -1040,25 +1040,6 @@ Return the updated table when success or nil when failed."
             updated-table)
         nil))))
 
-(cl-defun zotero-cache-upload (&key type id data)
-  "Upload DATA.
-Return the object if uploading was successful, or nil."
-  (let* ((token (zotero-auth-token))
-         (api-key (zotero-auth-api-key token))
-         (status (zotero-lib-create-item data :type type :id id :api-key api-key))
-         (successful (plist-get status :successful))
-         (success (plist-get status :success))
-         (unchanged (plist-get status :unchanged))
-         (failed (plist-get status :failed)))
-    (cond
-     ((not (eq success :json-empty))
-      (plist-get successful :0))
-     ((not (eq failed :json-empty))
-      (let ((code (zotero-lib-plist-get* failed :0 :code))
-            (message (zotero-lib-plist-get* failed :0 :message)))
-        (error "Error code %d: %s" code message)))
-     ((not (eq unchanged :json-empty)) nil))))
-
 (cl-defun zotero-cache-delete (&key type id key)
   "Delete KEY from cache."
   (let* ((value (ht-get* zotero-cache "synccache" id "items" key))

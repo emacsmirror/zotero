@@ -839,7 +839,7 @@ With a `C-u' prefix, create a new top level attachment."
                  (mtime (plist-get attributes :mtime))
                  (accessdate (plist-get attributes :accessdate))
                  (data (zotero-browser-attachment :type type :id id :parent parent :linkmode linkmode :content-type content-type :filename filename :accessdate accessdate))
-                 (uploaded-data (zotero-edit-upload :type type :id id :data data))
+                 (uploaded-data (zotero-edit-save-item :type type :id id :data data))
                  (key (plist-get uploaded-data :key))
                  (token (zotero-auth-token))
                  (api-key (zotero-auth-api-key token))

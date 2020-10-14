@@ -341,7 +341,7 @@ All currently available key bindings:
           (widget-insert "\n")
           (widget-create 'push-button
 		         :notify (lambda (&rest ignore)
-                                   (when-let ((saved-data (zotero-edit-upload :type type :id id :data zotero-edit-data-copy)))
+                                   (when-let ((saved-data (zotero-edit-save-item :type type :id id :data zotero-edit-data-copy)))
                                      (message "Item saved.")
                                      (zotero-edit-item :type type :id id :data saved-data :locale locale)))
                          "Save")
@@ -483,11 +483,11 @@ All currently available key bindings:
         (id zotero-edit-id)
         (data zotero-edit-data-copy)
         (locale zotero-edit-locale))
-    (when-let ((saved-data (zotero-edit-upload :type type :id id :data data)))
+    (when-let ((saved-data (zotero-edit-save-item :type type :id id :data data)))
       (message "Item saved.")
       (zotero-edit-item :type type :id id :data saved-data :locale locale))))
 
-(cl-defun zotero-edit-upload (&key type id data)
+(cl-defun zotero-edit-save-item (&key type id data)
   "Upload DATA and save to CACHE.
 Return the item data when successful, else `nil'."
   (let* ((now (current-time))
@@ -498,7 +498,7 @@ Return the item data when successful, else `nil'."
                    (plist-put data :dateAdded date))
                  (plist-put data :dateModified date)))
          (key (plist-get data :key))
-         (uploaded (zotero-cache-upload :type type :id id :data data))
+         (uploaded (zotero-edit-upload :type type :id id :data data))
          object)
     (cond
      ;; If the object was successfully uploaded
@@ -514,6 +514,25 @@ Return the item data when successful, else `nil'."
     (if (zotero-cache-update-object object :type type :id id)
         (plist-get object :data)
       nil)))
+
+(cl-defun zotero-edit-upload (&key type id data)
+  "Upload DATA.
+Return the object if uploading was successful, or nil."
+  (let* ((token (zotero-auth-token))
+         (api-key (zotero-auth-api-key token))
+         (status (zotero-lib-create-item data :type type :id id :api-key api-key))
+         (successful (plist-get status :successful))
+         (success (plist-get status :success))
+         (unchanged (plist-get status :unchanged))
+         (failed (plist-get status :failed)))
+    (cond
+     ((not (eq success :json-empty))
+      (plist-get successful :0))
+     ((not (eq failed :json-empty))
+      (let ((code (zotero-lib-plist-get* failed :0 :code))
+            (message (zotero-lib-plist-get* failed :0 :message)))
+        (error "Error code %d: %s" code message)))
+     ((not (eq unchanged :json-empty)) nil))))
 
 (define-minor-mode zotero-edit-text-mode
   "Minor mode for Zotero Edit buffers.
