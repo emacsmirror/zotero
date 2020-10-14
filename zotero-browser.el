@@ -884,22 +884,6 @@ With a `C-u' prefix, create a new top level attachment."
     (when accessdate (plist-put new-template :accessDate accessdate))
     new-template))
 
-(defun zotero-browser-add-imported-file (file)
-  "Add a new attachment with an imported file."
-  (interactive "fFile: ")
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (library (ht-get* zotero-cache "libraries" id)))
-    (if (zotero-cache-file-access-p library)
-        (let* ((ewoc zotero-browser-ewoc)
-               (node (ewoc-locate ewoc))
-               (key (ewoc-data node))
-               (parent key)
-               (attributes (zotero-lib-file-attributes file)))
-          (display-buffer (zotero-edit-create-attachment :type type :id id :parent parent :linkmode "imported_file" :content-type (plist-get attributes :contenttype) :filename (plist-get attributes :filename) :md5 (plist-get attributes :md5) :mtime (plist-get attributes :mtime) :accessdate (plist-get attributes :accessdate) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))
-      (user-error "Library %s had no file access" id))))
-
 (defun zotero-browser-upload-file (file)
   "Upload FILE."
   (let* ((ewoc zotero-browser-ewoc)
