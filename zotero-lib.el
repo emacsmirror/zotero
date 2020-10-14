@@ -760,23 +760,25 @@ response. If the response is paginated the data is concatenated."
           ;; Offer to review the privileges and return a new handle, but no data
           (let ((handle (zotero-lib--privileges handle)))
             (zotero-lib--dispatch handle)))
+         ("Write access denied"
+          (error "Write access denied"))
          (message
           (user-error "Unknown authentication error: %s" message))))
-      ;; Not found
       (404
        (user-error "404 Not found"))
       (409
-       (user-error "409 Conflict: The target library is locked."))
-      ;; 412 Precondition Failed 	The file has changed remotely since retrieval (i.e., the provided ETag no longer matches). Conflict resolution is left to the client.
-      ;; Precondition failed
+       (user-error "409 Conflict: The target library is locked"))
       (412
-       response)
+       (user-error "412 Precondition Failed: The file has changed
+       remotely since retrieval (i.e., the provided ETag no
+       longer matches). Conflict resolution is left to the
+       client"))
       (413
-       (user-error "413 Request Entity Too Large: The upload would exceed the storage quota of the library owner."))
-      ;; Precondition Required
+       (user-error "413 Request Entity Too Large: The upload
+       would exceed the storage quota of the library owner"))
       (428
-       (user-error "428 Precondition Required: the \"If-Match\" or \"If-None-Match\" header was not provided."))
-      ;; Too Many Requests
+       (user-error "428 Precondition Required: the \"If-Match\"
+       or \"If-None-Match\" header was not provided."))
       (429
        ;; If a client has made too many requests within a given time
        ;; period, the API may return 429 Too Many Requests with a
