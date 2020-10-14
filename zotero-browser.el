@@ -822,7 +822,6 @@ With a `C-u' prefix, create a new top level attachment."
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
          (library (ht-get* zotero-cache "libraries" id)))
-    ;; (if (zotero-cache-file-access-p library))
     (when (eq major-mode 'zotero-browser-items-mode)
       (let* ((ewoc zotero-browser-ewoc)
              (node (ewoc-locate ewoc))
@@ -863,7 +862,6 @@ With a `C-u' prefix, create a new top level attachment."
                           (message "Registering upload...failed"))
                         (display-buffer (zotero-edit-item :type type :id id :data saved-data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))
                   (message "Uploading file...failed"))))))))
-    ;; (user-error "Library %s had no file access" id)
     ))
 
 (cl-defun zotero-browser-attachment (&key type id parent linkmode content-type charset filename accessdate)
