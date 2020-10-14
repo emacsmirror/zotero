@@ -875,29 +875,29 @@ If necessary, show a warning that the user no longer has sufficient access and o
         ('quit
          (message "Syncing cache...quit"))
         (_ ; this should not happen
-         (error "Syncing cache failed: unknown error"))))
-    (message "Syncing schema...")
-    (if-let ((result (zotero-cache--sync-schema :cache cache)))
-        (progn
-          (message "Syncing schema...done")
-          (message "Writing cache...")
-          (setq zotero-cache result)
-          (zotero-cache-serialize)
-          (message "Writing cache...done"))
-      (message "Syncing schema...failed"))
-    (message "Syncing templates...")
-    (if-let ((result (zotero-cache--sync-templates :cache cache)))
-        (progn
-          (message "Syncing templates...done")
-          (message "Writing cache...")
-          (setq zotero-cache result)
-          (zotero-cache-serialize)
-          (message "Writing cache...done"))
-      (message "Syncing templates...failed"))
+         (error "Syncing cache failed: unknown error")))
+      (message "Syncing schema...")
+      (if-let ((result (zotero-cache--sync-schema :cache cache)))
+          (progn
+            (message "Syncing schema...done")
+            (message "Writing cache...")
+            (setq zotero-cache result)
+            (zotero-cache-serialize)
+            (message "Writing cache...done"))
+        (message "Syncing schema...failed"))
+      (message "Syncing templates...")
+      (if-let ((result (zotero-cache--sync-templates :cache cache)))
+          (progn
+            (message "Syncing templates...done")
+            (message "Writing cache...")
+            (setq zotero-cache result)
+            (zotero-cache-serialize)
+            (message "Writing cache...done"))
+        (message "Syncing templates...failed"))
 
-    ;; TODO: check concurrent updates
-    (when zotero-cache-enable-storage
-      (zotero-cache-sync-attachments :cache cache :api-key api-key))))
+      ;; TODO: check concurrent updates
+      (when zotero-cache-enable-storage
+        (zotero-cache-sync-attachments :cache cache :api-key api-key)))))
 
 (cl-defun zotero-cache-sync-attachments (&key cache api-key)
   "Sync the Zotero library."
