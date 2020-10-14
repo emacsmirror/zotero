@@ -851,7 +851,9 @@ be omitted."
         (setq token (concat token (string char)))))))
 
 (defun zotero-lib-file-attributes (file)
-  "Get the file attributes."
+  "Return the attributes of FILE as a plist with `:filename', `:filesize', `:content-type', `:md5', `:mtime', and `:accessdate' props.
+
+Note that mtime is be provided in milliseconds, not seconds."
   (when (file-readable-p file)
     (let* ((md5 (with-temp-buffer
                   (insert-file-contents file)
@@ -1158,13 +1160,16 @@ e.g. the \"group ID\"."
 
 (cl-defun zotero-lib-download-file (&key file dir type id key api-key confirm)
   "A convenient wrapper around `zotero-lib-get-file'.
-  Write an attachment to disk using the optional DIR and FILE. DIR
-  is directory to start with if FILE is relative
-  (does not start with slash or tilde). If DIR is nil, the current
-  buffer’s value of ‘default-directory’ is used. If FILE is not
-  supplied, a `zotero-lib-item' call is made to determine the
-  attachment filename. If successful, the full path including the
-  file name is returned."
+Write an attachment to disk using the optional DIR and FILE. DIR
+is directory to start with if FILE is relative
+(does not start with slash or tilde). If DIR is nil, the current
+buffer’s value of ‘default-directory’ is used. If FILE is not
+supplied, a `zotero-lib-item' call is made to determine the
+attachment filename. If successful, the full path including the
+file name is returned.
+
+See also URL
+`https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_download_the_existing_file'."
   (let* ((response (zotero-lib-retrieve :resource "file" :type type :id id :key key :api-key api-key))
          (data (plist-get response :data))
          (coding-system-for-write 'binary)
@@ -1247,7 +1252,10 @@ e.g. the \"group ID\"."
   \"imported_file\",
   \"imported_url\",
   \"linked_file\", or
-  \"linked_url\"."
+  \"linked_url\".
+
+See also URL
+`https://www.zotero.org/support/dev/web_api/v3/file_upload#i_get_attachment_item_template'."
   (let* ((url (concat zotero-lib-base-url "/items/new"))
          (response (zotero-lib-retrieve :url url :itemtype "attachment" :linkmode linkmode)))
     (plist-get response :data)))
@@ -1562,19 +1570,6 @@ to access, e.g. the \"user ID\" or \"group ID\"."
 
 ;;;; File Uploads
 
-;; The exact process depends on whether you are adding a new
-;; attachment file or modifying an existing one and whether you are
-;; performing a full upload or uploading a binary diff.
-
-;;;;; 1a) Create a new attachment
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#a_create_a_new_attachment
-
-;; i. Get attachment item template with `zotero-lib-attachment-template'
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#i_get_attachment_item_template
-
-;; ii. Create child attachment item with `zotero-lib-create-attachment'
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_create_child_attachment_item
-
 (cl-defun zotero-lib-create-attachment (object &key type id api-key)
   "Create a child attachment item in the library.
 
@@ -1588,7 +1583,10 @@ allows all attachments to be made top-level items for
 backward-compatibility, it is recommended that only file
 attachments (\"imported_file\"/\"linked_file\") and PDF imported web
 attachments (\"imported_url\" with content type \"application/pdf\") be
-allowed as top-level items, as in the Zotero client."
+allowed as top-level items, as in the Zotero client.
+
+See also URL
+`https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_create_child_attachment_item'."
   ;; Curl automatically sets an "Expect:
   ;; 100-continue" header if the request is a
   ;; POST and the data size is larger than
@@ -1610,48 +1608,25 @@ allowed as top-level items, as in the Zotero client."
 using Zotero File Storage, which provides an atomic method for
 setting the properties along with the corresponding file.
 
-Argument `:md5' is the previous MD5 hash of the file
-(as provided in the ETag header when downloading it)."
+Argument `:md5' is the previous MD5  hash of the file as provided
+in the ETag header when downloading it."
   (let ((write-token (zotero-lib--write-token))
         (json (zotero-lib-encode-object object)))
     (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :if-match md5 :api-key api-key)))
 
-;;;;; 1b) Modify an existing attachment
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#b_modify_an_existing_attachment
-
-;; i. Retrieve the attachment information
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#i_retrieve_the_attachment_information
-
-;; For existing attachments, use If-Match: <hash> in place of
-;; If-None-Match: *, where <hash> is the previous MD5 hash of the file
-;; (as provided in the ETag header when downloading it).
-
-;; Note that mtime must be provided in milliseconds, not seconds.
-
-;; ii. Download the existing file with `zotero-lib-download-file'
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_download_the_existing_file
-
-;; Check the ETag header of the response to make sure it matches the
-;; attachment item's md5 value. If it doesn't, check the attachment
-;; item again. If the attachment item still has a different hash, the
-;; latest version of the file may be available only via WebDAV, not
-;; via Zotero File Storage, and it is up to the client how to proceed.
-
-;; Save the file as filename and set the modification time to the
-;; mtime provided in the attachment item.
-
-;; iii. Make changes to the file
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#iii_make_changes_to_the_file
-
-;;;;; 2) Get upload authorization
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#get_upload_authorization
-
 (cl-defun zotero-lib-authorize-upload (&key type id key filename filesize md5 mtime hash api-key)
-  "Get upload authorisation for a file.
+  "Get upload authorisation for a file and associate it with an item.
+
+If authorisation was successful, return a plist with the props
+`:url', `:contentType', `:prefix', `:suffix', and `:uploadKey',
+to be passed to `zotero-lib-upload-file'. If the file already
+exists on the server, return a plist with the prop `:exists'.
 
 For existing attachments, use If-Match: <hash> in place of
 If-None-Match: *, where <hash> is the previous MD5 hash of the
-file (as provided in the ETag header when downloading it)."
+file (as provided in the ETag header when downloading it).
+
+See also URL `https://www.zotero.org/support/dev/web_api/v3/file_upload#get_upload_authorization'."
   (let* ((data (url-build-query-string `(("filename" ,filename)
                                          ("filesize" ,filesize)
                                          ("md5" ,md5)
@@ -1661,23 +1636,20 @@ file (as provided in the ETag header when downloading it)."
                      (zotero-lib-submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key :if-none-match "*"))))
     (plist-get response :data)))
 
-;;;;; 3a) Full upload
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#a_full_upload
-
-;; i. POST file
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#i_post_file
-
-;; Concatenate prefix, the file contents, and suffix and POST to url
-;; with the Content-Type header set to contentType.
-
-;; prefix and suffix are strings containing multipart/form-data. In
-;; some environments, it may be easier to work directly with the form
-;; parameters. Add params=1 to the upload authorization request above
-;; to retrieve the individual parameters in a params array, which will
-;; replace contentType, prefix, and suffix.
-
 (defun zotero-lib-upload-file (file url content-type prefix suffix)
-  "Upload file."
+  "Upload FILE.
+
+See also URL `https://www.zotero.org/support/dev/web_api/v3/file_upload#i_post_file'
+
+Concatenate prefix, the file contents, and suffix and POST to url
+with the Content-Type header set to contentType.
+
+prefix and suffix are strings containing multipart/form-data. In
+some environments, it may be easier to work directly with the form
+parameters. Add params=1 to the upload authorization request above
+to retrieve the individual parameters in a params array, which will
+replace contentType, prefix, and suffix.
+"
   (let ((content (with-temp-buffer
                    (insert-file-contents-literally file)
                    (buffer-string))))
@@ -1687,13 +1659,11 @@ file (as provided in the ETag header when downloading it)."
       :parser #'buffer-string
       :sync t)))
 
-;; ii. Register upload
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_register_upload
-
 (cl-defun zotero-lib-register-upload (&key type id key uploadkey hash api-key)
-  "Register upload.
-Return t if the upload was registerd successfully, else return
-nil."
+  "Register upload. Return t if the upload was registered
+successfully, else return nil.
+
+See also URL `https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_register_upload'."
   (let* ((data (url-build-query-string `(("upload" ,uploadkey))))
          ;; For existing attachments, use If-Match: <hash>, where <hash> is
          ;; the previous MD5 hash of the file, provided as the md5 property
@@ -1703,10 +1673,6 @@ nil."
                      (zotero-lib-submit :method "POST" :resource "file" :type type :id id :key key :data data :content-type "application/x-www-form-urlencoded" :api-key api-key :if-none-match "*")))
          (status-code (plist-get response :status-code)))
     (if (eq status-code 204) t nil)))
-
-;; After the upload has been registered, the attachment item will reflect the new metadata.
-;; 3b) Partial upload
-;; https://www.zotero.org/support/dev/web_api/v3/file_upload#b_partial_upload
 
 ;; TODO: is this one necessary?
 (cl-defun zotero-lib-add-attachment (&key file linkmode parent user group)
