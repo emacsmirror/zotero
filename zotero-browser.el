@@ -827,7 +827,7 @@ With a `C-u' prefix, create a new top level attachment."
              (node (ewoc-locate ewoc))
              (key (ewoc-data node))
              (parent (if (equal arg '(4)) nil key))
-             (linkmode (completing-read "Select a linkmode: " (zotero-lib-attachment-linkmodes) nil t nil nil zotero-browser-default-itemtypes)))
+             (linkmode (completing-read "Select a linkmode: " (zotero-lib-attachment-linkmodes) nil t nil nil zotero-browser-default-linkmodes)))
         (cl-pushnew linkmode zotero-browser-default-linkmodes :test #'equal)
         (when (equal linkmode "imported_file")
           (let* ((file (expand-file-name (read-file-name "Select file:" nil nil t)))
