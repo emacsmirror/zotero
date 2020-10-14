@@ -917,42 +917,30 @@ With a `C-u' prefix, create a new top level attachment."
       (make-directory dir t))
     (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key)))
 
-(defun zotero-browser-open (title path contenttype encoding)
-  (let* ((buffer (get-buffer-create title))
-         (handle (mm-make-handle buffer (list contenttype) encoding)))
-    (with-current-buffer buffer (insert-file-contents-literally path))
-    (mm-display-part handle)
-    (kill-buffer buffer)))
-
-(defun zotero-browser-open-externally (path)
+(defun zotero-browser-open (path)
   "Open PATH in an external program."
   (pcase system-type
-    ((and 'windows-nt)
+    ('windows-nt
      (w32-shell-execute "open" path))
     ('darwin
-     (call-process-shell-command "open" (shell-quote-argument path) nil 0))
+     (call-process-shell-command (concat "open" " " (shell-quote-argument path)) nil 0))
     ('cygwin
-     (call-process-shell-command "cygstart" (shell-quote-argument path) nil 0))
+     (call-process-shell-command (concat "cygstart" " " (shell-quote-argument path)) nil 0))
     ('gnu/linux
-     (call-process-shell-command "xdg-open" (shell-quote-argument path) nil 0))))
+     (call-process-shell-command (concat "xdg-open" " " (shell-quote-argument path)) nil 0))))
 
 (defun zotero-browser-open-imported-file (object)
-  (let* ((title (zotero-lib-plist-get* object :object :data :title))
-         (filename (zotero-lib-plist-get* object :object :data :filename))
-         (path (expand-file-name (zotero-browser-find-attachment)))
-         (contenttype (zotero-lib-plist-get* object :object :data :contentType))
-         (charset (zotero-lib-plist-get* object :object :data :charset)))
-    (zotero-browser-open title path contenttype charset)))
+  (let ((path (expand-file-name (zotero-browser-find-attachment))))
+    (zotero-browser-open path)))
 
 (defun zotero-browser-open-imported-url (object)
-  (let* ((title (zotero-lib-plist-get* object :object :data :title))
-         (key (zotero-lib-plist-get* object :object :data :key))
-         (filename (zotero-lib-plist-get* object :object :data :filename))
-         (path (expand-file-name (zotero-browser-find-attachment)))
-         (contenttype (zotero-lib-plist-get* object :object :data :contentType))
-         (dir (concat temporary-file-directory key)))
+  (let ((path (expand-file-name (zotero-browser-find-attachment)))
+        (contenttype (zotero-lib-plist-get* object :object :data :contentType))
+        (key (zotero-lib-plist-get* object :object :data :key))
+        (filename (zotero-lib-plist-get* object :object :data :filename))
+        (dir (concat temporary-file-directory key)))
     (if (equal contenttype "application/pdf")
-        (zotero-browser-open title path contenttype charset)
+        (zotero-browser-open path)
       (let* ((unzip (or (executable-find "unzip")
                         (error "Unable to find executable \"unzip\"")))
              (exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
@@ -962,11 +950,8 @@ With a `C-u' prefix, create a new top level attachment."
           (error "Error extracting snapshot"))))))
 
 (defun zotero-browser-open-linked-file (object)
-  (let* ((title (zotero-lib-plist-get* object :object :data :title))
-         (path (zotero-lib-plist-get* object :object :data :path))
-         (contenttype (zotero-lib-plist-get* object :object :data :contentType))
-         (charset (zotero-lib-plist-get* object :object :data :charset)))
-    (zotero-browser-open title path contenttype charset)))
+  (let ((path (zotero-lib-plist-get* object :object :data :path)))
+    (zotero-browser-open path)))
 
 (defun zotero-browser-open-linked-url (object)
   (let ((url (zotero-lib-plist-get* object :object :data :url)))
