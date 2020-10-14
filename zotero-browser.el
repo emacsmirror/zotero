@@ -863,7 +863,7 @@ With a `C-u' prefix, create a new top level attachment."
                         (display-buffer (zotero-edit-item :type type :id id :data uploaded-data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))
                   (message "Uploading file...failed"))))))))))
 
-(cl-defun zotero-browser-attachment (&key type id parent linkmode content-type charset filename accessdate)
+(cl-defun zotero-browser-attachment (&key type id parent linkmode content-type charset md5 mtime filename accessdate)
   "Return an attachment object."
   ;; md5 and mtime can be edited directly in personal libraries for WebDAV-based
   ;; file syncing. They should not be edited directly when using Zotero File
@@ -877,10 +877,10 @@ With a `C-u' prefix, create a new top level attachment."
     (when filename
       (plist-put new-template :title filename)
       (plist-put new-template :filename filename))
-    ;; (when md5
-    ;;   (plist-put new-template :md5 md5))
-    ;; (when mtime
-    ;;   (plist-put new-template :mtime mtime))
+    (when md5
+      (plist-put new-template :md5 md5))
+    (when mtime
+      (plist-put new-template :mtime mtime))
     (when accessdate (plist-put new-template :accessDate accessdate))
     new-template))
 
