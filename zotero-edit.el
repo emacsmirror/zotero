@@ -254,13 +254,15 @@ All currently available key bindings:
                      (:md5
                       (when-let ((fieldname "MD5")
                                  (value (plist-get data key)))
-                        (widget-insert (concat fieldname ": "))
-                        (widget-insert (format "%S\n" value))))
+                        (unless (eq value :json-false)
+                          (widget-insert (concat fieldname ": "))
+                          (widget-insert (format "%s\n" value)))))
                      (:mtime
                       (when-let ((fieldname "Mtime")
                                  (value (plist-get data key)))
-                        (widget-insert (concat fieldname ": "))
-                        (widget-insert (format "%S\n" value))))
+                        (unless (eq value :json-false)
+                          (widget-insert (concat fieldname ": "))
+                          (widget-insert (format "%s\n" value)))))
                      ((and :tags field)
                       (let* ((fieldname "Tags")
                              (value (plist-get data key))
@@ -489,7 +491,7 @@ All currently available key bindings:
 
 (cl-defun zotero-edit-save-item (&key type id data)
   "Upload DATA and save to CACHE.
-Return the item data when successful, else `nil'."
+Return the item data when successful, else nil."
   (let* ((now (current-time))
          ;; convert to ISO 8601 date format
          (date (format-time-string "%FT%T%z" now))
