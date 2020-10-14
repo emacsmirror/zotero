@@ -839,8 +839,8 @@ With a `C-u' prefix, create a new top level attachment."
                  (mtime (plist-get attributes :mtime))
                  (accessdate (plist-get attributes :accessdate))
                  (data (zotero-browser-attachment :type type :id id :parent parent :linkmode linkmode :content-type content-type :filename filename :accessdate accessdate))
-                 (saved-data (zotero-edit-save-item :type type :id id :data data))
-                 (key (plist-get saved-data :key))
+                 (uploaded-data (zotero-edit-upload :type type :id id :data data))
+                 (key (plist-get uploaded-data :key))
                  (token (zotero-auth-token))
                  (api-key (zotero-auth-api-key token))
                  (authorisation (zotero-lib-authorize-upload :type type :id id :key key :filename filename :filesize filesize :md5 md5 :mtime mtime :api-key api-key))
@@ -848,7 +848,7 @@ With a `C-u' prefix, create a new top level attachment."
             (if exists
                 (progn
                   (message "File already exists.")
-                  (display-buffer (zotero-edit-item :type type :id id :data saved-data :locale zotero-lib-locale) zotero-browser-edit-buffer-action))
+                  (display-buffer (zotero-edit-item :type type :id id :data uploaded-data :locale zotero-lib-locale) zotero-browser-edit-buffer-action))
               (message "Uploading file...")
               (let ((response (zotero-lib-upload-file file (plist-get authorisation :url) (plist-get authorisation :contentType) (plist-get authorisation :prefix) (plist-get authorisation :suffix))))
                 ;; A status-code 201 means the file was successfully uploaded.
@@ -860,9 +860,8 @@ With a `C-u' prefix, create a new top level attachment."
                         (if registered
                             (message "Registering upload...done")
                           (message "Registering upload...failed"))
-                        (display-buffer (zotero-edit-item :type type :id id :data saved-data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))
-                  (message "Uploading file...failed"))))))))
-    ))
+                        (display-buffer (zotero-edit-item :type type :id id :data uploaded-data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))
+                  (message "Uploading file...failed"))))))))))
 
 (cl-defun zotero-browser-attachment (&key type id parent linkmode content-type charset filename accessdate)
   "Return an attachment object."
