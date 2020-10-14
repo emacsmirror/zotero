@@ -683,7 +683,9 @@ If region is active, delete entries in active region instead."
         (pcase major-mode
           ('zotero-browser-collections-mode)
           ('zotero-browser-items-mode
-           (let ((ewoc zotero-browser-ewoc))
+           (let ((ewoc zotero-browser-ewoc)
+                 nodes
+                 keys)
              (if (use-region-p)
                  (save-excursion
                    (let* ((first-node (ewoc-locate ewoc (region-beginning)))
@@ -692,12 +694,18 @@ If region is active, delete entries in active region instead."
                      (while
                          (progn
                            (ewoc-goto-node ewoc node)
-                           (zotero-cache-delete :type type :id id :key (ewoc-data node))
+                           (push node nodes)
+                           (push (ewoc-data node) keys)
                            (setq node (ewoc-next ewoc node))
                            (not (eq node (ewoc-next ewoc last-node)))))))
                (let ((node (ewoc-locate ewoc)))
-                 (zotero-cache-delete :type type :id id :key (ewoc-data node))))
-             (display-buffer (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource 'collection :key zotero-browser-collection)))))
+                 (push node nodes)
+                 (push (ewoc-data node) keys)))
+             (seq-do (lambda (key) (zotero-cache-delete :type type :id id :key key)) keys)
+             (let ((inhibit-read-only t))
+               (apply #'ewoc-delete ewoc nodes))
+             ;; (display-buffer (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource zotero-browser-resource :key zotero-browser-collection))
+             )))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-restore ()
