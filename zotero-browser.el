@@ -83,7 +83,9 @@
 
 (defvar-local zotero-browser-id nil)
 
-(defvar-local zotero-browser-collections nil)
+(defvar-local zotero-browser-resource nil)
+
+(defvar-local zotero-browser-collection nil)
 
 (defvar-local zotero-browser-table nil)
 
@@ -265,10 +267,10 @@ All currently available key bindings:
   (let ((buffer (get-buffer-create "*Zotero Libraries*")))
     (with-current-buffer buffer
       (zotero-browser-libraries-mode)
-      (setq zotero-browser-table nil
-            zotero-browser-ewoc nil
-            zotero-browser-type nil
-            zotero-browser-id nil)
+      ;; (setq zotero-browser-table nil
+      ;;       zotero-browser-ewoc nil
+      ;;       zotero-browser-type nil
+      ;;       zotero-browser-id nil)
       (let* ((table (ht-get zotero-cache "libraries"))
              (user (ht-select (lambda (key value) (equal (plist-get value :type) "user")) table))
              (groups (ht-select (lambda (key value) (equal (plist-get value :type) "group")) table))
@@ -295,10 +297,10 @@ All currently available key bindings:
   (let ((buffer (get-buffer-create zotero-browser-collections-buffer-name)))
     (with-current-buffer buffer
       (zotero-browser-collections-mode)
-      (setq zotero-browser-table nil
-            zotero-browser-ewoc nil
-            zotero-browser-type nil
-            zotero-browser-id nil)
+      ;; (setq zotero-browser-table nil
+      ;;       zotero-browser-ewoc nil
+      ;;       zotero-browser-type nil
+      ;;       zotero-browser-id nil)
       (let ((ewoc (ewoc-create #'zotero-browser--collection-pp nil nil nil))
             (inhibit-read-only t))
         ;; Remove previous entries
@@ -324,11 +326,11 @@ All currently available key bindings:
   (let ((buffer (get-buffer-create zotero-browser-items-buffer-name)))
     (with-current-buffer buffer
       (zotero-browser-items-mode)
-      (setq zotero-browser-table nil
-            zotero-browser-ewoc nil
-            zotero-browser-type nil
-            zotero-browser-id nil
-            zotero-browser-collections nil)
+      ;; (setq zotero-browser-table nil
+      ;;       zotero-browser-ewoc nil
+      ;;       zotero-browser-type nil
+      ;;       zotero-browser-id nil
+      ;;       zotero-browser-collection nil)
       (let ((ewoc (ewoc-create #'zotero-browser--item-pp nil nil nil))
             (inhibit-read-only t))
         ;; Remove previous entries
@@ -349,6 +351,7 @@ All currently available key bindings:
                   zotero-browser-ewoc ewoc
                   zotero-browser-type type
                   zotero-browser-id id
+                  zotero-browser-resource resource
                   zotero-browser-collection key)
             (thread-last selection
               (zotero-browser--sort-by (lambda (elt) (plist-get elt :title)) #'string-lessp)
