@@ -251,15 +251,20 @@ All currently available key bindings:
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                        :value value
                                        :keymap zotero-edit-text-keymap)))
+                     (:md5
+                      (when-let ((fieldname "MD5")
+                                 (value (plist-get data key)))
+                        (widget-insert (concat fieldname ": "))
+                        (widget-insert (format "%S\n" value))))
                      (:mtime
                       (when-let ((fieldname "Mtime")
                                  (value (plist-get data key)))
                         (widget-insert (concat fieldname ": "))
-                        (widget-insert (format "%d\n" value))))
+                        (widget-insert (format "%S\n" value))))
                      ((and :tags field)
                       (let* ((fieldname "Tags")
                              (value (plist-get data key))
-                             (values (unless value :json-empty (seq-map (lambda (elt) elt) value))))
+                             (values (unless (eq value :json-empty) (seq-map (lambda (elt) elt) value))))
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
                                        :entry-format "%d %v"
