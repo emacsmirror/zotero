@@ -507,7 +507,7 @@ Return the item data when successful, else `nil'."
      ;; This shouldn't happen
      (t (error "Unknown error")))
     (if (zotero-cache-update-object object :type type :id id)
-        (zotero-lib-plist-get* object :object :data)
+        (plist-get object :data)
       nil)))
 
 (cl-defun zotero-edit-upload-item (&key type id data)
