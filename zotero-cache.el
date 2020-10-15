@@ -665,11 +665,7 @@ If necessary, show a warning that the user no longer has sufficient access and o
                                  (let* ((value (ht-get table key))
                                         (updated-value (plist-put value :synced t)))
                                    (ht-set! table key updated-value))))
-                      (if (eq failed :json-empty)
-                          ;; If all upload succeeded, remove the random keys (i.e. the keys with 10 chars)
-                          ;; REVIEW: only keep the failed entries, in stead of throwing an error
-                          (let ((random-keys (seq-filter (lambda (key) (eq (length key) 10)) (ht-keys table))))
-                            (seq-do (lambda (key) (ht-remove! table key)) random-keys))
+                      (unless (eq failed :json-empty)
                         (cl-loop for prop in failed by #'cddr do
                                  (let ((code (zotero-lib-plist-get* failed prop :code))
                                        (message (zotero-lib-plist-get* failed prop :message)))
