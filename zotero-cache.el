@@ -229,6 +229,296 @@ Argument PLIST is the permissions of the user or group library as
 returned by `zotero-lib-get-key'."
   (eq (plist-get plist :files) t))
 
+(defun zotero-cache-itemtype-locale (itemtype &optional locale)
+  "Return translation of ITEMTYPE for LOCALE."
+  (let* ((schema (zotero-cache-schema))
+         (locale (zotero-lib-string->keyword (or locale zotero-lib-locale)))
+         (itemtype (zotero-lib-string->keyword itemtype))
+         (itemtypes (zotero-lib-plist-get* schema :locales locale :itemTypes)))
+    (plist-get itemtypes itemtype)))
+
+(defun zotero-cache-itemfield-locale (field &optional locale)
+  "Return translation of FIELD for LOCALE."
+  (let* ((schema (zotero-cache-schema))
+         (locale (zotero-lib-string->keyword (or locale zotero-lib-locale)))
+         (field (if (stringp field) (zotero-lib-string->keyword field) field))
+         (fields (zotero-lib-plist-get* schema :locales locale :fields)))
+    (plist-get fields field)))
+
+(defun zotero-cache-creatortype-locale (creatortype &optional locale)
+  "Return translation of CREATORTYPE for LOCALE."
+  (let* ((schema (zotero-cache-schema))
+         (locale (zotero-lib-string->keyword (or locale zotero-lib-locale)))
+         (creatortype (zotero-lib-string->keyword creatortype))
+         (creatortypes (zotero-lib-plist-get* schema :locales locale :creatorTypes)))
+    (plist-get creatortypes creatortype)))
+
+(defun zotero-cache-itemtypes ()
+  "Return a list of all item types."
+  (let* ((schema (ht-get* zotero-cache "schema"))
+         (itemtypes (plist-get schema :itemTypes)))
+    (seq-map (lambda (elt) (plist-get elt :itemType)) itemtypes)))
+
+(defun zotero-cache-itemtypefields (itemtype)
+  "Return all valid fields for ITEMTYPE.
+The first is the primary field."
+  (let* ((schema (zotero-cache-schema))
+         (itemtypes (seq-find (lambda (elt) (equal (plist-get elt :itemType) itemtype)) (plist-get schema :itemTypes)))
+         (fields (seq-map (lambda (elt) (plist-get elt :field)) (plist-get itemtypes :fields))))
+    fields))
+
+(defun zotero-cache-itemtypecreatortypes (itemtype)
+  "Return a list of all valid creator types for ITEMTYPE.
+The first is the primary creator type."
+  (let* ((schema (zotero-cache-schema))
+         (itemtypes (seq-find (lambda (elt) (equal (plist-get elt :itemType) itemtype)) (plist-get schema :itemTypes)))
+         (first (seq-filter (lambda (elt) (plist-member elt :primary)) (plist-get itemtypes :creatorTypes)))
+         (rest (seq-remove (lambda (elt) (plist-member elt :primary)) (plist-get itemtypes :creatorTypes)))
+         (all (seq-concatenate 'list first rest))
+         (creatortypes (seq-map (lambda (elt) (plist-get elt :creatorType)) all)))
+    creatortypes))
+
+(defun zotero-cache-valid-field-p (field itemtype)
+  "Return t if FIELD is valid for ITEMTYPE."
+  (member field (zotero-cache-itemtypefields itemtype)))
+
+(defun zotero-cache-item-template (itemtype)
+  "Return the template for ITEMTYPE from CACHE.
+
+The template is cached for a period of time (e.g., one hour)
+without making further requests. Conditional requests are
+not (yet) implemented in the Zotero API."
+  (let* ((template (ht-get* zotero-cache "templates" "items" itemtype))
+         (last-sync (plist-get template :last-sync))
+         (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
+    (when (or (null template) (> seconds-since-last-sync zotero-cache-expire))
+      (with-demoted-errors "Error downloading template: %S"
+        (zotero-cache--sync-item-template :cache zotero-cache :itemtype itemtype)))
+    (plist-get template :object)))
+
+(defun zotero-cache-attachment-template (linkmode)
+  "Return the attachment template for LINKMODE from CACHE.
+
+The template is cached for a period of time (e.g., one hour)
+without making further requests. Conditional requests are
+not (yet) implemented in the Zotero API."
+  (let* ((template (ht-get* zotero-cache "templates" "attachments" linkmode))
+         (last-sync (plist-get template :last-sync))
+         (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
+    (when (or (null template) (> seconds-since-last-sync zotero-cache-expire))
+      (with-demoted-errors "Error downloading template: %S"
+        (zotero-cache--sync-attachment-template :cache zotero-cache :linkmode linkmode)))
+    (plist-get template :object)))
+
+(defun zotero-cache-schema ()
+  "Return the schema with item types, fields, and creator types.
+
+The schema is cached for a period of time (e.g., one hour)
+without making further requests."
+  (let* ((schema (ht-get zotero-cache "schema"))
+         (last-sync (plist-get schema :last-sync))
+         (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
+    (when (or (null schema) (> seconds-since-last-sync zotero-cache-expire))
+      (zotero-cache--sync-schema :cache zotero-cache))
+    schema))
+
+(defun zotero-cache-valid-creatortype-p (creatortype itemtype)
+  "Return t if CREATORTYPE is valid for ITEMTYPE."
+  (member creatortype (zotero-cache-itemtypecreatortypes itemtype)))
+
+(cl-defun zotero-cache-sync-object (object &key type id)
+  "Sync OBJECT.
+Return the object if syncing was successful, or nil."
+  (let* ((table (ht-get* zotero-cache "synccache" id "items"))
+         (token (zotero-auth-token))
+         (api-key (zotero-auth-api-key token))
+         (status (zotero-lib-create-item object :type type :id id :api-key api-key))
+         (successful (plist-get status :successful))
+         (success (plist-get status :success))
+         (unchanged (plist-get status :unchanged))
+         (failed (plist-get status :failed)))
+    (cond
+     ((not (eq successful :json-empty))
+      (let* ((object (plist-get successful :0))
+             (key (plist-get object :key))
+             (version (plist-get object :version)))
+        (ht-set! table key `(:synced t :version ,version :object ,object))
+        object))
+     ;; Do not update the version of Zotero objects in the
+     ;; unchanged object.
+     ((not (eq unchanged :json-empty))
+      (let* ((key (plist-get unchanged :0))
+             (object (ht-get table key)))
+        (ht-set! table key (plist-put object :synced t))
+        object))
+     ((not (eq failed :json-empty))
+      (let ((code (zotero-lib-plist-get* failed :0 :code))
+            (message (zotero-lib-plist-get* failed :0 :message)))
+        (error "Error code %d: %s" code message)))
+     ;; This should not happen
+     (t nil))))
+
+(cl-defun zotero-cache-delete (&key type id key)
+  "Delete KEY from cache."
+  (let* ((value (ht-get* zotero-cache "synccache" id "items" key))
+         (synccache (ht-get* zotero-cache "synccache" id "items"))
+         (deletions (ht-get* zotero-cache "deletions" id "items")))
+    (ht-set! deletions key value)
+    (ht-remove! synccache key)))
+
+(cl-defun zotero-cache-restore (&key type id key)
+  "Restore KEY to cache."
+  (let* ((value (ht-get* zotero-cache "deletions" id "items" key))
+         (synccache (ht-get* zotero-cache "synccache" id "items"))
+         (deletions (ht-get* zotero-cache "deletions" id "items")))
+    (ht-set! synccache key value)
+    (ht-remove! deletions key)))
+
+(defun zotero-cache-sync (&optional retries)
+  "Sync the Zotero library."
+  (interactive)
+  (let* ((token (zotero-auth-token))
+         (id (zotero-auth-userid token))
+         (api-key (zotero-auth-api-key token)))
+    (message "Syncing cache...")
+    (zotero-cache-maybe-initialize-cache)
+    (let* ((cache (copy-tree zotero-cache))
+           (result (zotero-cache--sync :cache cache :id id :api-key api-key))
+           (retries (or retries 0)))
+      (pcase result
+        ((pred ht?)
+         (message "Syncing cache...done")
+         (message "Writing cache...")
+         (setq zotero-cache result)
+         (zotero-cache-serialize)
+         (message "Writing cache...done"))
+        ;; For each response from the API, check the Last-Modified-Version to see
+        ;; if it has changed since the Last-Modified-Version returned from the
+        ;; first request (e.g., collections?since=). If it has, restart the
+        ;; process of retrieving updated and deleted data, waiting increasing
+        ;; amounts of time between restarts to give the other client the
+        ;; opportunity to finish.
+        ('concurrent-update
+         (cond
+          ((zerop zotero-cache-max-delay)
+           (user-error "Syncing cache failed: concurrent update."))
+          ((zerop zotero-cache-max-retries)
+           (user-error "Syncing cache failed: concurrent update."))
+          ((> retries zotero-cache-max-retries)
+           (user-error "Syncing cache failed: concurrent update and maximum of %d retries reached" zotero-cache-max-retries))
+          (t
+           (let* ((intervals (seq-map (lambda (elt) (expt 2 elt)) (number-sequence 1 retries))) ; exponential increase in delay
+                  (total-delay (seq-reduce #'+ intervals 0)))
+             (if (> total-delay zotero-cache-max-delay)
+                 (user-error "Syncing cache failed: concurrent update and maximum of %d seconds delay reached" zotero-cache-max-delay)
+               (sleep-for (expt 2 retries))
+               (zotero-cache-sync (1+ retries)))))))
+        ('quit
+         (message "Syncing cache...quit"))
+        (_ ; this should not happen
+         (error "Syncing cache failed: unknown error")))
+      (message "Syncing schema...")
+      (if-let ((result (zotero-cache--sync-schema :cache cache)))
+          (progn
+            (message "Syncing schema...done")
+            (message "Writing cache...")
+            (setq zotero-cache result)
+            (zotero-cache-serialize)
+            (message "Writing cache...done"))
+        (message "Syncing schema...failed"))
+      (message "Syncing templates...")
+      (if-let ((result (zotero-cache--sync-templates :cache cache)))
+          (progn
+            (message "Syncing templates...done")
+            (message "Writing cache...")
+            (setq zotero-cache result)
+            (zotero-cache-serialize)
+            (message "Writing cache...done"))
+        (message "Syncing templates...failed"))
+
+      ;; TODO: check concurrent updates
+      (when zotero-cache-enable-storage
+        (zotero-cache-sync-attachments :cache cache :api-key api-key)))))
+
+(cl-defun zotero-cache-sync-attachments (&key cache api-key)
+  "Sync the Zotero library."
+  (let ((libraries (ht-get cache "libraries")))
+    ;; Perform the following steps for each library:
+    (cl-loop for id being the hash-keys of libraries do
+             (let* ((value (ht-get libraries id))
+                    (type (plist-get value :type)))
+
+               (when zotero-cache-enable-storage
+                 (message "Syncing attachments to storage for %s %s..." type id)
+                 (zotero-cache--sync-attachments :cache cache :type type :id id :api-key api-key)
+                 (message "Syncing attachments to storage for %s %s...done" type id))))))
+
+(cl-defun zotero-cache--sync (&key cache id api-key)
+  "Sync the Zotero library."
+  (catch 'sync
+    (message "Verifying key access...")
+    (zotero-cache--sync-verify-key :cache cache :api-key api-key)
+    (message "Verifying key access...done")
+
+    (message "Syncing group metadata...")
+    (zotero-cache--sync-metadata :cache cache :id id :api-key api-key)
+    (message "Syncing group metadata...done")
+
+    (let ((libraries (ht-get cache "libraries")))
+      ;; Perform the following steps for each library:
+      (cl-loop for id being the hash-keys of libraries do
+               (let* ((value (ht-get libraries id))
+                      (type (plist-get value :type))
+                      (read-only (zotero-cache-read-only-p value)))
+
+                 (zotero-cache--maybe-initialize-library :cache cache :id id)
+
+                 (message "Syncing remotely updated data for %s %s..." type id)
+                 (zotero-cache--sync-remotely-updated :cache cache :type type :id id :api-key api-key)
+                 (message "Syncing remotely updated data for %s %s...done" type id)
+
+                 (message "Syncing remotely deleted data for %s %s..." type id)
+                 (zotero-cache--sync-remotely-deleted :cache cache :type type :id id :api-key api-key)
+                 (message "Syncing remotely deleted data for %s %s...done" type id)
+
+                 (unless read-only
+                   (message "Syncing locally updated data for %s %s..." type id)
+                   (zotero-cache--sync-locally-updated :cache cache :type type :id id :api-key api-key)
+                   (message "Syncing locally updated data for %s %s...done" type id)
+
+                   (message "Syncing locally deleted data for %s %s..." type id)
+                   (zotero-cache--sync-locally-deleted :cache cache :type type :id id :api-key api-key)
+                   (message "Syncing locally deleted data for %s %s...done" type id))
+
+                 ;; After saving all remote changes without the remote version
+                 ;; changing during the process, save Last-Modified-Version
+                 ;; from the last run as the new local library version.
+                 (let* ((value (ht-get libraries id))
+                        (version (plist-get value :version)))
+                   (plist-put value :storage-version version)
+                   (plist-put value :last-sync (current-time))
+                   (ht-set! libraries id value)))))
+    cache))
+
+(cl-defun zotero-cache--sync-schema (&key cache)
+  "Store the schema in CACHE.
+
+The schema is downloaded as a single file from \"https://api.zotero.org/schema\"."
+  (let* ((schema (ht-get (or cache zotero-cache) "schema"))
+         (etag (plist-get schema :etag))
+         (response (zotero-lib-retrieve :url "https://api.zotero.org/schema" :if-none-match etag))
+         (status-code (plist-get response :status-code)))
+    (pcase status-code
+      (304
+       (plist-put schema :last-sync (current-time)))
+      (200
+       (let* ((data (plist-get response :data))
+              (etag (plist-get response :etag)))
+         (ht-set! cache "schema" data)
+         (plist-put (ht-get cache "schema") :etag etag)
+         (plist-put (ht-get cache "schema") :last-sync (current-time)))))
+    cache))
+
 (cl-defun zotero-cache--process-updates (&key table objects version)
   "Update TABLE with OBJECTS.
 Return the updated table when success or nil when failed."
@@ -781,296 +1071,6 @@ If necessary, show a warning that the user no longer has sufficient access and o
          (object (zotero-lib-attachment-template linkmode)))
     (ht-set! table linkmode `(:last-sync ,(current-time) :object ,object))
     cache))
-
-(cl-defun zotero-cache--sync (&key cache id api-key)
-  "Sync the Zotero library."
-  (catch 'sync
-    (message "Verifying key access...")
-    (zotero-cache--sync-verify-key :cache cache :api-key api-key)
-    (message "Verifying key access...done")
-
-    (message "Syncing group metadata...")
-    (zotero-cache--sync-metadata :cache cache :id id :api-key api-key)
-    (message "Syncing group metadata...done")
-
-    (let ((libraries (ht-get cache "libraries")))
-      ;; Perform the following steps for each library:
-      (cl-loop for id being the hash-keys of libraries do
-               (let* ((value (ht-get libraries id))
-                      (type (plist-get value :type))
-                      (read-only (zotero-cache-read-only-p value)))
-
-                 (zotero-cache--maybe-initialize-library :cache cache :id id)
-
-                 (message "Syncing remotely updated data for %s %s..." type id)
-                 (zotero-cache--sync-remotely-updated :cache cache :type type :id id :api-key api-key)
-                 (message "Syncing remotely updated data for %s %s...done" type id)
-
-                 (message "Syncing remotely deleted data for %s %s..." type id)
-                 (zotero-cache--sync-remotely-deleted :cache cache :type type :id id :api-key api-key)
-                 (message "Syncing remotely deleted data for %s %s...done" type id)
-
-                 (unless read-only
-                   (message "Syncing locally updated data for %s %s..." type id)
-                   (zotero-cache--sync-locally-updated :cache cache :type type :id id :api-key api-key)
-                   (message "Syncing locally updated data for %s %s...done" type id)
-
-                   (message "Syncing locally deleted data for %s %s..." type id)
-                   (zotero-cache--sync-locally-deleted :cache cache :type type :id id :api-key api-key)
-                   (message "Syncing locally deleted data for %s %s...done" type id))
-
-                 ;; After saving all remote changes without the remote version
-                 ;; changing during the process, save Last-Modified-Version
-                 ;; from the last run as the new local library version.
-                 (let* ((value (ht-get libraries id))
-                        (version (plist-get value :version)))
-                   (plist-put value :storage-version version)
-                   (plist-put value :last-sync (current-time))
-                   (ht-set! libraries id value)))))
-    cache))
-
-(defun zotero-cache-sync (&optional retries)
-  "Sync the Zotero library."
-  (interactive)
-  (let* ((token (zotero-auth-token))
-         (id (zotero-auth-userid token))
-         (api-key (zotero-auth-api-key token)))
-    (message "Syncing cache...")
-    (zotero-cache-maybe-initialize-cache)
-    (let* ((cache (copy-tree zotero-cache))
-           (result (zotero-cache--sync :cache cache :id id :api-key api-key))
-           (retries (or retries 0)))
-      (pcase result
-        ((pred ht?)
-         (message "Syncing cache...done")
-         (message "Writing cache...")
-         (setq zotero-cache result)
-         (zotero-cache-serialize)
-         (message "Writing cache...done"))
-        ;; For each response from the API, check the Last-Modified-Version to see
-        ;; if it has changed since the Last-Modified-Version returned from the
-        ;; first request (e.g., collections?since=). If it has, restart the
-        ;; process of retrieving updated and deleted data, waiting increasing
-        ;; amounts of time between restarts to give the other client the
-        ;; opportunity to finish.
-        ('concurrent-update
-         (cond
-          ((zerop zotero-cache-max-delay)
-           (user-error "Syncing cache failed: concurrent update."))
-          ((zerop zotero-cache-max-retries)
-           (user-error "Syncing cache failed: concurrent update."))
-          ((> retries zotero-cache-max-retries)
-           (user-error "Syncing cache failed: concurrent update and maximum of %d retries reached" zotero-cache-max-retries))
-          (t
-           (let* ((intervals (seq-map (lambda (elt) (expt 2 elt)) (number-sequence 1 retries))) ; exponential increase in delay
-                  (total-delay (seq-reduce #'+ intervals 0)))
-             (if (> total-delay zotero-cache-max-delay)
-                 (user-error "Syncing cache failed: concurrent update and maximum of %d seconds delay reached" zotero-cache-max-delay)
-               (sleep-for (expt 2 retries))
-               (zotero-cache-sync (1+ retries)))))))
-        ('quit
-         (message "Syncing cache...quit"))
-        (_ ; this should not happen
-         (error "Syncing cache failed: unknown error")))
-      (message "Syncing schema...")
-      (if-let ((result (zotero-cache--sync-schema :cache cache)))
-          (progn
-            (message "Syncing schema...done")
-            (message "Writing cache...")
-            (setq zotero-cache result)
-            (zotero-cache-serialize)
-            (message "Writing cache...done"))
-        (message "Syncing schema...failed"))
-      (message "Syncing templates...")
-      (if-let ((result (zotero-cache--sync-templates :cache cache)))
-          (progn
-            (message "Syncing templates...done")
-            (message "Writing cache...")
-            (setq zotero-cache result)
-            (zotero-cache-serialize)
-            (message "Writing cache...done"))
-        (message "Syncing templates...failed"))
-
-      ;; TODO: check concurrent updates
-      (when zotero-cache-enable-storage
-        (zotero-cache-sync-attachments :cache cache :api-key api-key)))))
-
-(cl-defun zotero-cache-sync-attachments (&key cache api-key)
-  "Sync the Zotero library."
-  (let ((libraries (ht-get cache "libraries")))
-    ;; Perform the following steps for each library:
-    (cl-loop for id being the hash-keys of libraries do
-             (let* ((value (ht-get libraries id))
-                    (type (plist-get value :type)))
-
-               (when zotero-cache-enable-storage
-                 (message "Syncing attachments to storage for %s %s..." type id)
-                 (zotero-cache--sync-attachments :cache cache :type type :id id :api-key api-key)
-                 (message "Syncing attachments to storage for %s %s...done" type id))))))
-
-(defun zotero-cache-item-template (itemtype)
-  "Return the template for ITEMTYPE from CACHE.
-
-The template is cached for a period of time (e.g., one hour)
-without making further requests. Conditional requests are
-not (yet) implemented in the Zotero API."
-  (let* ((template (ht-get* zotero-cache "templates" "items" itemtype))
-         (last-sync (plist-get template :last-sync))
-         (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
-    (when (or (null template) (> seconds-since-last-sync zotero-cache-expire))
-      (with-demoted-errors "Error downloading template: %S"
-        (zotero-cache--sync-item-template :cache zotero-cache :itemtype itemtype)))
-    (plist-get template :object)))
-
-(defun zotero-cache-attachment-template (linkmode)
-  "Return the attachment template for LINKMODE from CACHE.
-
-The template is cached for a period of time (e.g., one hour)
-without making further requests. Conditional requests are
-not (yet) implemented in the Zotero API."
-  (let* ((template (ht-get* zotero-cache "templates" "attachments" linkmode))
-         (last-sync (plist-get template :last-sync))
-         (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
-    (when (or (null template) (> seconds-since-last-sync zotero-cache-expire))
-      (with-demoted-errors "Error downloading template: %S"
-        (zotero-cache--sync-attachment-template :cache zotero-cache :linkmode linkmode)))
-    (plist-get template :object)))
-
-(defun zotero-cache-schema ()
-  "Return the schema with item types, fields, and creator types.
-
-The schema is cached for a period of time (e.g., one hour)
-without making further requests."
-  (let* ((schema (ht-get zotero-cache "schema"))
-         (last-sync (plist-get schema :last-sync))
-         (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
-    (when (or (null schema) (> seconds-since-last-sync zotero-cache-expire))
-      (zotero-cache--sync-schema :cache zotero-cache))
-    schema))
-
-(cl-defun zotero-cache--sync-schema (&key cache)
-  "Store the schema in CACHE.
-
-The schema is downloaded as a single file from \"https://api.zotero.org/schema\"."
-  (let* ((schema (ht-get (or cache zotero-cache) "schema"))
-         (etag (plist-get schema :etag))
-         (response (zotero-lib-retrieve :url "https://api.zotero.org/schema" :if-none-match etag))
-         (status-code (plist-get response :status-code)))
-    (pcase status-code
-      (304
-       (plist-put schema :last-sync (current-time)))
-      (200
-       (let* ((data (plist-get response :data))
-              (etag (plist-get response :etag)))
-         (ht-set! cache "schema" data)
-         (plist-put (ht-get cache "schema") :etag etag)
-         (plist-put (ht-get cache "schema") :last-sync (current-time)))))
-    cache))
-
-(defun zotero-cache-itemtype-locale (itemtype &optional locale)
-  "Return translation of ITEMTYPE for LOCALE."
-  (let* ((schema (zotero-cache-schema))
-         (locale (zotero-lib-string->keyword (or locale zotero-lib-locale)))
-         (itemtype (zotero-lib-string->keyword itemtype))
-         (itemtypes (zotero-lib-plist-get* schema :locales locale :itemTypes)))
-    (plist-get itemtypes itemtype)))
-
-(defun zotero-cache-itemfield-locale (field &optional locale)
-  "Return translation of FIELD for LOCALE."
-  (let* ((schema (zotero-cache-schema))
-         (locale (zotero-lib-string->keyword (or locale zotero-lib-locale)))
-         (field (if (stringp field) (zotero-lib-string->keyword field) field))
-         (fields (zotero-lib-plist-get* schema :locales locale :fields)))
-    (plist-get fields field)))
-
-(defun zotero-cache-creatortype-locale (creatortype &optional locale)
-  "Return translation of CREATORTYPE for LOCALE."
-  (let* ((schema (zotero-cache-schema))
-         (locale (zotero-lib-string->keyword (or locale zotero-lib-locale)))
-         (creatortype (zotero-lib-string->keyword creatortype))
-         (creatortypes (zotero-lib-plist-get* schema :locales locale :creatorTypes)))
-    (plist-get creatortypes creatortype)))
-
-(defun zotero-cache-itemtypes ()
-  "Return a list of all item types."
-  (let* ((schema (ht-get* zotero-cache "schema"))
-         (itemtypes (plist-get schema :itemTypes)))
-    (seq-map (lambda (elt) (plist-get elt :itemType)) itemtypes)))
-
-(defun zotero-cache-itemtypefields (itemtype)
-  "Return all valid fields for ITEMTYPE.
-The first is the primary field."
-  (let* ((schema (zotero-cache-schema))
-         (itemtypes (seq-find (lambda (elt) (equal (plist-get elt :itemType) itemtype)) (plist-get schema :itemTypes)))
-         (fields (seq-map (lambda (elt) (plist-get elt :field)) (plist-get itemtypes :fields))))
-    fields))
-
-(defun zotero-cache-itemtypecreatortypes (itemtype)
-  "Return a list of all valid creator types for ITEMTYPE.
-The first is the primary creator type."
-  (let* ((schema (zotero-cache-schema))
-         (itemtypes (seq-find (lambda (elt) (equal (plist-get elt :itemType) itemtype)) (plist-get schema :itemTypes)))
-         (first (seq-filter (lambda (elt) (plist-member elt :primary)) (plist-get itemtypes :creatorTypes)))
-         (rest (seq-remove (lambda (elt) (plist-member elt :primary)) (plist-get itemtypes :creatorTypes)))
-         (all (seq-concatenate 'list first rest))
-         (creatortypes (seq-map (lambda (elt) (plist-get elt :creatorType)) all)))
-    creatortypes))
-
-(defun zotero-cache-valid-field-p (field itemtype)
-  "Return t if FIELD is valid for ITEMTYPE."
-  (member field (zotero-cache-itemtypefields itemtype)))
-
-(defun zotero-cache-valid-creatortype-p (creatortype itemtype)
-  "Return t if CREATORTYPE is valid for ITEMTYPE."
-  (member creatortype (zotero-cache-itemtypecreatortypes itemtype)))
-
-(cl-defun zotero-cache-sync-object (object &key type id)
-  "Sync OBJECT.
-Return the object if syncing was successful, or nil."
-  (let* ((table (ht-get* zotero-cache "synccache" id "items"))
-         (token (zotero-auth-token))
-         (api-key (zotero-auth-api-key token))
-         (status (zotero-lib-create-item object :type type :id id :api-key api-key))
-         (successful (plist-get status :successful))
-         (success (plist-get status :success))
-         (unchanged (plist-get status :unchanged))
-         (failed (plist-get status :failed)))
-    (cond
-     ((not (eq successful :json-empty))
-      (let* ((object (plist-get successful :0))
-             (key (plist-get object :key))
-             (version (plist-get object :version)))
-        (ht-set! table key `(:synced t :version ,version :object ,object))
-        object))
-     ;; Do not update the version of Zotero objects in the
-     ;; unchanged object.
-     ((not (eq unchanged :json-empty))
-      (let* ((key (plist-get unchanged :0))
-             (object (ht-get table key)))
-        (ht-set! table key (plist-put object :synced t))
-        object))
-     ((not (eq failed :json-empty))
-      (let ((code (zotero-lib-plist-get* failed :0 :code))
-            (message (zotero-lib-plist-get* failed :0 :message)))
-        (error "Error code %d: %s" code message)))
-     ;; This should not happen
-     (t nil))))
-
-(cl-defun zotero-cache-delete (&key type id key)
-  "Delete KEY from cache."
-  (let* ((value (ht-get* zotero-cache "synccache" id "items" key))
-         (synccache (ht-get* zotero-cache "synccache" id "items"))
-         (deletions (ht-get* zotero-cache "deletions" id "items")))
-    (ht-set! deletions key value)
-    (ht-remove! synccache key)))
-
-(cl-defun zotero-cache-restore (&key type id key)
-  "Restore KEY to cache."
-  (let* ((value (ht-get* zotero-cache "deletions" id "items" key))
-         (synccache (ht-get* zotero-cache "synccache" id "items"))
-         (deletions (ht-get* zotero-cache "deletions" id "items")))
-    (ht-set! synccache key value)
-    (ht-remove! deletions key)))
 
 (provide 'zotero-cache)
 
