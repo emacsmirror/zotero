@@ -1028,17 +1028,37 @@ The first is the primary creator type."
   "Return t if CREATORTYPE is valid for ITEMTYPE."
   (member creatortype (zotero-cache-itemtypecreatortypes itemtype)))
 
-(cl-defun zotero-cache-update-object (object &key type id)
-  "Update TABLE with OBJECT.
-Return the updated table when success or nil when failed."
-  (let ((table (ht-get* zotero-cache "synccache" id "items"))
-        (version (plist-get object :version)))
-    (catch 'sync
-      (if-let ((updated-table (zotero-cache--process-updates :table table :objects (list object) :version version)))
-          (progn
-            (ht-set! (ht-get* zotero-cache "synccache" id) "items" updated-table)
-            updated-table)
-        nil))))
+(cl-defun zotero-cache-sync-object (object &key type id)
+  "Sync OBJECT.
+Return the object if syncing was successful, or nil."
+  (let* ((table (ht-get* zotero-cache "synccache" id "items"))
+         (token (zotero-auth-token))
+         (api-key (zotero-auth-api-key token))
+         (status (zotero-lib-create-item object :type type :id id :api-key api-key))
+         (successful (plist-get status :successful))
+         (success (plist-get status :success))
+         (unchanged (plist-get status :unchanged))
+         (failed (plist-get status :failed)))
+    (cond
+     ((not (eq successful :json-empty))
+      (let* ((object (plist-get successful :0))
+             (key (plist-get object :key))
+             (version (plist-get object :version)))
+        (ht-set! table key `(:synced t :version ,version :object ,object))
+        object))
+     ;; Do not update the version of Zotero objects in the
+     ;; unchanged object.
+     ((not (eq unchanged :json-empty))
+      (let* ((key (plist-get unchanged :0))
+             (object (ht-get table key)))
+        (ht-set! table key (plist-put object :synced t))
+        object))
+     ((not (eq failed :json-empty))
+      (let ((code (zotero-lib-plist-get* failed :0 :code))
+            (message (zotero-lib-plist-get* failed :0 :message)))
+        (error "Error code %d: %s" code message)))
+     ;; This should not happen
+     (t nil))))
 
 (cl-defun zotero-cache-delete (&key type id key)
   "Delete KEY from cache."
