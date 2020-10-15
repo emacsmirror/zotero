@@ -345,6 +345,12 @@ All currently available key bindings:
             (zotero-browser-expand-level zotero-browser-default-item-level)))))
     buffer))
 
+(defun zotero-browser-ensure-browser-buffer ()
+  (unless (or (eq major-mode 'zotero-browser-libraries-mode)
+              (eq major-mode 'zotero-browser-collections-mode)
+              (eq major-mode 'zotero-browser-items-mode))
+    (error "Current buffer is not a Zotero browser buffer")))
+
 (defun zotero-browser-display ()
   "Display current library or collection."
   (interactive)
@@ -521,12 +527,6 @@ All currently available key bindings:
                   ;; End-test of while loop
                   (ewoc-next ewoc node)
                 (ewoc-goto-next ewoc 1))))))))
-
-(defun zotero-browser-ensure-browser-buffer ()
-  (unless (or (eq major-mode 'zotero-browser-libraries-mode)
-              (eq major-mode 'zotero-browser-collections-mode)
-              (eq major-mode 'zotero-browser-items-mode))
-    (error "Current buffer is not a Zotero browser buffer")))
 
 (defun zotero-browser-edit ()
   "Edit current entry."
