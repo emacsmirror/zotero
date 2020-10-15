@@ -28,7 +28,6 @@
 
 ;;;; Requirements
 
-;; (require 'zotero-lib)
 (require 'zotero-lib)
 (require 'zotero-cache)
 (require 'zotero-edit)
