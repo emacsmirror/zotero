@@ -622,7 +622,8 @@ With a `C-u' prefix, move to top level."
                 (if (or (equal itemtype "attachment") (equal itemtype "note"))
                     (user-error "Parent item cannot be a note or attachment")
                   (setq updated-data (plist-put data :parentItem parent)))))
-            (zotero-cache-update-object (plist-put object :data updated-data) :type type :id id)))
+            (zotero-cache-update-object (plist-put object :data updated-data) :type type :id id)
+            (zotero-browser-revert)))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-copy-to-collection ()
@@ -648,7 +649,8 @@ With a `C-u' prefix, move to top level."
                  (object (plist-get entry :object))
                  (data (plist-get object :data))
                  (updated-data (plist-put data :collections updated-collections)))
-            (zotero-cache-update-object (plist-put object :data updated-data) :type type :id id)))
+            (zotero-cache-update-object (plist-put object :data updated-data) :type type :id id)
+            (zotero-browser-revert)))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-remove-from-collection ()
@@ -671,7 +673,7 @@ With a `C-u' prefix, move to top level."
                  (data (plist-get object :data))
                  (updated-data (plist-put data :collections updated-collections)))
             (zotero-cache-update-object (plist-put object :data updated-data) :type type :id id)
-            (display-buffer (zotero-browser-items :type type :id id :key collection))))
+            (zotero-browser-revert)))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-delete ()
@@ -707,8 +709,7 @@ If region is active, delete entries in active region instead."
              (seq-do (lambda (key) (zotero-cache-delete :type type :id id :key key)) keys)
              (let ((inhibit-read-only t))
                (apply #'ewoc-delete ewoc nodes))
-             ;; (display-buffer (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource zotero-browser-resource :key zotero-browser-collection))
-             )))
+             (zotero-browser-revert))))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-restore ()
@@ -737,7 +738,7 @@ If region is active, delete entries in active region instead."
                            (not (eq node (ewoc-next ewoc last-node)))))))
                (let ((node (ewoc-locate ewoc)))
                  (zotero-cache-restore :type type :id id :key (ewoc-data node))))
-             (display-buffer (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource 'collection :key zotero-browser-collection)))))
+             (zotero-browser-revert))))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-open-attachment ()
@@ -854,7 +855,8 @@ With a `C-u' prefix, create a new top level attachment."
                         (token (zotero-auth-token))
                         (api-key (zotero-auth-api-key token)))
                (zotero-lib-upload-attachment :type type :id id :key key :file file :hash nil :api-key api-key)
-               (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
+               (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action)
+               (zotero-browser-revert))))
           ("imported_url"
            (user-error "Creating a snapshot is not supported"))
           ("linked_file"
@@ -874,7 +876,8 @@ With a `C-u' prefix, create a new top level attachment."
                         (key (plist-get object :key))
                         (token (zotero-auth-token))
                         (api-key (zotero-auth-api-key token)))
-               (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
+               (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action)
+               (zotero-browser-revert))))
           ("linked_url"
            (display-buffer (zotero-edit-item :type type :id id :data template :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))))))
 

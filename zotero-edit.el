@@ -345,6 +345,7 @@ All currently available key bindings:
 		         :notify (lambda (&rest ignore)
                                    (when-let ((object (zotero-cache-sync-object zotero-edit-data-copy :type type :id id)))
                                      (message "Item saved.")
+                                     (zotero-browser-revert)
                                      (zotero-edit-item :type type :id id :data (plist-get object :data) :locale locale)))
                          "Save")
           (widget-insert " ")
