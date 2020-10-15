@@ -1690,9 +1690,9 @@ See also URL `https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_regis
                    (plist-put :filename filename))))
     (zotero-lib-create-item object :type type :id id)))
 
-;; TODO: error handling
-(cl-defun zotero-lib-upload-attachment (&key file user group key hash api-key)
-  "A convenient wrapper to authorize, upload and register an attachment."
+(cl-defun zotero-lib-upload-attachment (&key type id key file hash api-key)
+  "A convenient wrapper to authorize, upload and register an attachment.
+Return t if success, or nil if failed."
   (message "Authorize upload...")
   (let* ((attributes (zotero-lib-file-attributes file))
          (filename (plist-get attributes :filename))
@@ -1701,19 +1701,35 @@ See also URL `https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_regis
          (mtime (plist-get attributes :mtime))
          (data (zotero-lib-authorize-upload :type type :id id :key key :api-key api-key :filename filename :filesize filesize :md5 md5 :mtime mtime :hash hash)))
     (if (equal (plist-get data :exists) "1")
-        (message "Authorize upload...already exists")
+        (progn
+          (message "Authorize upload...already exists")
+          ;; Success: return t
+          t)
       (message "Authorize upload...done")
       (message "Upload file...")
-      (let ((url (plist-get data :url))
-            (contenttype (plist-get data :contentType))
-            (prefix (plist-get data :prefix))
-            (suffix (plist-get data :suffix))
-            (uploadkey (plist-get data :uploadKey)))
-        (zotero-lib-upload-file file url contenttype prefix suffix)
-        (message "Upload file...done")
-        (message "Register upload...")
-        (zotero-lib-register-upload :type type :id id :key key :uploadkey uploadkey :hash hash :api-key api-key)
-        (message "Register upload...done")))))
+      (let* ((url (plist-get data :url))
+             (content-type (plist-get data :contentType))
+             (prefix (plist-get data :prefix))
+             (suffix (plist-get data :suffix))
+             (uploadkey (plist-get data :uploadKey))
+             (response (zotero-lib-upload-file file url content-type prefix suffix)))
+        ;; A status-code 201 means the file was successfully uploaded.
+        (if (eq (request-response-status-code response) 201)
+            (progn
+              (message "Upload file...done")
+              (message "Register upload...")
+              (let ((registered-p (zotero-lib-register-upload :type type :id id :key key :uploadkey uploadkey :hash hash :api-key api-key)))
+                (if registered-p
+                    (progn
+                      (message "Register upload...done")
+                      ;; Success: return t
+                      t)
+                  (message "Register upload...failed")
+                  ;; Failed: return nil
+                  nil)))
+          (message "Uploading file...failed")
+          ;; Failed: return nil
+          nil)))))
 
 (provide 'zotero-lib)
 
