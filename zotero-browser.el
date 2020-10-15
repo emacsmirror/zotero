@@ -827,62 +827,56 @@ With a `C-u' prefix, create a new top level attachment."
              (node (ewoc-locate ewoc))
              (key (ewoc-data node))
              (parent (if (equal arg '(4)) nil key))
-             (linkmode (completing-read "Select a linkmode: " (zotero-lib-attachment-linkmodes) nil t nil nil zotero-browser-default-linkmodes)))
+             (linkmode (completing-read "Select a linkmode: " (zotero-lib-attachment-linkmodes) nil t nil nil zotero-browser-default-linkmodes))
+             (template (copy-tree (zotero-cache-attachment-template linkmode))))
         (cl-pushnew linkmode zotero-browser-default-linkmodes :test #'equal)
-        (when (equal linkmode "imported_file")
-          (let* ((file (expand-file-name (read-file-name "Select file:" nil nil t)))
-                 (attributes (zotero-lib-file-attributes file))
-                 (filename (file-name-nondirectory file))
-                 (filesize (plist-get attributes :filesize))
-                 (content-type (plist-get attributes :content-type))
-                 (md5 (plist-get attributes :md5))
-                 (mtime (plist-get attributes :mtime))
-                 (accessdate (plist-get attributes :accessdate))
-                 (data (zotero-browser-attachment :type type :id id :parent parent :linkmode linkmode :content-type content-type :filename filename :accessdate accessdate))
-                 (uploaded-data (zotero-edit-save-item :type type :id id :data data))
-                 (key (plist-get uploaded-data :key))
-                 (token (zotero-auth-token))
-                 (api-key (zotero-auth-api-key token))
-                 (authorisation (zotero-lib-authorize-upload :type type :id id :key key :filename filename :filesize filesize :md5 md5 :mtime mtime :api-key api-key))
-                 (exists (plist-get authorisation :exists)))
-            (if exists
-                (progn
-                  (message "File already exists.")
-                  (display-buffer (zotero-edit-item :type type :id id :data uploaded-data :locale zotero-lib-locale) zotero-browser-edit-buffer-action))
-              (message "Uploading file...")
-              (let ((response (zotero-lib-upload-file file (plist-get authorisation :url) (plist-get authorisation :contentType) (plist-get authorisation :prefix) (plist-get authorisation :suffix))))
-                ;; A status-code 201 means the file was successfully uploaded.
-                (if (eq (request-response-status-code response) 201)
-                    (progn
-                      (message "Uploading file...done")
-                      (message "Registering upload...")
-                      (let ((registered (zotero-lib-register-upload :type type :id id :key key :uploadkey (plist-get authorisation :uploadKey) :api-key api-key)))
-                        (if registered
-                            (message "Registering upload...done")
-                          (message "Registering upload...failed"))
-                        (display-buffer (zotero-edit-item :type type :id id :data uploaded-data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))
-                  (message "Uploading file...failed"))))))))))
-
-(cl-defun zotero-browser-attachment (&key type id parent linkmode content-type charset md5 mtime filename accessdate)
-  "Return an attachment object."
-  ;; md5 and mtime can be edited directly in personal libraries for WebDAV-based
-  ;; file syncing. They should not be edited directly when using Zotero File
-  ;; Storage, which provides an atomic method (detailed below) for setting the
-  ;; properties along with the corresponding file.
-  (let* ((template (zotero-cache-attachment-template linkmode))
-         (new-template (copy-tree template)))
-    (when parent (plist-put new-template :parentItem parent))
-    (when content-type (plist-put new-template :contentType content-type))
-    (when charset (plist-put new-template :charset charset))
-    (when filename
-      (plist-put new-template :title filename)
-      (plist-put new-template :filename filename))
-    (when md5
-      (plist-put new-template :md5 md5))
-    (when mtime
-      (plist-put new-template :mtime mtime))
-    (when accessdate (plist-put new-template :accessDate accessdate))
-    new-template))
+        (pcase linkmode
+          ("imported_file"
+           (let* ((file (expand-file-name (read-file-name "Select file: " nil nil t)))
+                  (attributes (zotero-lib-file-attributes file))
+                  (filename (file-name-nondirectory file))
+                  (filesize (plist-get attributes :filesize))
+                  (content-type (plist-get attributes :content-type))
+                  (md5 (plist-get attributes :md5))
+                  (mtime (plist-get attributes :mtime))
+                  (accessdate (plist-get attributes :accessdate))
+                  (data (thread-first template
+                          (plist-put :parentItem parent)
+                          (plist-put :title filename)
+                          (plist-put :accessDate accessdate)
+                          (plist-put :contentType content-type)
+                          ;; (plist-put :charset charset) ; charset cannot be determined without external tools
+                          (plist-put :filename filename)
+                          (plist-put :md5 md5)
+                          (plist-put :mtime mtime))))
+             (when-let ((object (zotero-cache-sync-object data :type type :id id))
+                        (key (plist-get object :key))
+                        (token (zotero-auth-token))
+                        (api-key (zotero-auth-api-key token)))
+               (zotero-lib-upload-attachment :type type :id id :key key :file file :hash nil :api-key api-key)
+               (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
+          ("imported_url"
+           (user-error "Creating a snapshot is not supported"))
+          ("linked_file"
+           (let* ((file (expand-file-name (read-file-name "Select file: " nil nil t)))
+                  (attributes (zotero-lib-file-attributes file))
+                  (filename (file-name-nondirectory file))
+                  (content-type (plist-get attributes :content-type))
+                  (accessdate (plist-get attributes :accessdate))
+                  (data (thread-first template
+                          (plist-put :parentItem parent)
+                          (plist-put :title filename)
+                          (plist-put :accessDate accessdate)
+                          (plist-put :contentType content-type)
+                          ;; (plist-put :charset charset) ; charset cannot be determined without external tools
+                          (plist-put :path file))))
+             (when-let ((object (zotero-cache-sync-object data :type type :id id))
+                        (key (plist-get object :key))
+                        (token (zotero-auth-token))
+                        (api-key (zotero-auth-api-key token)))
+               (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
+          ("linked_url"
+           (display-buffer (zotero-edit-item :type type :id id :data template :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))))))
 
 (defun zotero-browser-upload-file (file)
   "Upload FILE."
