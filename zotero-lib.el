@@ -1678,22 +1678,6 @@ See also URL `https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_regis
          (status-code (plist-get response :status-code)))
     (if (eq status-code 204) t nil)))
 
-;; TODO: is this one necessary?
-(cl-defun zotero-lib-add-attachment (&key file linkmode parent user group)
-  "A convenient wrapper."
-  (let* ((attributes (zotero-lib-file-attributes file))
-         (filename (plist-get attributes :filename))
-         (contenttype (plist-get attributes :contenttype))
-         (accessdate (plist-get attributes :accessdate))
-         ;; create attachment item from template
-         (object (thread-first
-                     (zotero-lib-attachment-template linkmode)
-                   (plist-put :parentItem parent)
-                   (plist-put :contentType contenttype)
-                   (plist-put :accessDate accessdate)
-                   (plist-put :filename filename))))
-    (zotero-lib-create-item object :type type :id id)))
-
 (cl-defun zotero-lib-upload-attachment (&key type id key file hash api-key)
   "A convenient wrapper to authorize, upload and register an attachment.
 Return t if success, or nil if failed."
