@@ -106,57 +106,8 @@ directory."
 
 (defconst zotero-fulltext-pdftools-url (concat "https://zotero-download.s3.amazonaws.com/pdftools/pdftools-" zotero-fulltext-pdftools-version ".tar.gz"))
 
-;;;;; Indexing functions
-
-(defun zotero-fulltext--index-pdf (file)
-  "Convert Portable Document Format (PDF) to text."
-  (cond ((not (executable-find zotero-fulltext-pdftotext))
-         (error "Executable %s not found" zotero-fulltext-pdftotext))
-        ((not (executable-find zotero-fulltext-pdfinfo))
-         (error "Executable %s not found" zotero-fulltext-pdfinfo))
-        (t
-         (let* ((total-pages (with-temp-buffer
-                               (call-process zotero-fulltext-pdfinfo nil t nil file)
-                               (goto-char (point-min))
-                               (let* ((match (re-search-forward "Pages:[[:blank:]]+\\([[:digit:]]+\\)" nil t))
-                                      (pages (match-string-no-properties 1)))
-                                 (string-to-number pages))))
-                (indexed-pages (if (> total-pages zotero-fulltext-max-pages) zotero-fulltext-max-pages total-pages))
-                (content (with-temp-buffer
-                           (call-process zotero-fulltext-pdftotext nil t nil "-l" (number-to-string indexed-pages) file "-" )
-                           (buffer-string))))
-           `(:content ,content :indexedPages ,indexed-pages :totalPages ,total-pages)))))
-
-(defun zotero-fulltext--index-pandoc (file mimetype)
-  "Convert pandoc compatible markup format to text."
-  (cond ((not (executable-find zotero-fulltext-pandoc))
-         (error "Executable %s not found" zotero-fulltext-pandoc))
-        (t
-         (let ((format (cdr (assoc mimetype zotero-fulltext-pandoc-mimetypes))))
-           (with-temp-buffer
-             (call-process "pandoc" nil t nil "-f" format "-t" "plain" file)
-             (let* ((content (if (> (buffer-size) zotero-fulltext-max-chars)
-                                 (buffer-substring 1 (1+ zotero-fulltext-max-chars))
-                               (buffer-string)))
-                    (indexed-chars (length content))
-                    (total-chars (buffer-size)))
-               `(:content ,content :indexedChars ,indexed-chars :totalChars ,total-chars)))))))
-
-(defun zotero-fulltext--index-antiword (file)
-  "Convert MS Word version 2, 6, 7, 97, 2000 and 2003 to text."
-  (cond ((not (executable-find zotero-fulltext-antiword))
-         (error "Executable %s not found" zotero-fulltext-antiword))
-        (t
-         (with-temp-buffer
-           (call-process "antiword" nil t nil file)
-           (let* ((content (if (> (buffer-size) zotero-fulltext-max-chars)
-                               (buffer-substring 1 (1+ zotero-fulltext-max-chars))
-                             (buffer-string)))
-                  (indexed-chars (length content))
-                  (total-chars (buffer-size)))
-             `(:content ,content :indexedChars ,indexed-chars :totalChars ,total-chars))))))
-
 ;;;;; PDF tools
+
 (defun zotero-fulltext-install-pdftools ()
   "Install the PDF tools modified by Zotero.
 The executables are modified to output a preprocessed JSON that
@@ -221,6 +172,56 @@ available at URL `https://github.com/zotero/cross-poppler'."
                         (zotero-fulltext--index-antiword file))))
          (json (zotero-lib-encode-object object)))
     (zotero-lib-submit :method PUT :resource 'item-fulltext :user user :group group :key key :data json :content-type "application/json" :expect "" :api-key api-key)))
+
+;;;;; Indexing functions
+
+(defun zotero-fulltext--index-pdf (file)
+  "Convert Portable Document Format (PDF) to text."
+  (cond ((not (executable-find zotero-fulltext-pdftotext))
+         (error "Executable %s not found" zotero-fulltext-pdftotext))
+        ((not (executable-find zotero-fulltext-pdfinfo))
+         (error "Executable %s not found" zotero-fulltext-pdfinfo))
+        (t
+         (let* ((total-pages (with-temp-buffer
+                               (call-process zotero-fulltext-pdfinfo nil t nil file)
+                               (goto-char (point-min))
+                               (let* ((match (re-search-forward "Pages:[[:blank:]]+\\([[:digit:]]+\\)" nil t))
+                                      (pages (match-string-no-properties 1)))
+                                 (string-to-number pages))))
+                (indexed-pages (if (> total-pages zotero-fulltext-max-pages) zotero-fulltext-max-pages total-pages))
+                (content (with-temp-buffer
+                           (call-process zotero-fulltext-pdftotext nil t nil "-l" (number-to-string indexed-pages) file "-" )
+                           (buffer-string))))
+           `(:content ,content :indexedPages ,indexed-pages :totalPages ,total-pages)))))
+
+(defun zotero-fulltext--index-pandoc (file mimetype)
+  "Convert pandoc compatible markup format to text."
+  (cond ((not (executable-find zotero-fulltext-pandoc))
+         (error "Executable %s not found" zotero-fulltext-pandoc))
+        (t
+         (let ((format (cdr (assoc mimetype zotero-fulltext-pandoc-mimetypes))))
+           (with-temp-buffer
+             (call-process "pandoc" nil t nil "-f" format "-t" "plain" file)
+             (let* ((content (if (> (buffer-size) zotero-fulltext-max-chars)
+                                 (buffer-substring 1 (1+ zotero-fulltext-max-chars))
+                               (buffer-string)))
+                    (indexed-chars (length content))
+                    (total-chars (buffer-size)))
+               `(:content ,content :indexedChars ,indexed-chars :totalChars ,total-chars)))))))
+
+(defun zotero-fulltext--index-antiword (file)
+  "Convert MS Word version 2, 6, 7, 97, 2000 and 2003 to text."
+  (cond ((not (executable-find zotero-fulltext-antiword))
+         (error "Executable %s not found" zotero-fulltext-antiword))
+        (t
+         (with-temp-buffer
+           (call-process "antiword" nil t nil file)
+           (let* ((content (if (> (buffer-size) zotero-fulltext-max-chars)
+                               (buffer-substring 1 (1+ zotero-fulltext-max-chars))
+                             (buffer-string)))
+                  (indexed-chars (length content))
+                  (total-chars (buffer-size)))
+             `(:content ,content :indexedChars ,indexed-chars :totalChars ,total-chars))))))
 
 (provide 'zotero-fulltext)
 
