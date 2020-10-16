@@ -40,10 +40,6 @@
 
 ;;;; Variables
 
-(defvar zotero-browser-items-buffer-action
-  '((display-buffer-same-window) . ((window-width . 0.4)
-                                    (preserve-size . (t . nil)))))
-
 (defvar zotero-browser-libraries-buffer-action
   '((display-buffer-reuse-window display-buffer-in-side-window) . ((side . left)
                                                                    (slot . -1)
@@ -58,6 +54,10 @@
                                                                    (window-width . 0.3)
                                                                    (preserve-size . (t . nil))
                                                                    (reusable-frames . nil))))
+
+(defvar zotero-browser-items-buffer-action
+  '((display-buffer-same-window) . ((window-width . 0.4)
+                                    (preserve-size . (t . nil)))))
 
 (defvar zotero-browser-edit-buffer-action
   '((display-buffer-reuse-window display-buffer-in-side-window) . ((side . right)
