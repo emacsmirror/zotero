@@ -442,14 +442,11 @@ All currently available key bindings:
   (zotero-browser-ensure-browser-buffer)
   (let* ((inhibit-read-only t)
          (ewoc zotero-browser-ewoc)
-         (node (ewoc-locate ewoc))
-         (key (ewoc-data node)))
-    (when (zotero-browser--has-children-p key)
+         (node (ewoc-locate ewoc)))
+    (when (zotero-browser--has-children-p node)
       (if (zotero-browser--expanded-p ewoc node)
           (progn
-            (zotero-browser--prefix "▸" (ewoc-location node))
             (zotero-browser--collapse ewoc node))
-        (zotero-browser--prefix "▾" (ewoc-location node))
         (zotero-browser--expand ewoc node)))))
 
 (defun zotero-browser-cycle ()
@@ -482,7 +479,8 @@ All currently available key bindings:
         (ewoc-goto-node ewoc node)
         (while
             (let ((node (ewoc-locate ewoc)))
-              (unless (zotero-browser--expanded-p ewoc node)
+              (when (and (zotero-browser--has-children-p node)
+                         (not (zotero-browser--expanded-p ewoc node)))
                 (zotero-browser--expand ewoc node))
               (prog1
                   ;; End-test of while loop
@@ -500,7 +498,8 @@ All currently available key bindings:
         (ewoc-goto-node ewoc node)
         (while
             (let ((node (ewoc-locate ewoc)))
-              (when (zotero-browser--expanded-p ewoc node)
+              (when (and (zotero-browser--has-children-p node)
+                         (zotero-browser--expanded-p ewoc node))
                 (zotero-browser--collapse ewoc node))
               (prog1
                   (ewoc-next ewoc node)
@@ -520,15 +519,13 @@ All currently available key bindings:
             (let* ((node (ewoc-locate ewoc))
                    (key (ewoc-data node))
                    (level (zotero-browser--level key)))
-              (when (zotero-browser--has-children-p key)
+              (when (zotero-browser--has-children-p node)
                 (cond
                  ((and (zotero-browser--expanded-p ewoc node)
                        (>= level num))
-                  (zotero-browser--prefix "▸" (ewoc-location node))
                   (zotero-browser--collapse ewoc node))
                  ((and (not (zotero-browser--expanded-p ewoc node))
                        (or (< level num) (eq num 0)))
-                  (zotero-browser--prefix "▾" (ewoc-location node))
                   (zotero-browser--expand ewoc node))
                  (t
                   (zotero-browser--prefix "▸" (ewoc-location node)))))
@@ -1153,11 +1150,13 @@ argument."
   "Expand the children of NODE in EWOC."
   (let* ((key (ewoc-data node))
          (table (zotero-browser--children key)))
+    (zotero-browser--prefix "▾" (ewoc-location node))
     (zotero-browser--add ewoc node table)))
 
 (defun zotero-browser--collapse (ewoc node)
   "Collapse the children of NODE in EWOC."
   (let (parents nodes)
+    (zotero-browser--prefix "▸" (ewoc-location node))
     (while
         (let* ((key (ewoc-data node))
                (next-node (ewoc-next ewoc node))
@@ -1184,6 +1183,15 @@ argument."
   (let* ((prefix (get-text-property (point) 'line-prefix))
          (spacing (substring prefix 0 -1)))
     (put-text-property (point) (line-end-position) 'line-prefix (concat spacing string))))
+
+(defun zotero-browser--has-children-p (node)
+  "Return non-nil if KEY has children."
+  (let ((key (ewoc-data node)))
+    (pcase major-mode
+      ('zotero-browser-collections-mode
+       (zotero-browser--has-subcollections-p key))
+      ('zotero-browser-items-mode
+       (zotero-browser--has-subitems-p key)))))
 
 (defun zotero-browser--expanded-p (ewoc node)
   "Return non-nil if NODE in EWOC is expanded."
@@ -1229,14 +1237,6 @@ argument."
 (defun zotero-browser--subcollections (key)
   "Return the subcollections of KEY."
   (zotero-browser--filter (lambda (elt) (equal (plist-get elt :parentCollection) key)) zotero-browser-table))
-
-(defun zotero-browser--has-children-p (key)
-  "Return non-nil if KEY has children."
-  (pcase major-mode
-    ('zotero-browser-collections-mode
-     (zotero-browser--has-subcollections-p key))
-    ('zotero-browser-items-mode
-     (zotero-browser--has-subitems-p key))))
 
 (defun zotero-browser--has-subitems-p (key)
   "Return non-nil if KEY has subitems."
