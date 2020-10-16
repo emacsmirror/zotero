@@ -852,9 +852,8 @@ client."
                               ;; personal libraries for WebDAV-based file
                               ;; syncing. They should not be edited directly
                               ;; when using Zotero File Storage, which provides
-                              ;; an atomic method (detailed below) for setting
-                              ;; the properties along with the corresponding
-                              ;; file.
+                              ;; an atomic method for setting the properties
+                              ;; along with the corresponding file.
                               (plist-put :md5 nil)
                               (plist-put :mtime nil))))
                  (when-let ((object (zotero-cache-sync-object data :type type :id id))
