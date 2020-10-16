@@ -1704,7 +1704,7 @@ Return t if success, or nil if failed."
          (md5 (plist-get attributes :md5))
          (mtime (plist-get attributes :mtime))
          (data (zotero-lib-authorize-upload :type type :id id :key key :api-key api-key :filename filename :filesize filesize :md5 md5 :mtime mtime :hash hash)))
-    (if (equal (plist-get data :exists) "1")
+    (if (eq (plist-get data :exists) 1)
         (progn
           (message "Authorize upload...already exists")
           ;; Success: return t
