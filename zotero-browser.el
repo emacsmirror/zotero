@@ -1239,7 +1239,7 @@ argument."
      (zotero-browser--has-subitems-p key))))
 
 (defun zotero-browser--has-subitems-p (key)
-  "Return non-nil if KEY has subitems"
+  "Return non-nil if KEY has subitems."
   (zotero-browser--some (lambda (elt) (equal (plist-get elt :parentItem) key))
                         zotero-browser-table))
 
