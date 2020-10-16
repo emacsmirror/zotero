@@ -785,7 +785,6 @@ If region is active, delete entries in active region instead."
 
 (defun zotero-browser-find-attachment ()
   "Return the path of attachment at point."
-  (interactive)
   (zotero-browser-ensure-browser-buffer)
   (when-let ((ewoc zotero-browser-ewoc)
              (key (ewoc-data (ewoc-locate ewoc)))
@@ -807,7 +806,6 @@ If region is active, delete entries in active region instead."
 
 (defun zotero-browser-download-attachment (&optional dir)
   "Download the attachment at point."
-  (interactive)
   (zotero-browser-ensure-browser-buffer)
   (let* ((ewoc zotero-browser-ewoc)
          (key (ewoc-data (ewoc-locate ewoc)))
