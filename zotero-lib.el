@@ -1551,7 +1551,8 @@ e.g. the \"user ID\" or \"group ID\"."
 
 (cl-defun zotero-lib-delete-key (&key api-key)
   "Delete the API key."
-  (zotero-lib-submit :method "DELETE" :resource "keys" :key api-key))
+  (let ((response (zotero-lib-submit :method "DELETE" :resource "keys" :key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-set-item-fulltext (object &key type id key)
   "Set an item's full-text content.
@@ -1565,8 +1566,9 @@ KEY is the item key. Keyword argument TYPE is \"user\" for your
 personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
-  (let ((json (zotero-lib-encode-object object)))
-    (zotero-lib-submit :method PUT :resource "item-fulltext" :type type :id id :key key :data json :api-key api-key)))
+  (let* ((json (zotero-lib-encode-object object))
+         (response (zotero-lib-submit :method PUT :resource "item-fulltext" :type type :id id :key key :data json :api-key api-key)))
+    (plist-get response :data)))
 
 ;;;; File Uploads
 
@@ -1596,9 +1598,10 @@ See also URL
   ;; response. Setting the "Expect:" header to
   ;; an empty string explicitly disables this
   ;; automatic behaviour.
-  (let ((write-token (zotero-lib--write-token))
-        (json (zotero-lib-encode-object object)))
-    (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :api-key api-key)))
+  (let* ((write-token (zotero-lib--write-token))
+         (json (zotero-lib-encode-object object))
+         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :api-key api-key)))
+    (plist-get response :data)))
 
 ;; TODO: test
 (cl-defun zotero-lib-update-attachment (object &key md5 user group api-key)
@@ -1610,9 +1613,10 @@ setting the properties along with the corresponding file.
 
 Argument `:md5' is the previous MD5  hash of the file as provided
 in the ETag header when downloading it."
-  (let ((write-token (zotero-lib--write-token))
-        (json (zotero-lib-encode-object object)))
-    (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :if-match md5 :api-key api-key)))
+  (let* ((write-token (zotero-lib--write-token))
+         (json (zotero-lib-encode-object object))
+         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :if-match md5 :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-authorize-upload (&key type id key filename filesize md5 mtime hash api-key)
   "Get upload authorisation for a file and associate it with an item.
