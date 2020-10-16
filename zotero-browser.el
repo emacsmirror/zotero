@@ -806,24 +806,31 @@ With a `C-u' prefix, create a new top level note."
           (let* ((ewoc zotero-browser-ewoc)
                  (node (ewoc-locate ewoc))
                  (key (ewoc-data node))
-                 (parent (if (equal arg '(4)) nil key)))
+                 (parent (if (equal arg '(4)) :json-false key)))
             (display-buffer (zotero-edit-create-note :type type :id id :parent parent :itemtype "note" :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-create-attachment (&optional arg)
   "Create a new attachment with the current entry as parent.
-With a `C-u' prefix, create a new top level attachment."
+With a `C-u' prefix, create a new top level attachment.
+
+Only file attachments (imported_file/linked_file) and PDF
+imported web attachments (imported_url with content type
+application/pdf) are allowed as top-level items, as in the Zotero
+client."
   (interactive "P")
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
          (library (ht-get* zotero-cache "libraries" id)))
     (when (eq major-mode 'zotero-browser-items-mode)
-      (if (zotero-cache-note-access-p library)
+      (if (zotero-cache-write-access-p library)
           (let* ((ewoc zotero-browser-ewoc)
                  (node (ewoc-locate ewoc))
                  (key (ewoc-data node))
-                 (parent (if (equal arg '(4)) nil key))
+                 ;; Top-level attachments can be created by excluding the
+                 ;; parentItem property or setting it to false.
+                 (parent (if (equal arg '(4)) :json-false key))
                  (linkmode (completing-read "Select a linkmode: " (zotero-lib-attachment-linkmodes) nil t nil nil zotero-browser-default-linkmodes))
                  (template (copy-tree (zotero-cache-attachment-template linkmode))))
             (cl-pushnew linkmode zotero-browser-default-linkmodes :test #'equal)
@@ -844,8 +851,15 @@ With a `C-u' prefix, create a new top level attachment."
                               (plist-put :contentType content-type)
                               ;; (plist-put :charset charset) ; charset cannot be determined without external tools
                               (plist-put :filename filename)
-                              (plist-put :md5 md5)
-                              (plist-put :mtime mtime))))
+                              ;; md5 and mtime can be edited directly in
+                              ;; personal libraries for WebDAV-based file
+                              ;; syncing. They should not be edited directly
+                              ;; when using Zotero File Storage, which provides
+                              ;; an atomic method (detailed below) for setting
+                              ;; the properties along with the corresponding
+                              ;; file.
+                              (plist-put :md5 nil)
+                              (plist-put :mtime nil))))
                  (when-let ((object (zotero-cache-sync-object data :type type :id id))
                             (key (plist-get object :key))
                             (token (zotero-auth-token))
@@ -875,24 +889,10 @@ With a `C-u' prefix, create a new top level attachment."
                    (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action)
                    (zotero-browser-revert))))
               ("linked_url"
-               (display-buffer (zotero-edit-item :type type :id id :data template :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
+               (if (or (null parent) (eq parent :json-false))
+                   (user-error "Links to URLs are not allowed as top-level items")
+                 (display-buffer (zotero-edit-item :type type :id id :data template :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))))
         (user-error "Library %s had no write access" id)))))
-
-(defun zotero-browser-upload-file (file)
-  "Upload FILE."
-  (let* ((ewoc zotero-browser-ewoc)
-         ;; (key (ewoc-data (ewoc-locate ewoc)))
-         ;; (table zotero-browser-table)
-         ;; (value (ht-get table key))
-         ;; (filename (zotero-lib-plist-get* value :object :data :filename))
-         ;; (dir (or dir (concat (file-name-as-directory zotero-cache-storage-dir) key)))
-         (type zotero-browser-type)
-         (id zotero-browser-id)
-         (token (zotero-auth-token))
-         (api-key (zotero-auth-api-key token)))
-    (unless (file-exists-p dir)
-      (make-directory dir t))
-    (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key)))
 
 (defun zotero-browser-open (path)
   "Open the file at PATH.
