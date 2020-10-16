@@ -33,9 +33,10 @@
 (require 'zotero-edit)
 (require 'cl-lib)
 (require 'ewoc)
+(require 'ht)
+(require 'mailcap)
 (require 'seq)
 (require 'subr-x)
-(require 'ht)
 
 ;;;; Variables
 
@@ -206,6 +207,14 @@
             (const :tag "Note" note)
             (const :tag "Attachments" attachments)
             (const :tag "Notes" notes))))
+
+(defcustom zotero-browser-preferred-application 'mailcap
+  "Preferred application to open files."
+  :group 'zotero-browser
+  :type '(choice
+          (const :tag "Emacs" emacs)
+          (const :tag "External" external)
+          (const :tag "Mailcap" mailcap)))
 
 ;;;; Mode
 
@@ -886,16 +895,55 @@ With a `C-u' prefix, create a new top level attachment."
     (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key)))
 
 (defun zotero-browser-open (path)
-  "Open PATH in an external program."
+  "Open the file at PATH.
+
+The preferred method of opening is customizable by setting the
+variable `zotero-browser-preferred-application'. If no
+application is found, Emacs simply visits the file."
+  (let* ((file (expand-file-name path)))
+    (pcase zotero-browser-preferred-application
+      ('emacs
+       (find-file-other-frame file))
+      ('external
+       (zotero-browser-open-externally file))
+      ('mailcap
+       (mailcap-parse-mailcaps)
+       (let* ((mime-type (mailcap-extension-to-mime (file-name-extension file)))
+	      (command (mailcap-mime-info mime-type))
+              cmd)
+         (if (stringp command)
+	     (setq cmd command)
+	   (setq cmd 'emacs))
+         (cond
+          ((and (stringp cmd) (not (string-match "^[[:space:]]*$" cmd)))
+           ;; Remove quotes around the file name - we'll use shell-quote-argument.
+           (while (string-match "['\"]%s['\"]" cmd)
+             (setq cmd (replace-match "%s" t t cmd)))
+           (setq cmd (replace-regexp-in-string
+	              "%s"
+	              (shell-quote-argument file)
+	              cmd
+	              nil t))
+           (start-process-shell-command cmd nil cmd))
+          ((or (stringp cmd)
+	       (eq cmd 'emacs))
+           (find-file-other-frame file))))))))
+
+(defun zotero-browser-open-externally (path)
+  "Open PATH in an external program.
+
+This function is intented for graphical desktop environments on GNU/Linux, macOS, or Microsoft Windows."
   (pcase system-type
+    ('cygwin
+     (start-process-shell-command "zotero-browser-open-externally" nil (concat "cygstart" " " (shell-quote-argument path))))
+    ('darwin
+     (start-process-shell-command "zotero-browser-open-externally" nil (concat "open" " " (shell-quote-argument path))))
+    ('gnu/linux
+     (start-process-shell-command "zotero-browser-open-externally" nil (concat "xdg-open" " " (shell-quote-argument path))))
     ('windows-nt
      (w32-shell-execute "open" path))
-    ('darwin
-     (call-process-shell-command (concat "open" " " (shell-quote-argument path)) nil 0))
-    ('cygwin
-     (call-process-shell-command (concat "cygstart" " " (shell-quote-argument path)) nil 0))
-    ('gnu/linux
-     (call-process-shell-command (concat "xdg-open" " " (shell-quote-argument path)) nil 0))))
+    (system
+     (error "Unable to determine default application on operating system %S."))))
 
 (defun zotero-browser-open-imported-file (object)
   (let ((path (expand-file-name (zotero-browser-find-attachment))))
