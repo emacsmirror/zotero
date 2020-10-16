@@ -1302,9 +1302,10 @@ See also URL
   ;; data. However, passing an Expect header is unsupported and will
   ;; result in a 417 Expectation Failed response. Setting "Expect: "
   ;; explicitly disables this automatic behaviour.
-  (let ((write-token (zotero-lib--write-token))
-        (json (zotero-lib-encode-object objects)))
-    (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :write-token write-token :api-key api-key :expect "")))
+  (let* ((write-token (zotero-lib--write-token))
+         (json (zotero-lib-encode-object objects))
+         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :write-token write-token :api-key api-key :expect "")))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-update-item (object &key type id key version api-key)
   "Update an existing item in the library.
@@ -1343,8 +1344,9 @@ KEY is the item key. Keyword argument LIBRARY is user' for your
 personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
-  (let ((json (zotero-lib-encode-object object)))
-    (zotero-lib-submit :method "PUT" :resource "item" :type type :id id :key key :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+  (let* ((json (zotero-lib-encode-object object))
+         (response (zotero-lib-submit :method "PUT" :resource "item" :type type :id id :key key :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-update-items (&rest data &key type id version api-key)
   "Update existing items in the library.
@@ -1383,8 +1385,9 @@ Keyword argument LIBRARY is user' for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID of
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
-  (let ((json (zotero-lib-encode-object data)))
-    (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+  (let* ((json (zotero-lib-encode-object data))
+         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-delete-item (&key type id key version api-key)
   "Delete an item.
@@ -1394,7 +1397,8 @@ Keyword argument LIBRARY is user' for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID of
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
-  (zotero-lib-submit :method "DELETE" :resource "item" :type type :id id :key key :version version :api-key api-key))
+  (let ((response (zotero-lib-submit :method "DELETE" :resource "item" :type type :id id :key key :version version :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-delete-items (&rest keys &key type id version api-key)
   "Delete multiple items.
@@ -1412,8 +1416,9 @@ ID\" or \"group ID\"."
    ((> (length keys) 50)
     (user-error "Up to 50 items can be deleted in a single request."))
    (t
-    (let* ((items (s-join "," keys)))
-      (zotero-lib-submit :method "DELETE" :resource "items" :type type :id id :itemkey items :version version :api-key api-key)))))
+    (let* ((items (s-join "," keys))
+           (response (zotero-lib-submit :method "DELETE" :resource "items" :type type :id id :itemkey items :version version :api-key api-key)))
+      (plist-get response :data)))))
 
 (cl-defun zotero-lib-create-collection (object &key type id version api-key)
   "Create a collection.
@@ -1423,8 +1428,9 @@ last-known library version. Keyword argument LIBRARY is user'
 for your personal library, and \"group\" for the group libraries.
 Keyword argument ID is the ID of the personal or group library
 you want to access, e.g. the \"user ID\" or \"group ID\"."
-  (let ((json (zotero-lib-encode-object object)))
-    (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+  (let* ((json (zotero-lib-encode-object object))
+         (response (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-update-collection (object &key type id key version api-key)
   "Update an existing collection.
@@ -1446,8 +1452,9 @@ KEY is the collection key. Keyword argument LIBRARY is user' for your
 personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
-  (let ((json (zotero-lib-encode-object object)))
-    (zotero-lib-submit :method "PUT" :resource "collection" :type type :id id :key key :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+  (let* ((json (zotero-lib-encode-object object))
+         (response (zotero-lib-submit :method "PUT" :resource "collection" :type type :id id :key key :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-update-collections (&rest data &key type id version api-key)
   "Update existing collections in the library.
@@ -1460,8 +1467,9 @@ Keyword argument LIBRARY is user' for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID of
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
-  (let ((json (zotero-lib-encode-object data)))
-    (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+  (let* ((json (zotero-lib-encode-object data))
+         (response (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-delete-collection (&key type id key version api-key)
   "Delete a collection.
@@ -1471,7 +1479,8 @@ version number. Keyword argument LIBRARY is user' for your
 personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
-  (zotero-lib-submit :method "DELETE" :resource "collection" :type type :id id :key key :version version :api-key api-key))
+  (let ((response (zotero-lib-submit :method "DELETE" :resource "collection" :type type :id id :key key :version version :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-delete-collections (&rest keys &key type id version api-key)
   "Delete multiple collections.
@@ -1489,8 +1498,9 @@ or group library you want to access, e.g. the \"user ID\" or
    ((> (length keys) 50)
     (user-error "Up to 50 collections can be deleted in a single request."))
    (t
-    (let* ((collections (s-join "," keys)))
-      (zotero-lib-submit :method "DELETE" :resource "collections" :type type :id id :collectionkey collections :version version :api-key api-key)))))
+    (let* ((collections (s-join "," keys))
+           (response (zotero-lib-submit :method "DELETE" :resource "collections" :type type :id id :collectionkey collections :version version :api-key api-key)))
+      (plist-get response :data)))))
 
 (cl-defun zotero-lib-create-search (object &key type id api-key)
   "Create a saved search.
@@ -1499,8 +1509,9 @@ user' for your personal library, and \"group\" for the group
 libraries. Keyword argument ID is the ID of the personal or
 group library you want to access, e.g. the \"user ID\" or \"group
 ID\"."
-  (let ((json (zotero-lib-encode-object object)))
-    (zotero-lib-submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json"  :expect "" :api-key api-key)))
+  (let* ((json (zotero-lib-encode-object object))
+         (response (zotero-lib-submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json"  :expect "" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-update-searches (&rest data &key type id version api-key)
   "Update existing searches in the library.
@@ -1513,8 +1524,9 @@ Keyword argument LIBRARY is user' for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID of
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
-  (let ((json (zotero-lib-encode-object data)))
-    (zotero-lib-submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json" :expect "" :api-key api-key)))
+  (let* ((json (zotero-lib-encode-object data))
+         (response (zotero-lib-submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json" :expect "" :api-key api-key)))
+    (plist-get response :data)))
 
 (cl-defun zotero-lib-delete-searches (&rest keys &key type id version api-key)
   "Delete multiple searches.
@@ -1529,8 +1541,9 @@ e.g. the \"user ID\" or \"group ID\"."
    ((> (length keys) 50)
     (user-error "Up to 50 searches can be deleted in a single request."))
    (t
-    (let ((searches (s-join "," keys)))
-      (zotero-lib-submit :method "DELETE" :resource "searches" :type type :id id :searchkey searches :version version :api-key api-key)))))
+    (let* ((searches (s-join "," keys))
+           (response (zotero-lib-submit :method "DELETE" :resource "searches" :type type :id id :searchkey searches :version version :api-key api-key)))
+      (plist-get :data)))))
 
 (cl-defun zotero-lib-delete-tags (&rest tags &key type id version api-key)
   "Delete multiple tags.
@@ -1546,8 +1559,9 @@ e.g. the \"user ID\" or \"group ID\"."
     (user-error "Up to 50 tags can be deleted in a single request."))
    (t
     (let* ((url-encoded-tags (mapcar #'url-hexify-string tags))
-           (value (s-join "||" url-encoded-tags)))
-      (zotero-lib-submit :method "DELETE" :resource "tags" :type type :id id :tag value :version version :api-key api-key)))))
+           (value (s-join "||" url-encoded-tags))
+           (response (zotero-lib-submit :method "DELETE" :resource "tags" :type type :id id :tag value :version version :api-key api-key)))
+      (plist-get response :data)))))
 
 (cl-defun zotero-lib-delete-key (&key api-key)
   "Delete the API key."
