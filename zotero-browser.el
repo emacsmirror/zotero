@@ -151,8 +151,9 @@
     "--"
     ["Edit" zotero-browser-edit :help "Edit current entry"]
     ["Create" zotero-browser-create :help "Create a new item"]
-    ["Create attachment" zotero-browser-create-attachment :help "Create a new attachment"]
     ["Create note" zotero-browser-create-note :help "Create a new note."]
+    ["Create attachment" zotero-browser-create-attachment :help "Create a new attachment"]
+    ["Update attachment" zotero-browser-update-attachment :help "Update current attachment"]
     "--"
     ["Delete" zotero-browser-delete :help "Delete current entry or entries in active region"]
     ["Restore" zotero-browser-restore :help "Restore current entry or entries in active region"]
