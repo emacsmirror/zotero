@@ -1158,6 +1158,17 @@ e.g. the \"group ID\"."
   (let ((response (zotero-lib-retrieve :resource "file" :type type :id id :key key :api-key api-key)))
     (plist-get response :data)))
 
+(cl-defun zotero-lib-get-file-hash (&key type id key api-key)
+  "Get the ETag header of a specific item in the library.
+  KEY is the item key. Keyword argument TYPE is \"user\" for your
+  personal library, and \"group\" for the group libraries. Keyword
+  argument ID is the ID of the personal or group library you want
+  to access, e.g. the \"user ID\" or \"group ID\"."
+  (let* ((url (zotero-lib--endpoint :type type :id id :resource "file" :key key))
+         (handle `(:url ,url :method "GET" :api-key ,api-key :api-version ,zotero-lib-api-version))
+         (response (zotero-lib--dispatch handle)))
+    (plist-get response :etag)))
+
 (cl-defun zotero-lib-download-file (&key file dir type id key api-key confirm)
   "A convenient wrapper around `zotero-lib-get-file'.
 Write an attachment to disk using the optional DIR and FILE. DIR
