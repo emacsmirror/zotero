@@ -1050,6 +1050,7 @@ If necessary, show a warning that the user no longer has sufficient access and o
              using (hash-values value) do
              (let* ((data (zotero-lib-plist-get* value :object :data))
                     (filename (plist-get data :filename))
+                    (content-type (plist-get data :contentType))
                     (md5 (plist-get data :md5))
                     (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
                     (file (expand-file-name (concat (file-name-as-directory dir) filename))))
@@ -1057,7 +1058,8 @@ If necessary, show a warning that the user no longer has sufficient access and o
                  (make-directory dir t))
                (if (file-exists-p file)
                    (let ((attributes (zotero-lib-file-attributes file)))
-                     (when (and (not (equal md5 (plist-get attributes :md5)))
+                     (when (and (equal content-type "application/pdf") ; non-pdf snapshots don't have matching md5sums
+                                (not (equal md5 (plist-get attributes :md5)))
                                 (y-or-n-p (format "File \"%s\" is changed. Overwrite? " filename)))
                        (with-demoted-errors  "Error downloading file: %S"
                          (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key))))
