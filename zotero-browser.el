@@ -979,7 +979,7 @@ client."
                   (zotero-browser-revert)))))
         (user-error "Library %s had no write access" id)))))
 
-(defun zotero-browser-open (path)
+(defun zotero-browser-open-file (path)
   "Open the file at PATH.
 
 The preferred method of opening is customizable by setting the
@@ -1032,7 +1032,7 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
 
 (defun zotero-browser-open-imported-file (object)
   (let ((path (expand-file-name (zotero-browser-find-attachment))))
-    (zotero-browser-open path)))
+    (zotero-browser-open-file path)))
 
 (defun zotero-browser-open-imported-url (object)
   (let ((path (expand-file-name (zotero-browser-find-attachment)))
@@ -1041,7 +1041,7 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
         (filename (zotero-lib-plist-get* object :object :data :filename))
         (dir (concat temporary-file-directory key)))
     (if (equal contenttype "application/pdf")
-        (zotero-browser-open path)
+        (zotero-browser-open-file path)
       (let* ((unzip (or (executable-find "unzip")
                         (error "Unable to find executable \"unzip\"")))
              (exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
@@ -1052,7 +1052,7 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
 
 (defun zotero-browser-open-linked-file (object)
   (let ((path (zotero-lib-plist-get* object :object :data :path)))
-    (zotero-browser-open path)))
+    (zotero-browser-open-file path)))
 
 (defun zotero-browser-open-linked-url (object)
   (let ((url (zotero-lib-plist-get* object :object :data :url)))
