@@ -892,10 +892,10 @@ client."
                             (key (plist-get object :key))
                             (token (zotero-auth-token))
                             (api-key (zotero-auth-api-key token)))
-                   (when (zotero-lib-upload-attachment :type type :id id :key key :file file :hash nil :api-key api-key)
-                     (when-let ((updated-object (zotero-cache-get :type type :id id :key key)))
-                       (display-buffer (zotero-edit-item :type type :id id :data (plist-get updated-object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))
-                     (zotero-browser-revert)))))
+                   (if (zotero-lib-upload-attachment :type type :id id :key key :file file :api-key api-key)
+                       (zotero-cache-update (plist-put value :data data) :type type :id id :key key)
+                     (error "Failed to associate attachment with item %s" key))
+                   (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
               ("imported_url"
                (user-error "Creating a snapshot is not supported"))
               ("linked_file"
@@ -915,12 +915,12 @@ client."
                             (key (plist-get object :key))
                             (token (zotero-auth-token))
                             (api-key (zotero-auth-api-key token)))
-                   (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action)
-                   (zotero-browser-revert))))
+                   (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
               ("linked_url"
                (if (or (null parent) (eq parent :json-false))
                    (user-error "Links to URLs are not allowed as top-level items")
                  (display-buffer (zotero-edit-item :type type :id id :data template :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))))
+        (zotero-browser-revert)
         (user-error "Library %s had no write access" id)))))
 
 (defun zotero-browser-update-attachment ()
@@ -972,11 +972,11 @@ client."
                              ;; along with the corresponding file.
                              (plist-put :md5 nil)
                              (plist-put :mtime nil))))
-                (zotero-cache-update (plist-put value :data data) :type type :id id :key key)
-                (when (zotero-lib-upload-attachment :type type :id id :key key :file file :hash hash :api-key api-key)
-                  (when-let ((updated-object (zotero-cache-get :type type :id id :key key)))
-                    (display-buffer (zotero-edit-item :type type :id id :data (plist-get updated-object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))
-                  (zotero-browser-revert)))))
+                (if (zotero-lib-upload-attachment :type type :id id :key key :file file :hash hash :api-key api-key)
+                    (zotero-cache-update (plist-put value :data data) :type type :id id :key key)
+                  (error "Failed to associate attachment with item %s" key))
+                (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)
+                (zotero-browser-revert))))
         (user-error "Library %s had no write access" id)))))
 
 (defun zotero-browser-open-file (path)
