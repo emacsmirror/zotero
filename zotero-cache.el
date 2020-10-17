@@ -374,19 +374,19 @@ Return the object if successful, or nil."
   (let ((table (ht-get* zotero-cache "synccache" id "items")))
     (ht-set! table key `(:synced nil :object ,(plist-get object :object)))))
 
-(cl-defun zotero-cache-delete (&key type id key)
+(cl-defun zotero-cache-delete (&key type id resource key)
   "Delete KEY from cache."
-  (let* ((value (ht-get* zotero-cache "synccache" id "items" key))
-         (synccache (ht-get* zotero-cache "synccache" id "items"))
-         (deletions (ht-get* zotero-cache "deletions" id "items")))
+  (let* ((value (ht-get* zotero-cache "synccache" id resource key))
+         (synccache (ht-get* zotero-cache "synccache" id resource))
+         (deletions (ht-get* zotero-cache "deletions" id resource)))
     (ht-set! deletions key value)
     (ht-remove! synccache key)))
 
-(cl-defun zotero-cache-restore (&key type id key)
+(cl-defun zotero-cache-restore (&key type id resource key)
   "Restore KEY to cache."
-  (let* ((value (ht-get* zotero-cache "deletions" id "items" key))
-         (synccache (ht-get* zotero-cache "synccache" id "items"))
-         (deletions (ht-get* zotero-cache "deletions" id "items")))
+  (let* ((value (ht-get* zotero-cache "deletions" id resource key))
+         (synccache (ht-get* zotero-cache "synccache" id resource))
+         (deletions (ht-get* zotero-cache "deletions" id resource)))
     (ht-set! synccache key `(:synced nil :object ,(plist-get value :object)))
     (ht-remove! deletions key)))
 
