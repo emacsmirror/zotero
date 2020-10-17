@@ -358,6 +358,11 @@ Return the object if syncing was successful, or nil."
      ;; This should not happen
      (t nil))))
 
+(cl-defun zotero-cache-update (object &key type id key)
+  "Update OBJECT in cache."
+  (let ((table (ht-get* zotero-cache "synccache" id "items")))
+    (ht-set! table key `(:synced nil :object ,(plist-get object :object)))))
+
 (cl-defun zotero-cache-delete (&key type id key)
   "Delete KEY from cache."
   (let* ((value (ht-get* zotero-cache "synccache" id "items" key))

@@ -647,7 +647,7 @@ With a `C-u' prefix, move to top level."
                 (if (or (equal itemtype "attachment") (equal itemtype "note"))
                     (user-error "Parent item cannot be a note or attachment")
                   (setq updated-data (plist-put data :parentItem parent)))))
-            (zotero-cache-update-object (plist-put object :data updated-data) :type type :id id)
+            (zotero-cache-update (plist-put object :data updated-data) :type type :id id :key key)
             (zotero-browser-revert)))
       (user-error "Library %s had no write access" id))))
 
@@ -674,7 +674,7 @@ With a `C-u' prefix, move to top level."
                  (object (plist-get entry :object))
                  (data (plist-get object :data))
                  (updated-data (plist-put data :collections updated-collections)))
-            (zotero-cache-update-object (plist-put object :data updated-data) :type type :id id)
+            (zotero-cache-update (plist-put object :data updated-data) :type type :id id :key key)
             (zotero-browser-revert)))
       (user-error "Library %s had no write access" id))))
 
@@ -697,7 +697,7 @@ With a `C-u' prefix, move to top level."
                  (object (plist-get entry :object))
                  (data (plist-get object :data))
                  (updated-data (plist-put data :collections updated-collections)))
-            (zotero-cache-update-object (plist-put object :data updated-data) :type type :id id)
+            (zotero-cache-update (plist-put object :data updated-data) :type type :id id :key key)
             (zotero-browser-revert)))
       (user-error "Library %s had no write access" id))))
 
