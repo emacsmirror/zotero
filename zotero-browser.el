@@ -922,6 +922,62 @@ client."
                  (display-buffer (zotero-edit-item :type type :id id :data template :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))))
         (user-error "Library %s had no write access" id)))))
 
+(defun zotero-browser-update-attachment ()
+  "Update attachment of the current entry."
+  (interactive)
+  (zotero-browser-ensure-browser-buffer)
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (library (ht-get* zotero-cache "libraries" id)))
+    (when (eq major-mode 'zotero-browser-items-mode)
+      (if (zotero-cache-write-access-p library)
+          (let* ((ewoc zotero-browser-ewoc)
+                 (node (ewoc-locate ewoc))
+                 (key (ewoc-data node))
+                 (table zotero-browser-table)
+                 (value (ht-get table key))
+                 (data (zotero-lib-plist-get* value :object :data))
+                 (itemtype (zotero-lib-plist-get* value :object :data :itemType))
+                 (linkmode (zotero-lib-plist-get* value :object :data :linkMode))
+                 (filename (zotero-lib-plist-get* value :object :data :filename))
+                 (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
+                 (path (concat (file-name-as-directory dir) filename))
+                 ;; REVIEW: method to check hash
+                 ;; (hash (zotero-lib-plist-get* value :object :data :md5))
+                 (token (zotero-auth-token))
+                 (api-key (zotero-auth-api-key token))
+                 (hash (zotero-lib-get-file-hash :type type :id id :key key :api-key api-key)))
+            (when (and (equal itemtype "attachment")
+                       (equal linkmode "imported_file"))
+              (let* ((file (expand-file-name (read-file-name "Select file: " dir nil t path)))
+                     (attributes (zotero-lib-file-attributes file))
+                     (filename (file-name-nondirectory file))
+                     (filesize (plist-get attributes :filesize))
+                     (content-type (plist-get attributes :content-type))
+                     (md5 (plist-get attributes :md5))
+                     (mtime (plist-get attributes :mtime))
+                     (accessdate (plist-get attributes :accessdate))
+                     (data (thread-first data
+                             (plist-put :title filename)
+                             (plist-put :accessDate accessdate)
+                             (plist-put :contentType content-type)
+                             ;; (plist-put :charset charset) ; charset cannot be determined without external tools
+                             (plist-put :filename filename)
+                             ;; md5 and mtime can be edited directly in
+                             ;; personal libraries for WebDAV-based file
+                             ;; syncing. They should not be edited directly
+                             ;; when using Zotero File Storage, which provides
+                             ;; an atomic method for setting the properties
+                             ;; along with the corresponding file.
+                             (plist-put :md5 nil)
+                             (plist-put :mtime nil))))
+                (zotero-cache-update (plist-put value :data data) :type type :id id :key key)
+                (when (zotero-lib-upload-attachment :type type :id id :key key :file file :hash hash :api-key api-key)
+                  (when-let ((updated-object (zotero-cache-get :type type :id id :key key)))
+                    (display-buffer (zotero-edit-item :type type :id id :data (plist-get updated-object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))
+                  (zotero-browser-revert)))))
+        (user-error "Library %s had no write access" id)))))
+
 (defun zotero-browser-open (path)
   "Open the file at PATH.
 
