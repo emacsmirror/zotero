@@ -1288,7 +1288,7 @@ See also URL
   ID\" or \"group ID\"."
   (let* ((write-token (zotero-lib--write-token))
          (json (zotero-lib-encode-object (list object)))
-         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :write-token write-token :api-key api-key  :expect "")))
+         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :api-key api-key)))
     (plist-get response :data)))
 
 (cl-defun zotero-lib-create-items (&rest objects &key type id api-key)
@@ -1314,7 +1314,7 @@ See also URL
   ;; explicitly disables this automatic behaviour.
   (let* ((write-token (zotero-lib--write-token))
          (json (zotero-lib-encode-object objects))
-         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :write-token write-token :api-key api-key :expect "")))
+         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :api-key api-key)))
     (plist-get response :data)))
 
 (cl-defun zotero-lib-update-item (object &key type id key version api-key)
@@ -1520,7 +1520,7 @@ libraries. Keyword argument ID is the ID of the personal or
 group library you want to access, e.g. the \"user ID\" or \"group
 ID\"."
   (let* ((json (zotero-lib-encode-object object))
-         (response (zotero-lib-submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json"  :expect "" :api-key api-key)))
+         (response (zotero-lib-submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json" :expect "" :api-key api-key)))
     (plist-get response :data)))
 
 (cl-defun zotero-lib-update-searches (&rest data &key type id version api-key)
@@ -1591,7 +1591,7 @@ personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
   (let* ((json (zotero-lib-encode-object object))
-         (response (zotero-lib-submit :method PUT :resource "item-fulltext" :type type :id id :key key :data json :api-key api-key)))
+         (response (zotero-lib-submit :method "PUT" :resource "item-fulltext" :type type :id id :key key :data json :api-key api-key)))
     (plist-get response :data)))
 
 ;;;; File Uploads
