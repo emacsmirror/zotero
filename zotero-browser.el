@@ -302,7 +302,10 @@ All currently available key bindings:
                                 (zotero-browser-collections))))
     (pop-to-buffer items-buffer zotero-browser-items-buffer-action)
     (display-buffer libraries-buffer zotero-browser-libraries-buffer-action)
-    (display-buffer collections-buffer zotero-browser-collections-buffer-action)))
+    (display-buffer collections-buffer zotero-browser-collections-buffer-action)
+    ;; Display the currently selected library
+    (with-current-buffer libraries-buffer
+      (zotero-browser-display))))
 
 (defun zotero-browser-libraries ()
   "Create a libraries browser buffer."
@@ -315,19 +318,14 @@ All currently available key bindings:
              (ewoc (ewoc-create #'zotero-browser--library-pp nil nil))
              (inhibit-read-only t))
         (erase-buffer)
-        (setq zotero-browser-table table)
+        (setq zotero-browser-table table
+              zotero-browser-ewoc ewoc)
         (thread-last user
           (ht-keys)
           (seq-do (lambda (key) (ewoc-enter-last ewoc key))))
         (thread-last groups
           (ht-keys)
-          (seq-do (lambda (key) (ewoc-enter-last ewoc key))))
-        (setq zotero-browser-ewoc ewoc)
-        (when-let ((node (ewoc-nth ewoc 0))
-                   (key (ewoc-data node)))
-          (ewoc-goto-node ewoc node)
-          (setq zotero-browser-type (plist-get (ht-get table key) :type)
-                zotero-browser-id (plist-get (ht-get table key) :id)))))
+          (seq-do (lambda (key) (ewoc-enter-last ewoc key))))))
     buffer))
 
 (cl-defun zotero-browser-collections (&key type id)
