@@ -1596,52 +1596,6 @@ to access, e.g. the \"user ID\" or \"group ID\"."
 
 ;;;; File Uploads
 
-(cl-defun zotero-lib-create-attachment (object &key type id api-key)
-  "Create a child attachment item in the library.
-
-`:md5' and `:mtime' properties should not be edited directly when
-using Zotero File Storage, which provides an atomic method for
-setting the properties along with the corresponding file.
-
-Top-level attachments can be created by excluding the
-`:parentItem' property or setting it to false. Though the API
-allows all attachments to be made top-level items for
-backward-compatibility, it is recommended that only file
-attachments (\"imported_file\"/\"linked_file\") and PDF imported web
-attachments (\"imported_url\" with content type \"application/pdf\") be
-allowed as top-level items, as in the Zotero client.
-
-See also URL
-`https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_create_child_attachment_item'."
-  ;; Curl automatically sets an "Expect:
-  ;; 100-continue" header if the request is a
-  ;; POST and the data size is larger than
-  ;; 1024 bytes. However, the Zotero API
-  ;; doesn't support the "Expect:" header,
-  ;; resulting in a "417 Expectation Failed"
-  ;; response. Setting the "Expect:" header to
-  ;; an empty string explicitly disables this
-  ;; automatic behaviour.
-  (let* ((write-token (zotero-lib--write-token))
-         (json (zotero-lib-encode-object object))
-         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :api-key api-key)))
-    (plist-get response :data)))
-
-;; TODO: test
-(cl-defun zotero-lib-update-attachment (object &key md5 user group api-key)
-  "Create a child attachment item in the library.
-
-`:md5' and `:mtime' properties should not be edited directly when
-using Zotero File Storage, which provides an atomic method for
-setting the properties along with the corresponding file.
-
-Argument `:md5' is the previous MD5  hash of the file as provided
-in the ETag header when downloading it."
-  (let* ((write-token (zotero-lib--write-token))
-         (json (zotero-lib-encode-object object))
-         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :if-match md5 :api-key api-key)))
-    (plist-get response :data)))
-
 (cl-defun zotero-lib-authorize-upload (&key type id key filename filesize md5 mtime hash api-key)
   "Get upload authorisation for a file and associate it with an item.
 
