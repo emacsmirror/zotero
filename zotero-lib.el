@@ -600,7 +600,7 @@ at <https://www.zotero.org/groups/>."
          (backoff (when-let ((seconds (request-response-header response "Backoff"))) (string-to-number seconds)))
          (retry-after (when-let ((seconds (request-response-header response "Retry-After"))) (string-to-number seconds)))
          (content-type (request-response-header response "Content-Type"))
-         (etag (when-let ((etag (request-response-header response "Etag"))) etag))
+         (etag (when-let ((etag (request-response-header response "Etag"))) (substring etag 1 -1))) ; remove the quotes
          (last-modified-version (when-let ((version (request-response-header response "Last-Modified-Version"))) (string-to-number version)))
          (links (zotero-lib--parse-links (request-response-header response "Link")))
          (raw-header (request-response--raw-header response))
@@ -1193,9 +1193,8 @@ See also URL
     ;; the attachment item's md5 value. If it doesn't, offer to
     ;; download the attachment item again.
     (let* ((attributes (zotero-lib-file-attributes full-filename))
-           (etag (plist-get response :etag))
-           (md5 (substring etag 1 -1)))
-      (if (equal md5 (plist-get attributes :md5))
+           (etag (plist-get response :etag)))
+      (if (equal etag (plist-get attributes :md5))
           full-filename
         (if (y-or-n-p (format "MD5 value doesn't match the response header. Retry? "))
             (zotero-lib-download-file :file file :dir dir :type type :id id :key key :api-key api-key)
