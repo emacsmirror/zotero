@@ -887,7 +887,7 @@ client."
                               ;; along with the corresponding file.
                               (plist-put :md5 nil)
                               (plist-put :mtime nil))))
-                 (when-let ((object (zotero-cache-sync-object data :type type :id id))
+                 (when-let ((object (zotero-cache-create data :type type :id id))
                             (key (plist-get object :key))
                             (token (zotero-auth-token))
                             (api-key (zotero-auth-api-key token)))
@@ -909,7 +909,7 @@ client."
                               (plist-put :contentType content-type)
                               ;; (plist-put :charset charset) ; charset cannot be determined without external tools
                               (plist-put :path file))))
-                 (when-let ((object (zotero-cache-sync-object data :type type :id id))
+                 (when-let ((object (zotero-cache-create data :type type :id id))
                             (key (plist-get object :key))
                             (token (zotero-auth-token))
                             (api-key (zotero-auth-api-key token)))

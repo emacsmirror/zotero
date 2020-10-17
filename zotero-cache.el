@@ -326,7 +326,7 @@ without making further requests."
   "Return t if CREATORTYPE is valid for ITEMTYPE."
   (member creatortype (zotero-cache-itemtypecreatortypes itemtype)))
 
-(cl-defun zotero-cache-sync-object (object &key type id)
+(cl-defun zotero-cache-create (object &key type id)
   "Sync OBJECT.
 Return the object if syncing was successful, or nil."
   (let* ((table (ht-get* zotero-cache "synccache" id "items"))
