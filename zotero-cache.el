@@ -387,7 +387,7 @@ Return the object if successful, or nil."
   (let* ((value (ht-get* zotero-cache "deletions" id "items" key))
          (synccache (ht-get* zotero-cache "synccache" id "items"))
          (deletions (ht-get* zotero-cache "deletions" id "items")))
-    (ht-set! synccache key value)
+    (ht-set! synccache key `(:synced nil :object ,(plist-get value :object)))
     (ht-remove! deletions key)))
 
 (defun zotero-cache-sync (&optional retries)
