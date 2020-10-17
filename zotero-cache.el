@@ -358,6 +358,17 @@ Return the object if syncing was successful, or nil."
      ;; This should not happen
      (t nil))))
 
+(cl-defun zotero-cache-get (&key type id key)
+  "Get KEY from library in cache.
+Return the object if successful, or nil."
+  (let* ((table (ht-get* zotero-cache "synccache" id "items"))
+         (token (zotero-auth-token))
+         (api-key (zotero-auth-api-key token)))
+    (when-let ((object (zotero-lib-get-item :type type :id id :key key :api-key api-key))
+               (version (plist-get object :version)))
+      (ht-set! table key `(:synced t :version ,version :object object))
+      object)))
+
 (cl-defun zotero-cache-update (object &key type id key)
   "Update OBJECT in cache."
   (let ((table (ht-get* zotero-cache "synccache" id "items")))

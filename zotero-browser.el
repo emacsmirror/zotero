@@ -891,9 +891,10 @@ client."
                             (key (plist-get object :key))
                             (token (zotero-auth-token))
                             (api-key (zotero-auth-api-key token)))
-                   (zotero-lib-upload-attachment :type type :id id :key key :file file :hash nil :api-key api-key)
-                   (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action)
-                   (zotero-browser-revert))))
+                   (when (zotero-lib-upload-attachment :type type :id id :key key :file file :hash nil :api-key api-key)
+                     (when-let ((updated-object (zotero-cache-get :type type :id id :key key)))
+                       (display-buffer (zotero-edit-item :type type :id id :data (plist-get updated-object :data) :locale zotero-lib-locale) zotero-browser-edit-buffer-action))
+                     (zotero-browser-revert)))))
               ("imported_url"
                (user-error "Creating a snapshot is not supported"))
               ("linked_file"
