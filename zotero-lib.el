@@ -504,9 +504,6 @@ retrying the request."
       (when (consp param)
         (setq result (push param result))))))
 
-;; Due to limitation of url-retrieve-synchronously, response slot
-;; request-response-error-thrown is unknown (always nil) when using
-;; synchronous request with url-retrieve backend.
 (cl-defun zotero-lib--endpoint (&key type id resource key)
   "Return the url from which the Zotero can access RESOURCE.
 RESOURCE is one of ... KEY is the item key, collection key, or
@@ -581,6 +578,9 @@ at <https://www.zotero.org/groups/>."
                      :parser #'buffer-string
                      :timeout zotero-lib-timeout
                      :sync t))
+         ;; Due to limitation of url-retrieve-synchronously, response slot
+         ;; request-response-error-thrown is unknown (always nil) when using
+         ;; synchronous request with url-retrieve backend.
          (error-thrown (request-response-error-thrown response))
          (symbol-status (request-response-symbol-status response))
          (status-code (request-response-status-code response))
