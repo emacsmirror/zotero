@@ -920,6 +920,8 @@ client."
               ("imported_url"
                (user-error "Creating a snapshot is not supported"))
               ("linked_file"
+               (unless (equal zotero-browser-type "user")
+                 (user-error "Linked files can only be added to user library"))
                (let* ((file (expand-file-name (read-file-name "Select file: " nil nil t)))
                       (attributes (zotero-lib-file-attributes file))
                       (filename (file-name-nondirectory file))
