@@ -437,25 +437,28 @@ OBJECT may be:
         data
       (zotero-lib--after-read-function))))
 
-(defun zotero-lib-encode-object (objects)
+(defun zotero-lib-encode-object (&rest objects)
   "Return a JSON array with OBJECTS.
 
-OBJECTS should be a list of objects, each of which may be:
+Each of the OBJECTS may be:
 - a cons cell
 - a buffer (read one Lisp expression from the beginning)
 - a function (call it with no arguments)
 - a file (read one Lisp expression from the beginning)
 - a string (takes text from string, starting at the beginning)."
   (zotero-lib--before-write-function)
-  (let (result)
+  (let (result
+        json)
     (dolist (object objects result)
       (let ((plist (zotero-lib--read object)))
         (if plist
             (push plist result)
           (user-error "Object %S doesn't return a property list" object))))
-    (let ((json (json-encode-array (vconcat (nreverse result)))))
-      (zotero-lib--after-write-function)
-      json)))
+    (if (> (seq-length result) 1)
+        (setq json (json-encode-array (seq-into (nreverse result) 'vector)))
+      (setq json (json-encode-plist (car result))))
+    (zotero-lib--after-write-function)
+    json))
 
 ;;;; Resources
 
@@ -1287,7 +1290,7 @@ See also URL
   the personal or group library you want to access, e.g. the \"user
   ID\" or \"group ID\"."
   (let* ((write-token (zotero-lib--write-token))
-         (json (zotero-lib-encode-object (list object)))
+         (json (zotero-lib-encode-object  object))
          (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :expect "" :write-token write-token :api-key api-key)))
     (plist-get response :data)))
 
@@ -1592,7 +1595,7 @@ KEY is the item key. Keyword argument TYPE is \"user\" for your
 personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
-  (let* ((json (zotero-lib-encode-object (list object)))
+  (let* ((json (zotero-lib-encode-object object))
          (response (zotero-lib-submit :method "PUT" :resource "item-fulltext" :type type :id id :key key :data json :expect "" :api-key api-key))
          (status-code (plist-get response :status-code)))
     (if (eq status-code 204) t nil)))
