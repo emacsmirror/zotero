@@ -161,18 +161,21 @@ available at URL `https://github.com/zotero/cross-poppler'."
           (delete-file filename))
       (error "Executable tar not found"))))
 
-(cl-defun zotero-fulltext-index-fulltext (file &key mimetype user group key api-key)
+(cl-defun zotero-fulltext-index-fulltext (&key type id key file content-type)
   "A convenient wrapper around `zotero-lib-set-item-fulltext'"
-  (let* ((filename (file-name-nondirectory file))
-         (mimetype (or mimetype (mailcap-file-name-to-mime-type filename)))
-         (object (cond ((equal mimetype "application/pdf")
-                        (zotero-fulltext--index-pdf file))
-                       ((assoc mimetype zotero-fulltext-pandoc-mimetypes)
-                        (zotero-fulltext--index-pandoc file mimetype))
+  (let* ((token (zotero-auth-token))
+         (api-key (zotero-auth-api-key token))
+         (filename (file-name-nondirectory file))
+         (path (expand-file-name file))
+         (content-type (or content-type (mailcap-file-name-to-mime-type filename)))
+         (object (cond ((equal content-type "application/pdf")
+                        (zotero-fulltext--index-pdf path))
                        ((equal contenttype "application/msword")
-                        (zotero-fulltext--index-antiword file))))
-         (json (zotero-lib-encode-object object)))
-    (zotero-lib-submit :method PUT :resource 'item-fulltext :user user :group group :key key :data json :content-type "application/json" :expect "" :api-key api-key)))
+                        (zotero-fulltext--index-antiword path))
+                       ((assoc content-type zotero-fulltext-pandoc-mimetypes)
+                        (zotero-fulltext--index-pandoc path content-type)))))
+    (when object
+      (zotero-lib-set-item-fulltext object :type type :id id :key key :api-key api-key))))
 
 ;;;;; Indexing functions
 
@@ -195,12 +198,12 @@ available at URL `https://github.com/zotero/cross-poppler'."
                            (buffer-string))))
            `(:content ,content :indexedPages ,indexed-pages :totalPages ,total-pages)))))
 
-(defun zotero-fulltext--index-pandoc (file mimetype)
+(defun zotero-fulltext--index-pandoc (file content-type)
   "Convert pandoc compatible markup format to text."
   (cond ((not (executable-find zotero-fulltext-pandoc))
          (error "Executable %s not found" zotero-fulltext-pandoc))
         (t
-         (let ((format (cdr (assoc mimetype zotero-fulltext-pandoc-mimetypes))))
+         (let ((format (cdr (assoc content-type zotero-fulltext-pandoc-mimetypes))))
            (with-temp-buffer
              (call-process "pandoc" nil t nil "-f" format "-t" "plain" file)
              (let* ((content (if (> (buffer-size) zotero-fulltext-max-chars)
