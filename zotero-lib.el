@@ -634,7 +634,7 @@ at <https://www.zotero.org/groups/>."
   "Reauthorize Zotero and return a new request handle."
   (if (y-or-n-p (format "Invalid API key. Authorize Zotero and retry? "))
       (when-let ((token (zotero-auth-authorize))
-                 (api-key (zotero-auth--api-key token)))
+                 (api-key (zotero-auth-api-key token)))
         (plist-put handle :api-key api-key))
     (user-error "Invalid API key")))
 
