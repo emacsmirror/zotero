@@ -570,13 +570,30 @@ Return the updated table when success or nil when failed."
          (let ((choice (or default
                            (read-multiple-choice
                             "Conflict between local and remote object cannot be automatically resolved. How should this be resolved? "
-                            '((?l "keep the local copy")
+                            '((?d "see the difference side by side")
+                              (?l "keep the local copy")
                               (?r "keep the remote copy")
                               (?L "always keep the local copy")
                               (?R "always keep the remote copy")
                               (?q "quit"))))))
            (pcase (car choice)
-             ;; else if user chooses local copy:
+             (?d
+              (let* ((local-data (zotero-lib-plist-get* value :object :data))
+                     (remote-data (plist-get object :data))
+                     (choice (zotero-diff local-data remote-data)))
+                (pcase (car choice)
+                  ;; if user chooses local copy:
+                  ;; synced = false and set a flag to restart the sync when finished
+                  ;; REVIEW: flag to restart the sync when finished?
+                  (?l
+                   (ht-set! table key `(:synced nil :object ,(plist-get value :object))))
+                  ;; if user chooses remote copy:
+                  ;; overwrite with synced = true and version = Last-Modified-Version
+                  (?r
+                   (ht-set! table key `(:synced t :version ,version :object ,object)))
+                  (?q
+                   (throw 'sync 'quit)))))
+             ;; if user chooses local copy:
              ;; synced = false and set a flag to restart the sync when finished
              ;; REVIEW: flag to restart the sync when finished?
              (?l
