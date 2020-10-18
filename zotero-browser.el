@@ -964,8 +964,6 @@ client."
                  (filename (zotero-lib-plist-get* value :object :data :filename))
                  (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
                  (path (concat (file-name-as-directory dir) filename))
-                 ;; REVIEW: method to check hash
-                 ;; (hash (zotero-lib-plist-get* value :object :data :md5))
                  (token (zotero-auth-token))
                  (api-key (zotero-auth-api-key token))
                  (hash (zotero-lib-get-file-hash :type type :id id :key key :api-key api-key)))
