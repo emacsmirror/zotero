@@ -1578,8 +1578,10 @@ e.g. the \"user ID\" or \"group ID\"."
   (let ((response (zotero-lib-submit :method "DELETE" :resource "keys" :key api-key)))
     (plist-get response :data)))
 
-(cl-defun zotero-lib-set-item-fulltext (object &key type id key)
+(cl-defun zotero-lib-set-item-fulltext (object &key type id key api-key)
   "Set an item's full-text content.
+Return t if the full-text content was updated
+successfully, else return nil.
 
 OBJECT should be a a plist containing three props:
 - `:content': the full-text content, and either
@@ -1590,9 +1592,10 @@ KEY is the item key. Keyword argument TYPE is \"user\" for your
 personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
-  (let* ((json (zotero-lib-encode-object object))
-         (response (zotero-lib-submit :method "PUT" :resource "item-fulltext" :type type :id id :key key :data json :api-key api-key)))
-    (plist-get response :data)))
+  (let* ((json (zotero-lib-encode-object (list object)))
+         (response (zotero-lib-submit :method "PUT" :resource "item-fulltext" :type type :id id :key key :data json :expect "" :api-key api-key))
+         (status-code (plist-get response :status-code)))
+    (if (eq status-code 204) t nil)))
 
 ;;;; File Uploads
 
