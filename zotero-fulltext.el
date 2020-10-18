@@ -124,6 +124,7 @@ should compile them from source and set the variables
 `zotero-fulltext-pdftotext', `zotero-fulltext-pdfinfo', and
 `zotero-fulltext-pdfdata' to the corresponding paths. The source is
 available at URL `https://github.com/zotero/cross-poppler'."
+  (interactive)
   (let ((filename (concat zotero-fulltext-directory (file-name-nondirectory zotero-fulltext-pdftools-url))))
     (unless (file-exists-p filename)
       (message "Downloading %s..." zotero-fulltext-pdftools-url)
