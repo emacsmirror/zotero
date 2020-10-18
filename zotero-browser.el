@@ -998,6 +998,32 @@ client."
                 (zotero-browser-revert))))
         (user-error "Library %s had no write access" id)))))
 
+
+(defun zotero-browser-set-fulltext ()
+  "Set the full-text content of the current entry."
+  (interactive)
+  (zotero-browser-ensure-browser-buffer)
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (library (ht-get* zotero-cache "libraries" id)))
+    (when (eq major-mode 'zotero-browser-items-mode)
+      (if (zotero-cache-write-access-p library)
+          (let* ((ewoc zotero-browser-ewoc)
+                 (node (ewoc-locate ewoc))
+                 (key (ewoc-data node))
+                 (table zotero-browser-table)
+                 (value (ht-get table key))
+                 (itemtype (zotero-lib-plist-get* value :object :data :itemType))
+                 (linkmode (zotero-lib-plist-get* value :object :data :linkMode))
+                 (filename (zotero-lib-plist-get* value :object :data :filename)))
+            (when (and (equal itemtype "attachment")
+                       (equal linkmode "imported_file"))
+              (let* ((file (zotero-browser-find-attachment))
+                     (attributes (zotero-lib-file-attributes file))
+                     (content-type (plist-get attributes :content-type)))
+                (zotero-fulltext-index-fulltext :type type :id id :key key :file file :content-type content-type))))
+        (user-error "Library %s had no write access" id)))))
+
 (defun zotero-browser-open-file (path)
   "Open the file at PATH.
 
