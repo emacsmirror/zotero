@@ -438,7 +438,7 @@ All currently available key bindings:
                                        (message "Saving...done.")
                                        (with-current-buffer zotero-browser-collections-buffer-name
                                          (zotero-browser-revert))
-                                       (zotero-edit-item :type type :id id :data (plist-get object :data) :locale locale))
+                                       (zotero-edit-collection :type type :id id :data (plist-get object :data) :locale locale))
                                    (message "Saving...failed.")))
                        "Save")
         (widget-insert " ")
