@@ -36,27 +36,6 @@
     ("text/x-tex" . "latex"))
   "An alist of MIME content-types and corresponding input formats understood by pandoc.")
 
-(defcustom zotero-fulltext-pdftools-dir (concat zotero-lib-directory "pdftools/")
-  "The directory were PDF tools should be installed."
-  :group 'zotero-fulltext
-  :type 'directory)
-
-(defcustom zotero-fulltext-pdftotext "pdftotext"
-  "Executable for pdftotext.
-Needed for fulltext indexing of PDF documents. It is freely
-available and included by default with many Linux distributions,
-and is also available for Windows as part of the Xpdf Windows
-port.
-
-A modified version of pdftotext is needed for recognition of
-metadata. This variable is set by `zotero-fulltext-install-pdftools' after
-downloading the PDF tools modified by Zotero. If you compile the
-PDF-tools from source, it should point to the \"pdftotext-*\"
-binary for your operating system."
-  :group 'zotero-fulltext
-  :type 'string
-  :link '(url-link "https://github.com/zotero/cross-poppler"))
-
 (defcustom zotero-fulltext-pdfinfo "pdfinfo"
   "Executable for pdfinfo.
 Needed for fulltext indexing of PDF documents. It is freely
@@ -70,16 +49,6 @@ PDF tools from source, it should point to the \"pdfinfo-*\" binary
 for your operating system."
   :group 'zotero-fulltext
   :type 'string
-  :link '(url-link "https://github.com/zotero/cross-poppler"))
-
-(defcustom zotero-fulltext-pdfdata ""
-  "Path to the data directory of pdftools.
-This variable is set by `zotero-fulltext-install-pdftools' after
-downloading the PDF tools modified by Zotero. If you compile the
-PDF tools from source, it should point to the \"popper-data\"
-directory."
-  :group 'zotero-fulltext
-  :type 'directory
   :link '(url-link "https://github.com/zotero/cross-poppler"))
 
 (defcustom zotero-fulltext-pandoc "pandoc"
@@ -101,65 +70,6 @@ directory."
   "How much text is indexed (default: 100 pages)."
   :group 'zotero-fulltext
   :type 'integer)
-
-(defconst zotero-fulltext-pdftools-version "0.0.3")
-
-(defconst zotero-fulltext-pdftools-url (concat "https://zotero-download.s3.amazonaws.com/pdftools/pdftools-" zotero-fulltext-pdftools-version ".tar.gz"))
-
-;;;;; PDF tools
-
-(defun zotero-fulltext-install-pdftools ()
-  "Install the PDF tools modified by Zotero.
-The executables are modified to output a preprocessed JSON that
-contains rich and structured information about the PDF and the
-text extracted from it, for use with the PDF recognizer.
-
-This function downloads and extracts the binaries available for
-macOS, Windows and Linux. You can change the installation
-directory by setting `zotero-fulltext-pdftools-dir' to an appropriate
-value before calling this function.
-
-If there are no binaries available for your operating system, you
-should compile them from source and set the variables
-`zotero-fulltext-pdftotext', `zotero-fulltext-pdfinfo', and
-`zotero-fulltext-pdfdata' to the corresponding paths. The source is
-available at URL `https://github.com/zotero/cross-poppler'."
-  (interactive)
-  (let ((filename (concat zotero-fulltext-directory (file-name-nondirectory zotero-fulltext-pdftools-url))))
-    (unless (file-exists-p filename)
-      (message "Downloading %s..." zotero-fulltext-pdftools-url)
-      (url-copy-file zotero-fulltext-pdftools-url filename t)
-      (message "Downloading %s...done" zotero-fulltext-pdftools-url))
-    (if (executable-find "tar")
-        (let ((pdftotext-filename "pdftotext")
-              (pdfinfo-filename "pdfinfo"))
-          (pcase system-type
-            ('darwin
-             (setq pdftotext-filename (concat pdftotext-filename "-mac"))
-             (setq pdfinfo-filename (concat pdfinfo-filename "-mac")))
-            ('gnu/linux
-             (let* ((arch (intern (car (split-string system-configuration "-" t))))
-                    (suffix (if (eq arch 'x86_64) "-linux-x86_64" "-linux-i686")))
-               (setq pdftotext-filename (concat pdftotext-filename suffix))
-               (setq pdfinfo-filename (concat pdfinfo-filename suffix))))
-            ('windows-nt
-             (setq pdftotext-filename (concat pdftotext-filename "-win.exe"))
-             (setq pdfinfo-filename (concat pdfinfo-filename "-win.exe")))
-            (system
-             (error "No binaries for operating system %S available.")))
-          (unless (file-directory-p zotero-fulltext-pdftools-dir)
-            (make-directory zotero-fulltext-pdftools-dir))
-          (dolist (member `(,pdftotext-filename ,pdfinfo-filename "poppler-data"))
-            (message "Extracting %s from %s..." member filename)
-            (let ((status (call-process "tar" nil nil nil "-xz" "-f" filename "-C" zotero-fulltext-pdftools-dir member)))
-              (if (eq status 0)
-                  (message "Extracting %s from %s...done" member filename)
-                (error "Extracting %s from %s...failed" member filename))))
-          (customize-save-variable 'zotero-fulltext-pdftotext (concat (file-name-as-directory zotero-fulltext-pdftools-dir) pdftotext-filename))
-          (customize-save-variable 'zotero-fulltext-pdfinfo (concat (file-name-as-directory zotero-fulltext-pdftools-dir) pdfinfo-filename))
-          (customize-save-variable 'zotero-fulltext-pdfdata (concat (file-name-as-directory zotero-fulltext-pdftools-dir) "poppler-data/"))
-          (delete-file filename))
-      (error "Executable tar not found"))))
 
 (cl-defun zotero-fulltext-index-fulltext (&key type id key file content-type)
   "A convenient wrapper around `zotero-lib-set-item-fulltext'"
