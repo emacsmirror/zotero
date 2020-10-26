@@ -546,6 +546,8 @@ reversed."
 Return table."
   (pcase resource
     ("libraries"
+     (ht-get* zotero-cache "libraries"))
+    ("library"
      (ht-get* zotero-cache "libraries" id))
     ("collections"
      (let ((table (ht-get* zotero-cache "synccache" id "collections")))
