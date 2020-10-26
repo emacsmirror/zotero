@@ -343,10 +343,14 @@ All currently available key bindings:
           (widget-insert "\n")
           (widget-create 'push-button
 		         :notify (lambda (&rest ignore)
-                                   (when-let ((object (zotero-cache-sync-object zotero-edit-data-copy :type type :id id)))
-                                     (message "Item saved.")
-                                     (zotero-browser-revert)
-                                     (zotero-edit-item :type type :id id :data (plist-get object :data) :locale locale)))
+                                   (message "Saving...")
+                                   (if-let ((object (zotero-cache-save :type type :id id :resource "items" :data zotero-edit-data-copy)))
+                                       (progn
+                                         (message "Saving...done.")
+                                         (with-current-buffer zotero-browser-items-buffer-name
+                                           (zotero-browser-revert))
+                                         (zotero-edit-item :type type :id id :data (plist-get object :data) :locale locale))
+                                     (message "Saving...failed.")))
                          "Save")
           (widget-insert " ")
           ;; Reset button
@@ -359,7 +363,7 @@ All currently available key bindings:
           (widget-setup))))
     buffer))
 
-(cl-defun zotero-edit-collection (&key type id data)
+(cl-defun zotero-edit-collection (&key type id data locale)
   "Create a new collection."
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
     (with-current-buffer buffer
@@ -367,7 +371,11 @@ All currently available key bindings:
       (erase-buffer)
       ;; (remove-overlays)
       (let* ((template (zotero-lib-collection-template)))
-        (setq zotero-edit-data-copy (copy-tree data))
+        (setq zotero-edit-type type
+              zotero-edit-id id
+              zotero-edit-data data
+              zotero-edit-data-copy (copy-tree data)
+              zotero-edit-locale locale)
         ;; Key
         (when-let ((value (plist-get data :key))
                    (fieldname "Key"))
@@ -399,7 +407,7 @@ All currently available key bindings:
                            (collections (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table))
                            (choices (cons `(item :format "%t" :value :json-false :tag "None") collections)))
                       (widget-create 'menu-choice
-                                     :format (concat fieldname ": %[%v%]")
+                                     :format (concat fieldname ": %[%v%]\n")
                                      :notify (lambda (widget &rest ignore)
                                                (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                      :button-prefix "▾"
@@ -424,8 +432,14 @@ All currently available key bindings:
         (widget-insert "\n")
         (widget-create 'push-button
 		       :notify (lambda (&rest ignore)
-			         (zotero-cache-save-collection :type type :id id :data zotero-edit-data-copy)
-                                 (zotero-edit-collection :type type :id id :data zotero-edit-data-copy))
+	                         (message "Saving...")
+                                 (if-let ((object (zotero-cache-save :type type :id id :resource "collections" :data zotero-edit-data-copy)))
+                                     (progn
+                                       (message "Saving...done.")
+                                       (with-current-buffer zotero-browser-collections-buffer-name
+                                         (zotero-browser-revert))
+                                       (zotero-edit-item :type type :id id :data (plist-get object :data) :locale locale))
+                                   (message "Saving...failed.")))
                        "Save")
         (widget-insert " ")
         ;; Reset button
@@ -486,6 +500,8 @@ All currently available key bindings:
         (id zotero-edit-id)
         (data zotero-edit-data-copy)
         (locale zotero-edit-locale))
+    (if-let ((key (plist-get data :key)))
+        (zotero-cache-save data))
     (when-let ((object (zotero-cache-sync-object data :type type :id id)))
       (message "Item saved.")
       (zotero-edit-item :type type :id id :data (plist-get object :data) :locale locale))))

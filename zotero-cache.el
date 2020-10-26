@@ -21,7 +21,10 @@
 
 ;;;; Requirements
 (require 'cl-lib)
+(require 'iso8601)
+(require 'parse-time)
 (require 'zotero-lib)
+(require 'zotero-diff)
 
 ;;;; Variables
 
@@ -229,6 +232,67 @@ Argument PLIST is the permissions of the user or group library as
 returned by `zotero-lib-get-key'."
   (eq (plist-get plist :files) t))
 
+(defun zotero-cache-level (key table)
+  "Return the level of KEY."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (table (pcase major-mode
+                  ('zotero-browser-collections-mode
+                   (zotero-cache-get :type type :id id :resource "collections"))
+                  ('zotero-browser-items-mode
+                   (zotero-cache-get :type type :id id :resource "items"))))
+         (level 0))
+    (while
+        (let ((parent (pcase major-mode
+                        ('zotero-browser-collections-mode
+                         (zotero-cache-parentcollection key table))
+                        ('zotero-browser-items-mode
+                         (zotero-cache-parentitem key table)))))
+          (setq level (1+ level))
+          (unless (or (eq parent :json-false) (null parent))
+            (setq key parent))))
+    level))
+
+(defun zotero-cache-parentitem (key table)
+  "Return the parent of KEY, or nil."
+  (let ((value (ht-get table key)))
+    (zotero-lib-plist-get* value :object :data :parentItem)))
+
+(defun zotero-cache-parentcollection (key table)
+  "Return the parent of KEY, or nil."
+  (let ((value (ht-get table key)))
+    (zotero-lib-plist-get* value :object :data :parentCollection)))
+
+(defun zotero-cache-subitems (key table)
+  "Return the subcollections of KEY."
+  (zotero-cache--filter (lambda (elt) (equal (plist-get elt :parentItem) key)) table))
+
+(defun zotero-cache-subcollections (key table)
+  "Return the subcollections of KEY."
+  (zotero-cache--filter (lambda (elt) (equal (plist-get elt :parentCollection) key)) table))
+
+(defun zotero-cache-has-subitems-p (key table)
+  "Return non-nil if KEY has subitems."
+  (zotero-cache--some (lambda (elt) (equal (plist-get elt :parentItem) key)) table))
+
+(defun zotero-cache-has-subcollections-p (key table)
+  "Return non-nil if KEY has subcollections."
+  (zotero-cache--some (lambda (elt) (equal (plist-get elt :parentCollection) key)) table))
+
+(defun zotero-cache-has-attachments-p (key table)
+  "Return non-nil if KEY has attachments."
+  (zotero-cache--some (lambda (elt)
+                        (and (equal (plist-get value :parentItem) key)
+                             (equal (plist-get value :itemType) "attachment")))
+                      table))
+
+(defun zotero-cache-has-notes-p (key table)
+  "Return non-nil if KEY has attachments."
+  (zotero-cache-some (lambda (elt)
+                       (and (equal (plist-get elt :parentItem) key)
+                            (equal (plist-get elt :itemType) "note")))
+                     table))
+
 (defun zotero-cache-itemtype-locale (itemtype &optional locale)
   "Return translation of ITEMTYPE for LOCALE."
   (let* ((schema (zotero-cache-schema))
@@ -326,13 +390,71 @@ without making further requests."
   "Return t if CREATORTYPE is valid for ITEMTYPE."
   (member creatortype (zotero-cache-itemtypecreatortypes itemtype)))
 
-(cl-defun zotero-cache-create (object &key type id)
-  "Sync OBJECT.
+(cl-defun zotero-cache-search (&key type id resource keys include-trashed query mode since)
+  "Search the cache. Searches titles and individual creator
+fields by default. Use the MODE argument to change the mode.
+Default is \"titleCreatorYear\". To include full-text content,
+use \"everything\".
+
+Keyword argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. Keyword argument ID is the ID
+of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\"."
+  (let* ((items (s-join "," keys))
+         (table (ht-get* zotero-cache "synccache")))
+    (plist-get response :data)))
+
+(defun zotero-cache-filter (pred table)
+  "Select elements from TABLE for which PRED returns non-`nil'.
+Return a list of the keys in TABLE. PRED is a function that takes
+a data element as its first argument."
+  (thread-last
+      table
+    (ht-select (lambda (key value)
+                 ;; keep the predicate nil-safe
+                 (ignore-error wrong-type-argument
+                   (funcall pred (zotero-lib-plist-get* value :object :data)))))))
+
+(defun zotero-cache--some (pred table)
+  "Return non-nil if PRED is satisfied for at least one element of TABLE.
+PRED is a function that takes a data element as its first
+argument."
+  (if (ht-find (lambda (key value) (funcall pred (zotero-lib-plist-get* value :object :data))) table) t nil))
+
+(cl-defun zotero-cache-save (&key type id resource data)
+  "Save DATA to cache.
+If DATA contains a prop `:key', it already exists in cache and is
+updated, else it is uploaded and a new entry is created. Return
+the object if successful, or nil."
+  (let ((table (zotero-cache-get :type type :id id :resource resource))
+        (key (plist-get data :key)))
+    (if key
+        (let* ((entry (ht-get table key))
+               (version (plist-get entry :version))
+               (object (plist-get entry :object)))
+          (ht-set! table key `(:synced nil :version ,version :object ,(plist-put object :data data)))
+          object)
+      (message "Uploading...")
+      (if-let* ((object (zotero-cache-upload data :type type :id id))
+                (key (plist-get object :key))
+                (version (plist-get object :version)))
+          (progn
+            (message "Uploading...done.")
+            (ht-set! table key `(:synced t :version ,version :object ,object))
+            object)
+        (message "Uploading...failed.")
+        nil))))
+
+(cl-defun zotero-cache-upload (object &key type id resource)
+  "Upload OBJECT.
 Return the object if syncing was successful, or nil."
-  (let* ((table (ht-get* zotero-cache "synccache" id "items"))
+  (let* ((table (zotero-cache-get :type type :id id :resource resource))
          (token (zotero-auth-token))
          (api-key (zotero-auth-api-key token))
-         (status (zotero-lib-create-item object :type type :id id :api-key api-key))
+         (status (pcase resource
+                   ("items" (zotero-lib-create-item object :type type :id id :api-key api-key))
+                   ("collections" (zotero-lib-create-collection object :type type :id id :api-key api-key))
+                   ("searches" (zotero-lib-create-search object :type type :id id :api-key api-key))))
          (successful (plist-get status :successful))
          (success (plist-get status :success))
          (unchanged (plist-get status :unchanged))
@@ -358,21 +480,128 @@ Return the object if syncing was successful, or nil."
      ;; This should not happen
      (t nil))))
 
-(cl-defun zotero-cache-get (&key type id key)
-  "Get KEY from library in cache.
-Return the object if successful, or nil."
-  (let* ((table (ht-get* zotero-cache "synccache" id "items"))
-         (token (zotero-auth-token))
-         (api-key (zotero-auth-api-key token)))
-    (when-let ((object (zotero-lib-get-item :type type :id id :key key :api-key api-key))
-               (version (plist-get object :version)))
-      (ht-set! table key `(:synced t :version ,version :object object))
-      object)))
+(defun zotero-cache--filter (pred table)
+  "Select elements from TABLE for which PRED returns non-`nil'.
+Return a list of the keys in TABLE. PRED is a function that takes
+a data element as its first argument."
+  (thread-last
+      table
+    (ht-select (lambda (key value)
+                 ;; keep the predicate nil-safe
+                 (ignore-error wrong-type-argument
+                   (funcall pred (zotero-lib-plist-get* value :object :data)))))))
 
-(cl-defun zotero-cache-update (object &key type id key)
-  "Update OBJECT in cache."
-  (let ((table (ht-get* zotero-cache "synccache" id "items")))
-    (ht-set! table key `(:synced nil :object ,(plist-get object :object)))))
+(defun zotero-cache--year (string)
+  "Return year in STRING, or nil."
+  (let* ((regexp "[[:digit:]]\\{4\\}")
+         (match (string-match regexp string)))
+    (when match (match-string 0 string))))
+
+(defun zotero-cache--pred (field direction)
+  "Return a predicate function as used by `zotero-cache-sort-by'."
+  (let ((pred (pcase field
+                ;; REVIEW: is this necessary? The sorting function already ignores type errors.
+                ;; The :tags, :collections, and :relations fields are vectors and not suitable for sorting
+                ((or :tags :collections :relations)
+                 (user-error "The %S field is not suitable for sorting" field))
+                ;; The :creators field is a vector, and sorted by :lastName of the first creator
+                (:creators
+                 (lambda (a b) (string-greaterp (plist-get (seq-first a) :lastName) (plist-get (seq-first b) :lastName))))
+                ;; The date fields could contain time strings in various formats that cannot be parsed reliably, so attempt to extract the year only
+                ((or :date :accessDate :dateDecided :filingDate :issueDate :dateEnacted)
+                 (lambda (a b) (when-let ((year-a (zotero-cache--year a))
+                                          (year-b (zotero-cache--year b)))
+                                 (string-greaterp year-a year-b))))
+                ;; The :dateAdded and :dateModified fields are filled automatically in ISO 8601 format
+                ((or :dateAdded :dateModified)
+                 (lambda (a b) (time-less-p (encode-time (iso8601-parse a)) (encode-time (iso8601-parse b)))))
+                ;; The :version and :mtime fields are integers
+                ((or :version :mtime)
+                 #'<)
+                ;; The rest of the fields are strings
+                (_ #'string-lessp))))
+    (pcase direction
+      ('asc
+       pred)
+      ('desc
+       (lambda (a b) (funcall pred b a))))))
+
+(defun zotero-cache-sort-by (field direction table)
+  "Sort TABLE by FIELD. Return an ordered list of the keys.
+If optional argument REVERSE is non-nil, the sorting order is
+reversed."
+  (let ((pred (zotero-cache--pred field direction)))
+    (thread-last
+        (ht->alist table)
+      (seq-sort-by (lambda (elt)
+                     (zotero-lib-plist-get* (cdr elt) :object :data field))
+                   (lambda (a b)
+                     ;; keep the predicate nil-safe
+                     (ignore-error wrong-type-argument
+                       (funcall pred a b))))
+      (seq-map #'car))))
+
+(cl-defun zotero-cache-get (&key type id resource key)
+  "Get RESOURCE from library in cache.
+Return table."
+  (pcase resource
+    ("libraries"
+     (ht-get* zotero-cache "libraries" id))
+    ("collections"
+     (let ((table (ht-get* zotero-cache "synccache" id "collections")))
+       table))
+    ("collections-top"
+     (let* ((table (ht-get* zotero-cache "synccache" id "collections"))
+            (selection (zotero-cache--filter (lambda (elt) (eq (plist-get elt :parentCollection) :json-false)) table)))
+       selection))
+    ("collection"
+     (ht-get* zotero-cache "synccache" id "collections" key))
+    ("subcollections"
+     (let* ((table (ht-get* zotero-cache "synccache" id "collections"))
+            (selection (zotero-cache--filter (lambda (elt) (equal (plist-get elt :parentCollection) key)) table))))
+     selection)
+    ("items"
+     (let ((table (ht-get* zotero-cache "synccache" id "items")))
+       table))
+    ("items-top"
+     (let* ((table (ht-get* zotero-cache "synccache" id "items"))
+            (selection (zotero-cache--filter (lambda (elt) (eq (plist-get elt :collections) [])) table)))
+       selection))
+    ;; ("trash-items" "/items/trash")
+    ("item"
+     (ht-get* zotero-cache "synccache" id "items" key))
+    ("item-children"
+     (let* ((table (ht-get* zotero-cache "synccache" id "items"))
+            (selection (zotero-cache--filter (lambda (elt) (equal (plist-get elt :parentItem) key)))))
+       selection))
+    ;; ("publication-items" "/publications/items/")
+    ("collection-items"
+     (let* ((table (ht-get* zotero-cache "synccache" id "items"))
+            (selection (zotero-cache--filter (lambda (elt) (seq-contains-p (plist-get elt :collections) key)) table)))
+       selection))
+    ;; ("collection-items-top" (concat "/collections/" key "/items/top"))
+    ("searches"
+     (let ((table (ht-get* zotero-cache "synccache" id "searches")))
+       table))
+    ("search"
+     (ht-get* zotero-cache "synccache" id "search" key))
+    ;; ("tags" "/tags")
+    ;; ("tags" (concat "/tags/" (url-hexify-string key)))
+    ;; ("item-tags" (concat "/items/" key "/items/tags"))
+    ;; ("collection-tags" (concat "/collection/" key "/tags"))
+    ;; ("items-tags" "/items/tags")
+    ;; ("items-top-tags" "/items/top/tags")
+    ;; ("trash-items-tags" "/items/trash/tags")
+    ;; ("collection-items-tags" (concat "/items/" key "/items/tags"))
+    ;; ("collection-items-top-tags" (concat "/items/" key "/items/top/tags"))
+    ;; ("publication-items-tags" "/publications/tags")
+    ;; ("keys" (concat "/keys/" key))
+    ;; ("groups" `("synccache" "groups"))
+    ;; ("all-fulltext" "/fulltext")
+    ;; ("item-fulltext" (concat "/items/" key "/fulltext"))
+    ;; ("file" (concat "/items/" key "/file"))
+    ;; ("deleted" (concat "/deleted" ))
+    ))
 
 (cl-defun zotero-cache-delete (&key type id resource key)
   "Delete KEY from cache."
@@ -1059,10 +1288,10 @@ If necessary, show a warning that the user no longer has sufficient access and o
   "Sync the attachments to storage."
   (let* ((synccache (ht-get cache "synccache"))
          (table (ht-get* synccache id "items"))
-         (attachments (zotero-browser--filter (lambda (elt) (and (equal (plist-get elt :itemType) "attachment")
-                                                                 (or (equal (plist-get elt :linkMode) "imported_file")
-                                                                     (equal (plist-get elt :linkMode) "imported_url"))))
-                                              table)))
+         (attachments (zotero-cache--filter (lambda (elt) (and (equal (plist-get elt :itemType) "attachment")
+                                                               (or (equal (plist-get elt :linkMode) "imported_file")
+                                                                   (equal (plist-get elt :linkMode) "imported_url"))))
+                                            table)))
     (cl-loop for key being the hash-keys of attachments
              using (hash-values value) do
              (let* ((data (zotero-lib-plist-get* value :object :data))
