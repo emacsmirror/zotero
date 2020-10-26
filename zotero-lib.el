@@ -41,10 +41,8 @@
 (require 'seq)
 (require 'subr-x)
 (require 'url)
-;; (require 'aio)
 (require 'ht)
 (require 'request)
-;; (require 'request-deferred)
 (require 's)
 (require 'zotero-auth)
 
