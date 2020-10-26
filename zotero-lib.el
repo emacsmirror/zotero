@@ -73,6 +73,7 @@
                    :content "content"
                    :direction "direction"
                    :include "include"
+                   :include-trashed "includeTrashed"
                    :itemkey "itemKey"
                    :itemtype "itemType"
                    :format "format"
@@ -80,6 +81,8 @@
                    :linkmode "linkMode"
                    :linkwrap "linkwrap"
                    :locale "locale"
+                   :q "q"
+                   :qmode "qmode"
                    :searchkey "searchKey"
                    :since "since"
                    :sort "sort"
@@ -719,7 +722,7 @@ response. If the response is paginated the data is concatenated."
       (503
        (user-error Service" Unavailable")))))
 
-(cl-defun zotero-lib-retrieve (&key url type id resource key api-key version last-modified-version locale if-match if-none-match itemtype linkmode format since itemkey collectionkey searchkey)
+(cl-defun zotero-lib-retrieve (&key url type id resource key api-key version last-modified-version locale if-match if-none-match include-trashed itemtype linkmode format since q qmode tag itemkey collectionkey searchkey)
   "Return the last-modified-version and the data returned by the Zotero request.
 The result is a cons of (version . data).
 
@@ -734,7 +737,7 @@ libraries, the ID can be found by opening the group's page at
   ;; Request the specified URL or construct the endpoint of the resource
   (let* ((url (or url
                   (zotero-lib--endpoint :type type :id id :resource resource :key key)))
-         (handle `(:url ,url :method "GET" :api-key ,api-key :api-version ,zotero-lib-api-version :collectionkey ,collectionkey :format ,format :if-modified-since-version ,version :itemkey ,itemkey :if-match ,if-match :if-none-match ,if-none-match :itemtype ,itemtype :last-modified-version ,last-modified-version :linkmode ,linkmode :locale ,locale :searchkey ,searchkey :since ,since)))
+         (handle `(:url ,url :method "GET" :api-key ,api-key :api-version ,zotero-lib-api-version :collectionkey ,collectionkey :format ,format :if-modified-since-version ,version :itemkey ,itemkey :if-match ,if-match :if-none-match ,if-none-match :include-trashed ,include-trashed :itemtype ,itemtype :last-modified-version ,last-modified-version :linkmode ,linkmode :locale ,locale :searchkey ,searchkey :since ,since :q ,q :qmode ,qmode :tag ,tag)))
     (zotero-lib--dispatch handle)))
 
 (cl-defun zotero-lib-submit (&key method url type id resource key data api-key version content-type expect if-match if-none-match write-token)
@@ -1095,18 +1098,58 @@ e.g. the \"group ID\"."
          (response (zotero-lib--dispatch handle)))
     (plist-get response :etag)))
 
+(cl-defun zotero-lib-search (&key type id resource keys include-trashed query mode since api-key)
+  "Search the library. Searches titles and individual creator
+fields by default. Use the MODE argument to change the mode.
+Default is \"titleCreatorYear\". To include full-text content,
+use \"everything\".
+
+Keyword argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. Keyword argument ID is the ID
+of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\"."
+  (let* ((items (s-join "," keys))
+         (response (zotero-lib-retrieve :resource resource :type type :id id :q query :qmode mode :itemkey items :include-trashed (if include-trashed 1 0):api-key api-key)))
+    (plist-get response :data)))
+
+(cl-defun zotero-lib-search-itemtype (&key type id resource keys query mode since api-key)
+  "Search the tags in library.
+
+Use the MODE argument to change the mode. Default is
+\"contains\". To perform a left-bound search, use \"startsWith\".
+Keyword argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. Keyword argument ID is the ID
+of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\"."
+  (let* ((items (s-join "," keys))
+         (response (zotero-lib-retrieve :resource resource :type type :id id :itemtype query :qmode mode :itemkey items :api-key api-key)))
+    (plist-get response :data)))
+
+(cl-defun zotero-lib-search-tag (&key type id resource keys query mode since api-key)
+  "Search the tags in library.
+
+Use the MODE argument to change the mode. Default is
+\"contains\". To perform a left-bound search, use \"startsWith\".
+Keyword argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. Keyword argument ID is the ID
+of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\"."
+  (let* ((items (s-join "," keys))
+         (response (zotero-lib-retrieve :resource resource :type type :id id :tag query :qmode mode :itemkey items :api-key api-key)))
+    (plist-get response :data)))
+
 (cl-defun zotero-lib-download-file (&key file dir type id key api-key confirm)
   "A convenient wrapper around `zotero-lib-get-file'.
-Write an attachment to disk using the optional DIR and FILE. DIR
-is directory to start with if FILE is relative
-(does not start with slash or tilde). If DIR is nil, the current
-buffer’s value of ‘default-directory’ is used. If FILE is not
-supplied, a `zotero-lib-item' call is made to determine the
-attachment filename. If successful, the full path including the
-file name is returned.
+  Write an attachment to disk using the optional DIR and FILE. DIR
+  is directory to start with if FILE is relative
+  (does not start with slash or tilde). If DIR is nil, the current
+  buffer’s value of ‘default-directory’ is used. If FILE is not
+  supplied, a `zotero-lib-item' call is made to determine the
+  attachment filename. If successful, the full path including the
+  file name is returned.
 
-See also URL
-`https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_download_the_existing_file'."
+  See also URL
+  `https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_download_the_existing_file'."
   (let* ((response (zotero-lib-retrieve :resource "file" :type type :id id :key key :api-key api-key))
          (data (plist-get response :data))
          (coding-system-for-write 'binary)
