@@ -1233,8 +1233,8 @@ of the personal or group library you want to access, e.g. the
   \"linked_file\", or
   \"linked_url\".
 
-See also URL
-`https://www.zotero.org/support/dev/web_api/v3/file_upload#i_get_attachment_item_template'."
+  See also URL
+  `https://www.zotero.org/support/dev/web_api/v3/file_upload#i_get_attachment_item_template'."
   (let* ((url (concat zotero-lib-base-url "/items/new"))
          (response (zotero-lib-retrieve :url url :itemtype "attachment" :linkmode linkmode)))
     (plist-get response :data)))
