@@ -1310,9 +1310,9 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
   "Add items of TABLE after NODE in ewoc"
   (let ((keys (pcase major-mode
                 ('zotero-browser-collections-mode
-                 (zotero-cache-sort-by :name 'asc))
+                 (zotero-cache-sort-by :name 'asc table))
                 ('zotero-browser-items-mode
-                 (zotero-cache-sort-by :title 'asc)))))
+                 (zotero-cache-sort-by :title 'asc table)))))
     (while keys
       (setq node (ewoc-enter-after ewoc node (pop keys))))))
 
