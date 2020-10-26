@@ -26,8 +26,6 @@
 
 ;;;; Requirements
 
-(require 'zotero-lib)
-(require 'zotero-cache)
 (require 'seq)
 (require 'widget)
 
