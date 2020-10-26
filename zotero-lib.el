@@ -499,12 +499,6 @@ retrying the request."
                  (value (plist-get handle key)))
         (setq params (cons `(,param . ,value) params))))))
 
-(defun zotero-lib--create-params (&rest params)
-  (let ((result))
-    (dolist (param params result)
-      (when (consp param)
-        (setq result (push param result))))))
-
 (cl-defun zotero-lib--endpoint (&key type id resource key)
   "Return the url from which the Zotero can access RESOURCE.
 RESOURCE is one of ... KEY is the item key, collection key, or
