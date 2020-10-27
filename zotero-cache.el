@@ -560,8 +560,8 @@ Return table."
      (ht-get* zotero-cache "synccache" id "collections" key))
     ("subcollections"
      (let* ((table (ht-get* zotero-cache "synccache" id "collections"))
-            (selection (zotero-cache--filter (lambda (elt) (equal (plist-get elt :parentCollection) key)) table))))
-     selection)
+            (selection (zotero-cache--filter (lambda (elt) (equal (plist-get elt :parentCollection) key)) table)))
+       selection))
     ("items"
      (let ((table (ht-get* zotero-cache "synccache" id "items")))
        table))
