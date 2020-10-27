@@ -72,11 +72,9 @@
   '(:collectionkey "collectionKey"
                    :content "content"
                    :direction "direction"
-                   :include "include"
                    :include-trashed "includeTrashed"
                    :itemkey "itemKey"
                    :itemtype "itemType"
-                   :format "format"
                    :limit "limit"
                    :linkmode "linkMode"
                    :linkwrap "linkwrap"
@@ -156,33 +154,6 @@ The number should be an integer between 1 and 100."
 		        (widget-put widget :error
 				    "Invalid value: must be an integer between 1 and 100.")
 		        widget)))))
-
-;; (defcustom zotero-lib-export-format 'bibtex
-;;   "Export Formats.
-;; The following bibliographic data formats can be used as format, include, and content parameters."
-;;   :group 'zotero-lib
-;;   :type '(choice ((const :tag "BibTeX" bibtex)
-;;                   (const :tag "BibLaTeX" biblatex)
-;;                   (const :tag "Netscape Bookmark File Format" bookmarks)
-;;                   (const :tag "COinS" coins)
-;;                   (const :tag "Citation Style Language data format" csljson)
-;;                   (const :tag "MODS" mods)
-;;                   (const :tag "Refer/BibIX" refer)
-;;                   (const :tag "Bibliographic Ontology RDF" rdf)
-;;                   (const :tag "Unqualified Dublin Core RDF" rdf)
-;;                   (const :tag "Zotero RDF" rdf)
-;;                   (const :tag "RIS" ris)
-;;                   (const :tag "Text Encoding Initiative (TEI)" tei)
-;;                   (const :tag "Wikipedia Citation Templates" wikipedia))))
-
-;; (defcustom zotero-lib-style "chicago-note-bibliography"
-;;   "Citation style to use for formatted references. Can be either
-;; the file name (without the .csl extension) of one of the styles
-;; in the Zotero Style Repository (e.g., apa) or the URL of a remote
-;; CSL file."
-;;   :group 'zotero-lib
-;;   :type 'string
-;;   :link '(url-link "https://www.zotero.org/styles/"))
 
 (defcustom zotero-lib-linkwrap nil
   "Non-nil means to return URLs and DOIs as links."
@@ -713,7 +684,7 @@ response. If the response is paginated the data is concatenated."
       (503
        (user-error Service" Unavailable")))))
 
-(cl-defun zotero-lib-retrieve (&key url type id resource key api-key version last-modified-version locale if-match if-none-match include-trashed itemtype linkmode format since q qmode tag itemkey collectionkey searchkey)
+(cl-defun zotero-lib-retrieve (&key url type id resource key api-key version last-modified-version locale if-match if-none-match include-trashed itemtype linkmode since q qmode tag itemkey collectionkey searchkey)
   "Return the last-modified-version and the data returned by the Zotero request.
 The result is a cons of (version . data).
 
@@ -728,7 +699,7 @@ libraries, the ID can be found by opening the group's page at
   ;; Request the specified URL or construct the endpoint of the resource
   (let* ((url (or url
                   (zotero-lib--endpoint :type type :id id :resource resource :key key)))
-         (handle `(:url ,url :method "GET" :api-key ,api-key :api-version ,zotero-lib-api-version :collectionkey ,collectionkey :format ,format :if-modified-since-version ,version :itemkey ,itemkey :if-match ,if-match :if-none-match ,if-none-match :include-trashed ,include-trashed :itemtype ,itemtype :last-modified-version ,last-modified-version :linkmode ,linkmode :locale ,locale :searchkey ,searchkey :since ,since :q ,q :qmode ,qmode :tag ,tag)))
+         (handle `(:url ,url :method "GET" :api-key ,api-key :api-version ,zotero-lib-api-version :collectionkey ,collectionkey :if-modified-since-version ,version :itemkey ,itemkey :if-match ,if-match :if-none-match ,if-none-match :include-trashed ,include-trashed :itemtype ,itemtype :last-modified-version ,last-modified-version :linkmode ,linkmode :locale ,locale :searchkey ,searchkey :since ,since :q ,q :qmode ,qmode :tag ,tag)))
     (zotero-lib--dispatch handle)))
 
 (cl-defun zotero-lib-submit (&key method url type id resource key data api-key version content-type expect if-match if-none-match write-token)
