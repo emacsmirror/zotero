@@ -448,18 +448,15 @@ Each of the OBJECTS may be:
 - a file (read one Lisp expression from the beginning)
 - a string (takes text from string, starting at the beginning)."
   (zotero-lib--before-write-function)
-  (let (result
-        json)
+  (let (result)
     (dolist (object objects result)
       (let ((plist (zotero-lib--read object)))
         (if plist
             (push plist result)
           (user-error "Object %S doesn't return a property list" object))))
-    (if (> (seq-length result) 1)
-        (setq json (json-encode-array (seq-into (nreverse result) 'vector)))
-      (setq json (json-encode-plist (car result))))
-    (zotero-lib--after-write-function)
-    json))
+    (prog1
+        (json-encode-array (seq-into (nreverse result) 'vector))
+      (zotero-lib--after-write-function))))
 
 ;;;; Resources
 
