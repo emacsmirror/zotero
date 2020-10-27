@@ -598,7 +598,10 @@ Return table."
     ;; ("collection-items-top-tags" (concat "/items/" key "/items/top/tags"))
     ;; ("publication-items-tags" "/publications/tags")
     ;; ("keys" (concat "/keys/" key))
-    ;; ("groups" `("synccache" "groups"))
+    ("groups"
+     (ht-get zotero-cache "groups"))
+    ("group"
+     (ht-get* zotero-cache "groups" id))
     ;; ("all-fulltext" "/fulltext")
     ;; ("item-fulltext" (concat "/items/" key "/fulltext"))
     ;; ("file" (concat "/items/" key "/file"))
