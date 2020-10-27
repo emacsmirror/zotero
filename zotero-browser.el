@@ -650,7 +650,9 @@ With a `C-u' prefix, move to top level."
                 (if (or (equal itemtype "attachment") (equal itemtype "note"))
                     (user-error "Parent item cannot be a note or attachment")
                   (setq updated-data (plist-put data :parentItem parent)))))
-            (zotero-cache-update (plist-put object :data updated-data) :type type :id id :key key)
+            (zotero-cache-save :type type :id id :resource "items" :data updated-data)
+            (zotero-browser-revert)))
+      (user-error "Library %s had no write access" id))))
             (zotero-browser-revert)))
       (user-error "Library %s had no write access" id))))
 
@@ -676,7 +678,7 @@ With a `C-u' prefix, move to top level."
                  (object (plist-get entry :object))
                  (data (plist-get object :data))
                  (updated-data (plist-put data :collections updated-collections)))
-            (zotero-cache-update (plist-put object :data updated-data) :type type :id id :key key)
+            (zotero-cache-save :type type :id id :resource "items" :data updated-data)
             (zotero-browser-revert)))
       (user-error "Library %s had no write access" id))))
 
@@ -697,7 +699,7 @@ With a `C-u' prefix, move to top level."
                  (collections (zotero-lib-plist-get* entry :object :data :collections))
                  (updated-collections (seq-remove (lambda (elt) (equal elt collection)) collections))
                  (updated-data (plist-put data :collections updated-collections)))
-            (zotero-cache-update (plist-put object :data updated-data) :type type :id id :key key)
+            (zotero-cache-save :type type :id id :resource "items" :data updated-data)
             (zotero-browser-revert)))
       (user-error "Library %s had no write access" id))))
 
@@ -901,12 +903,11 @@ client."
                               ;; along with the corresponding file.
                               (plist-put :md5 nil)
                               (plist-put :mtime nil))))
-                 (when-let ((object (zotero-cache-create data :type type :id id))
+                 (when-let ((object (zotero-cache-save :type type :id id :resource "items" :data data))
                             (key (plist-get object :key))
                             (token (zotero-auth-token))
                             (api-key (zotero-auth-api-key token)))
-                   (if (zotero-lib-upload-attachment :type type :id id :key key :file file :api-key api-key)
-                       (zotero-cache-update (plist-put value :data data) :type type :id id :key key)
+                   (unless (zotero-lib-upload-attachment :type type :id id :key key :file file :api-key api-key)
                      (error "Failed to associate attachment with item %s" key))
                    (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
               ("imported_url"
@@ -926,7 +927,7 @@ client."
                               (plist-put :contentType content-type)
                               ;; (plist-put :charset charset) ; charset cannot be determined without external tools
                               (plist-put :path file))))
-                 (when-let ((object (zotero-cache-create data :type type :id id))
+                 (when-let ((object (zotero-cache-save :type type :id id :resource "items" :data data))
                             (key (plist-get object :key))
                             (token (zotero-auth-token))
                             (api-key (zotero-auth-api-key token)))
@@ -984,8 +985,7 @@ client."
                              ;; along with the corresponding file.
                              (plist-put :md5 nil)
                              (plist-put :mtime nil))))
-                (if (zotero-lib-upload-attachment :type type :id id :key key :file file :hash hash :api-key api-key)
-                    (zotero-cache-update (plist-put value :data data) :type type :id id :key key)
+                (unless (zotero-lib-upload-attachment :type type :id id :key key :file file :hash hash :api-key api-key)
                   (error "Failed to associate attachment with item %s" key))
                 (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)
                 (zotero-browser-revert))))
