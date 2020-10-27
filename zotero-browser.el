@@ -468,6 +468,29 @@ All currently available key bindings:
     (zotero-browser-goto-prev)
     (pop-to-buffer buffer)))
 
+(defun zotero-browser-parent-collection ()
+  "Move point to the parent collection."
+  (interactive)
+  (zotero-browser-ensure-browser-buffer)
+  (let ((buffer (current-buffer)))
+    (pop-to-buffer zotero-browser-collections-buffer-name)
+    (let* ((ewoc zotero-browser-ewoc)
+           (node (ewoc-locate ewoc))
+           (key (ewoc-data node))
+           (parent (zotero-browser--parent key))
+           (n 0))
+      (unless (or (null parent)
+                  (eq parent :json-false))
+        (while
+            (let* ((node (ewoc-nth ewoc n))
+                   (key (ewoc-data node)))
+              (ewoc-goto-node ewoc node)
+              (prog1
+                  (not (equal key parent))
+                (setq n (1+ n)))))
+        (zotero-browser-display)))
+    (pop-to-buffer buffer)))
+
 (defun zotero-browser-toggle ()
   "Expand or collapse the children of the current item."
   (interactive)
