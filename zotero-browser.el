@@ -610,7 +610,7 @@ All currently available key bindings:
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-get :resource "library" id)))
+         (library (zotero-cache-get :resource "library" :id id)))
     (if (zotero-cache-write-access-p library)
         (pcase major-mode
           ('zotero-browser-libraries-mode

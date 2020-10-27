@@ -435,7 +435,7 @@ the object if successful, or nil."
           (ht-set! table key `(:synced nil :version ,version :object ,(plist-put object :data data)))
           object)
       (message "Uploading...")
-      (if-let* ((object (zotero-cache-upload data :type type :id id))
+      (if-let* ((object (zotero-cache-upload data :type type :id id :resource resource))
                 (key (plist-get object :key))
                 (version (plist-get object :version)))
           (progn
