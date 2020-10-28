@@ -605,23 +605,20 @@ All currently available key bindings:
          (library (zotero-cache-get :id id :resource "library")))
     (if (zotero-cache-write-access-p library)
         (pcase major-mode
-          ('zotero-browser-libraries-mode
-           ;; TODO
-           )
           ('zotero-browser-collections-mode
            (let* ((ewoc zotero-browser-ewoc)
                   (node (ewoc-locate ewoc))
                   (key (ewoc-data node))
                   (entry (zotero-cache-get :type type :id id :resource "collection" :key key))
                   (data (zotero-lib-plist-get* entry :object :data)))
-             (display-buffer (zotero-edit-collection :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))
+             (pop-to-buffer (zotero-edit-collection :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))
           ('zotero-browser-items-mode
            (let* ((ewoc zotero-browser-ewoc)
                   (node (ewoc-locate ewoc))
                   (key (ewoc-data node))
                   (entry (zotero-cache-get :type type :id id :resource "item" :key key))
                   (data (zotero-lib-plist-get* entry :object :data)))
-             (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
+             (pop-to-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-create ()
