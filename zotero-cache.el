@@ -404,23 +404,6 @@ of the personal or group library you want to access, e.g. the
          (table (ht-get* zotero-cache "synccache")))
     (plist-get response :data)))
 
-(defun zotero-cache-filter (pred table)
-  "Select elements from TABLE for which PRED returns non-`nil'.
-Return a list of the keys in TABLE. PRED is a function that takes
-a data element as its first argument."
-  (thread-last
-      table
-    (ht-select (lambda (key value)
-                 ;; keep the predicate nil-safe
-                 (ignore-error wrong-type-argument
-                   (funcall pred (zotero-lib-plist-get* value :object :data)))))))
-
-(defun zotero-cache--some (pred table)
-  "Return non-nil if PRED is satisfied for at least one element of TABLE.
-PRED is a function that takes a data element as its first
-argument."
-  (if (ht-find (lambda (key value) (funcall pred (zotero-lib-plist-get* value :object :data))) table) t nil))
-
 (cl-defun zotero-cache-save (&key type id resource data)
   "Save DATA to cache.
 If DATA contains a prop `:key', it already exists in cache and is
@@ -480,6 +463,12 @@ Return the object if syncing was successful, or nil."
      ;; This should not happen
      (t nil))))
 
+(defun zotero-cache--year (string)
+  "Return year in STRING, or nil."
+  (let* ((regexp "[[:digit:]]\\{4\\}")
+         (match (string-match regexp string)))
+    (when match (match-string 0 string))))
+
 (defun zotero-cache--filter (pred table)
   "Select elements from TABLE for which PRED returns non-`nil'.
 Return a list of the keys in TABLE. PRED is a function that takes
@@ -491,11 +480,11 @@ a data element as its first argument."
                  (ignore-error wrong-type-argument
                    (funcall pred (zotero-lib-plist-get* value :object :data)))))))
 
-(defun zotero-cache--year (string)
-  "Return year in STRING, or nil."
-  (let* ((regexp "[[:digit:]]\\{4\\}")
-         (match (string-match regexp string)))
-    (when match (match-string 0 string))))
+(defun zotero-cache--some (pred table)
+  "Return non-nil if PRED is satisfied for at least one element of TABLE.
+PRED is a function that takes a data element as its first
+argument."
+  (if (ht-find (lambda (key value) (funcall pred (zotero-lib-plist-get* value :object :data))) table) t nil))
 
 (defun zotero-cache--pred (field direction)
   "Return a predicate function as used by `zotero-cache-sort-by'."
