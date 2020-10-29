@@ -1416,6 +1416,21 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
       ('zotero-browser-items-mode
        (zotero-cache-subitems key table)))))
 
+(defun zotero-browser--parent (key)
+  "Return the parent of KEY."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (table (pcase major-mode
+                  ('zotero-browser-collections-mode
+                   (zotero-cache-get :type type :id id :resource "collections"))
+                  ('zotero-browser-items-mode
+                   (zotero-cache-get :type type :id id :resource "items")))))
+    (pcase major-mode
+      ('zotero-browser-collections-mode
+       (zotero-cache-parentcollection key table))
+      ('zotero-browser-items-mode
+       (zotero-cache-parentitem key table)))))
+
 (defun zotero-browser--itemtype-icon (itemtype)
   "Return the icon file for ITEMTYPE, or nil if none exists."
   (let* ((icon (concat  "treeitem-" itemtype ".png"))
