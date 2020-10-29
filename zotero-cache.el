@@ -541,9 +541,15 @@ reversed."
                        (funcall pred a b))))
       (seq-map #'car))))
 
+(cl-defun zotero-cache-field (field table)
+  "Get FIELD from entries in TABLE.
+Return a list of the field values."
+  (ht-map (lambda (key value) (cons (zotero-lib-plist-get* value :object :data field) key)) table))
+
 (cl-defun zotero-cache-get (&key type id resource key)
   "Get RESOURCE from library in cache.
-Return table."
+Return table for multiple item request or entry for a single item
+request."
   (pcase resource
     ("libraries"
      (ht-get* zotero-cache "libraries"))
