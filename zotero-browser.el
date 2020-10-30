@@ -802,6 +802,25 @@ If region is active, delete entries in active region instead."
             (zotero-browser-revert)))
       (user-error "Library %s had no write access" id))))
 
+(defun zotero-browser--region-nodes (beg end ewoc)
+  "Return nodes of EWOC in region."
+  (save-excursion
+    (let* ((first-node (ewoc-locate ewoc beg))
+           (last-node (ewoc-locate ewoc end))
+           (node first-node)
+           nodes)
+      (while
+          (progn
+            (ewoc-goto-node ewoc node)
+            (push node nodes)
+            (setq node (ewoc-next ewoc node))
+            (not (eq node (ewoc-next ewoc last-node)))))
+      nodes)))
+
+(defun zotero-browser--node-keys (nodes)
+  "Return keys of NODES."
+  (seq-map (lambda (node) (ewoc-data node)) nodes))
+
 (defun zotero-browser-restore ()
   "Restore current entry.
 If region is active, delete entries in active region instead."
