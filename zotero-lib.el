@@ -769,8 +769,6 @@ Note that mtime is be provided in milliseconds, not seconds."
            (content-type (or (mailcap-file-name-to-mime-type filename) "application/octet-stream")))
       `(:filename ,filename :filesize ,filesize :content-type ,content-type :md5 ,md5 :mtime ,mtime :accessdate ,accessdate))))
 
-;;;; Methods
-
 (cl-defun zotero-lib-get-collections (&key type id api-key)
   "Collections in the library.
   Keyword argument TYPE is \"user\" for your personal library, and
