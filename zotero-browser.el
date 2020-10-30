@@ -773,33 +773,36 @@ If region is active, delete entries in active region instead."
                      ('zotero-browser-collections-mode "collections")
                      ('zotero-browser-items-mode "items"))))
     (if (zotero-cache-write-access-p library)
-        (progn
-          (pcase major-mode
-            ('zotero-browser-collections-mode
-             (setq resource "collections"))
-            ('zotero-browser-items-mode
-             (setq resource "items")))
-          (let (nodes
-                keys)
-            (if (use-region-p)
-                (save-excursion
-                  (let* ((first-node (ewoc-locate ewoc (region-beginning)))
-                         (last-node (ewoc-locate ewoc (region-end)))
-                         (node first-node))
-                    (while
-                        (progn
-                          (ewoc-goto-node ewoc node)
-                          (push node nodes)
-                          (push (ewoc-data node) keys)
-                          (setq node (ewoc-next ewoc node))
-                          (not (eq node (ewoc-next ewoc last-node)))))))
-              (let ((node (ewoc-locate ewoc)))
-                (push node nodes)
-                (push (ewoc-data node) keys)))
+
+        (let (nodes
+              keys)
+          (if (use-region-p)
+              (save-excursion
+                (let* ((first-node (ewoc-locate ewoc (region-beginning)))
+                       (last-node (ewoc-locate ewoc (region-end)))
+                       (node first-node))
+                  (while
+                      (progn
+                        (ewoc-goto-node ewoc node)
+                        (push node nodes)
+                        (push (ewoc-data node) keys)
+                        (setq node (ewoc-next ewoc node))
+                        (not (eq node (ewoc-next ewoc last-node)))))))
+            (let ((node (ewoc-locate ewoc)))
+              (push node nodes)
+              (push (ewoc-data node) keys)))
+          (if (equal resource "collections")
+              (dolist (key keys)
+                (let ((collection-items (zotero-cache-get :type type :id id :resource "collection-items" :key key))
+                      (subcollections (zotero-cache-get :type type :id id :resource "subcollections" :key key)))
+                  (unless (ht-empty? collection-items)
+                    (message "Collection %s contains %d items. Delete anyway? " key (ht-size collection-items)))
+                  (unless (ht-empty? subcollections)
+                    (message "Collection %s contains %d subcollections. Delete anyway? " key (ht-size subcollections)))))
             (seq-do (lambda (key) (zotero-cache-delete :type type :id id :resource resource :key key)) keys)
             (let ((inhibit-read-only t))
-              (apply #'ewoc-delete ewoc nodes))
-            (zotero-browser-revert)))
+              (apply #'ewoc-delete ewoc nodes)))
+          (zotero-browser-revert))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser--region-nodes (beg end ewoc)
