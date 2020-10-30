@@ -611,6 +611,49 @@ request."
     (ht-set! deletions key value)
     (ht-remove! synccache key)))
 
+(cl-defun zotero-cache-delete-items (&key type id keys)
+  "Delete KEYS from cache."
+  (let ((synccache (ht-get* zotero-cache "synccache" id "items"))
+        (deletions (ht-get* zotero-cache "deletions" id "items")))
+    (dolist (key keys)
+      (let ((value (ht-get* zotero-cache "synccache" id "items" key)))
+        (ht-set! deletions key value)
+        (ht-remove! synccache key)))))
+
+(cl-defun zotero-cache-delete-collections (&key type id keys)
+  "Delete KEYS from cache."
+  (let ((collections (ht-get* zotero-cache "synccache" id "collections"))
+        (items (ht-get* zotero-cache "synccache" id "items"))
+        (deletions (ht-get* zotero-cache "deletions" id "collections")))
+    (dolist (key keys)
+      (let ((value (ht-get* zotero-cache "synccache" id resource key)))
+        (ht-set! deletions key value)
+        (ht-remove! synccache key)))))
+
+(defun zotero-cache--add-collection (&key type id key collection)
+  "Add COLLECTION to item KEY."
+  (let* ((entry (zotero-cache-get :type type :id id :resource "item" :key key))
+         (data (zotero-lib-plist-get* entry :object :data))
+         (collections (zotero-lib-plist-get* entry :object :data :collections))
+         (updated-collections (unless (seq-contains-p collections collection) (vconcat collections (vector collection)))))
+    (zotero-cache-save :type type :id id :resource "items" :data (plist-put data :collections updated-collections))))
+
+(defun zotero-cache--delete-collection (&key type id key collection)
+  "Delete COLLECTION from item KEY."
+  (let* ((entry (zotero-cache-get :type type :id id :resource "item" :key key))
+         (data (zotero-lib-plist-get* entry :object :data))
+         (collections (zotero-lib-plist-get* entry :object :data :collections))
+         (updated-collections (seq-remove (lambda (elt) (equal elt collection)) collections)))
+    (zotero-cache-save :type type :id id :resource "items" :data (plist-put data :collections updated-collections))))
+
+(defun zotero-cache--substitute-collection (&key type id key new old)
+  "Substitute OLD with NEW collection in item KEY."
+  (let* ((entry (zotero-cache-get :type type :id id :resource "item" :key key))
+         (data (zotero-lib-plist-get* entry :object :data))
+         (collections (zotero-lib-plist-get* entry :object :data :collections))
+         (updated-collections (cl-substitute new old collection :test #'equal)))
+    (zotero-cache-save :type type :id id :resource "items" :data (plist-put data :collections updated-collections))))
+
 (cl-defun zotero-cache-restore (&key type id resource key)
   "Restore KEY to cache."
   (let* ((value (ht-get* zotero-cache "deletions" id resource key))
