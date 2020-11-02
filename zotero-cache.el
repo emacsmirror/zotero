@@ -941,7 +941,7 @@ Return a plist with the props `:version' and `:data'."
                             ("items" :itemkey)
                             ("searches" :searchkey)))
                (param-value (s-join "," (seq-map #'zotero-lib-keyword->string partition)))
-               (response (zotero-lib-retrieve :type type :id id :resource resource :api-key api-key param-key param-value))
+               (response (zotero-lib-retrieve :type type :id id :resource resource :api-key api-key :include-trashed "1" param-key param-value))
                (remote-version (plist-get response :version))
                (remote-data (plist-get response :data)))
           (message "Retrieving %d-%d of %d updated %s...done" (1+ number) (+ number (length partition)) (length keys) resource)
@@ -1157,7 +1157,7 @@ If necessary, show a warning that the user no longer has sufficient access and o
          (storage-version (plist-get (ht-get libraries id) :storage-version))
          (version (plist-get (ht-get libraries id) :version)))
     (cl-loop for resource in '("collections" "items" "searches") do
-             (let* ((response (zotero-lib-retrieve :type type :id id :resource resource :format "versions" :since (or storage-version 0) :api-key api-key))
+             (let* ((response (zotero-lib-retrieve :type type :id id :resource resource :since (or storage-version 0) :format "versions" :include-trashed "1" :api-key api-key))
                     (remote-version (plist-get response :version))
                     (data (plist-get response :data))
                     ;; Collect only the keys

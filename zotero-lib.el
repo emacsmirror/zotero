@@ -700,7 +700,7 @@ libraries, the ID can be found by opening the group's page at
   ;; Request the specified URL or construct the endpoint of the resource
   (let* ((url (or url
                   (zotero-lib--endpoint :type type :id id :resource resource :key key)))
-         (handle `(:url ,url :method "GET" :api-key ,api-key :api-version ,zotero-lib-api-version :collectionkey ,collectionkey :if-modified-since-version ,version :itemkey ,itemkey :if-match ,if-match :if-none-match ,if-none-match :include-trashed ,include-trashed :itemtype ,itemtype :last-modified-version ,last-modified-version :linkmode ,linkmode :locale ,locale :searchkey ,searchkey :since ,since :q ,q :qmode ,qmode :tag ,tag)))
+         (handle `(:url ,url :method "GET" :api-key ,api-key :api-version ,zotero-lib-api-version :collectionkey ,collectionkey :format ,format :if-modified-since-version ,version :itemkey ,itemkey :if-match ,if-match :if-none-match ,if-none-match :include-trashed ,include-trashed :itemtype ,itemtype :last-modified-version ,last-modified-version :linkmode ,linkmode :locale ,locale :searchkey ,searchkey :since ,since :q ,q :qmode ,qmode :tag ,tag)))
     (zotero-lib--dispatch handle)))
 
 (cl-defun zotero-lib-submit (&key method url type id resource key data api-key version content-type expect if-match if-none-match write-token)
