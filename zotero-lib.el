@@ -716,7 +716,7 @@ libraries, the ID can be found by opening the group's page at
   ;; Request the specified URL or construct the endpoint of the resource
   (let* ((url (or url
                   (zotero-lib--endpoint :resource resource :key key :type type :id id)))
-         (handle `(:url ,url :method ,method :api-key ,api-key :api-version ,zotero-lib-api-version :content-type ,(or content-type "application/json") :data ,data :expect "" :if-match ,if-match :if-modified-since-version ,version :if-none-match ,if-none-match :write-token ,write-token)))
+         (handle `(:url ,url :method ,method :api-key ,api-key :api-version ,zotero-lib-api-version :content-type ,(or content-type "application/json") :data ,data :expect "" :if-match ,if-match :if-unmodified-since-version ,version :if-none-match ,if-none-match :write-token ,write-token)))
     (zotero-lib--dispatch handle)))
 
 (defun zotero-lib--write-token ()
