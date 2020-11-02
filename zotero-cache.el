@@ -1373,15 +1373,19 @@ If necessary, show a warning that the user no longer has sufficient access and o
                     (file (expand-file-name (concat (file-name-as-directory dir) filename))))
                (unless (file-exists-p dir)
                  (make-directory dir t))
-               (if (file-exists-p file)
-                   (let ((attributes (zotero-lib-file-attributes file)))
-                     (when (and (equal content-type "application/pdf") ; non-pdf snapshots don't have matching md5sums
-                                (not (equal md5 (plist-get attributes :md5)))
-                                (y-or-n-p (format "File \"%s\" is changed. Overwrite? " filename)))
-                       (with-demoted-errors  "Error downloading file: %S"
-                         (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key))))
-                 (with-demoted-errors  "Error downloading file: %S"
-                   (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key)))))))
+               (cond
+                ((string-empty-p filename)
+                 (message "Attachment %s in %s %s has an empty filename." key type id))
+                ((file-exists-p file)
+                 (let ((attributes (zotero-lib-file-attributes file)))
+                   (when (and (equal content-type "application/pdf") ; non-pdf snapshots don't have matching md5sums
+                              (not (equal md5 (plist-get attributes :md5)))
+                              (y-or-n-p (format "File \"%s\" is changed. Overwrite? " filename)))
+                     (with-demoted-errors "Error downloading file: %S"
+                       (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key)))))
+                (t
+                 (with-demoted-errors "Error downloading file: %S"
+                   (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key))))))))
 
 (cl-defun zotero-cache--sync-templates (&key cache)
   "Sync the item and attachment templates."
