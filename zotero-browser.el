@@ -502,6 +502,24 @@ All currently available key bindings:
     (zotero-browser-goto-parent)
     (pop-to-buffer buffer)))
 
+(defun zotero-browser-all-items ()
+  "Show unsorted items."
+  (interactive)
+  (zotero-browser-ensure-browser-buffer)
+  (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource "items"))
+
+(defun zotero-browser-unsorted-items ()
+  "Show unsorted items."
+  (interactive)
+  (zotero-browser-ensure-browser-buffer)
+  (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource "items-top"))
+
+(defun zotero-browser-trash-items ()
+  "Show unsorted items."
+  (interactive)
+  (zotero-browser-ensure-browser-buffer)
+  (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource "trash-items"))
+
 (defun zotero-browser-toggle ()
   "Expand or collapse the children of the current item."
   (interactive)
