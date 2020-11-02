@@ -801,7 +801,6 @@ If region is active, delete entries in active region instead."
                      ('zotero-browser-collections-mode "collections")
                      ('zotero-browser-items-mode "items"))))
     (if (zotero-cache-write-access-p library)
-
         (let (nodes
               keys)
           (if (use-region-p)
