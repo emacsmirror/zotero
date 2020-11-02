@@ -470,9 +470,9 @@ Return the object if syncing was successful, or nil."
     (when match (match-string 0 string))))
 
 (defun zotero-cache--filter (pred table)
-  "Select elements from TABLE for which PRED returns non-`nil'.
-Return a list of the keys in TABLE. PRED is a function that takes
-a data element as its first argument."
+  "Return a table containing entries in TABLE for which PRED returns non-`nil'.
+PRED is a function that takes a data element as its first
+argument."
   (thread-last
       table
     (ht-select (lambda (key value)
