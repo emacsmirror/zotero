@@ -72,6 +72,7 @@
   '(:collectionkey "collectionKey"
                    :content "content"
                    :direction "direction"
+                   :format "format"
                    :include-trashed "includeTrashed"
                    :itemkey "itemKey"
                    :itemtype "itemType"
@@ -684,7 +685,7 @@ response. If the response is paginated the data is concatenated."
       (503
        (user-error Service" Unavailable")))))
 
-(cl-defun zotero-lib-retrieve (&key url type id resource key api-key version last-modified-version locale if-match if-none-match include-trashed itemtype linkmode since q qmode tag itemkey collectionkey searchkey)
+(cl-defun zotero-lib-retrieve (&key url type id resource key api-key version format if-match if-none-match include-trashed itemtype last-modified-version linkmode locale since q qmode tag itemkey collectionkey searchkey)
   "Return the last-modified-version and the data returned by the Zotero request.
 The result is a cons of (version . data).
 
