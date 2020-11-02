@@ -763,7 +763,7 @@ With a `C-u' prefix, move to top level."
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-get :resource "library" id)))
+         (library (zotero-cache-get :resource "library" :id id)))
     (if (zotero-cache-write-access-p library)
         (when (eq major-mode 'zotero-browser-items-mode)
           (let* ((node (ewoc-locate zotero-browser-ewoc))
