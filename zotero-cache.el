@@ -667,7 +667,7 @@ request."
   (let* ((entry (zotero-cache-get :type type :id id :resource "item" :key key))
          (data (zotero-lib-plist-get* entry :object :data))
          (collections (zotero-lib-plist-get* entry :object :data :collections))
-         (updated-collections (seq-remove (lambda (elt) (equal elt collection)) collections)))
+         (updated-collections (seq-into (seq-remove (lambda (elt) (equal elt collection)) collections) 'vector)))
     (zotero-cache-save :type type :id id :resource "items" :data (plist-put data :collections updated-collections))))
 
 (cl-defun zotero-cache-substitute-collection (&key type id key new old)
