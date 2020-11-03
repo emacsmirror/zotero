@@ -837,12 +837,12 @@ If region is active, call FN on entries in active region instead."
          (entry (zotero-cache-get :type type :id id :resource "item" :key key))
          (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
     (when (equal itemtype "attachment")
-      (let ((linkmode (zotero-lib-plist-get* object :object :data :linkMode)))
+      (let ((linkmode (zotero-lib-plist-get* entry :object :data :linkMode)))
         (pcase linkmode
-          ("imported_file" (zotero-browser-open-imported-file object))
-          ("imported_url" (zotero-browser-open-imported-url object))
-          ("linked_file" (zotero-browser-open-linked-file object))
-          ("linked_url" (zotero-browser-open-linked-url object)))))))
+          ("imported_file" (zotero-browser-open-imported-file entry))
+          ("imported_url" (zotero-browser-open-imported-url entry))
+          ("linked_file" (zotero-browser-open-linked-file entry))
+          ("linked_url" (zotero-browser-open-linked-url entry)))))))
 
 (defun zotero-browser-find-attachment ()
   "Return the path of attachment at point."
@@ -1133,15 +1133,15 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
     (system
      (error "Unable to determine default application on operating system %S."))))
 
-(defun zotero-browser-open-imported-file (object)
+(defun zotero-browser-open-imported-file (entry)
   (let ((path (expand-file-name (zotero-browser-find-attachment))))
     (zotero-browser-open-file path)))
 
-(defun zotero-browser-open-imported-url (object)
+(defun zotero-browser-open-imported-url (entry)
   (let ((path (expand-file-name (zotero-browser-find-attachment)))
-        (contenttype (zotero-lib-plist-get* object :object :data :contentType))
-        (key (zotero-lib-plist-get* object :object :data :key))
-        (filename (zotero-lib-plist-get* object :object :data :filename))
+        (contenttype (zotero-lib-plist-get* entry :object :data :contentType))
+        (key (zotero-lib-plist-get* entry :object :data :key))
+        (filename (zotero-lib-plist-get* entry :object :data :filename))
         (dir (concat temporary-file-directory key)))
     (if (equal contenttype "application/pdf")
         (zotero-browser-open-file path)
@@ -1153,12 +1153,12 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
               (browse-url-file-url path))
           (error "Error extracting snapshot"))))))
 
-(defun zotero-browser-open-linked-file (object)
-  (let ((path (zotero-lib-plist-get* object :object :data :path)))
+(defun zotero-browser-open-linked-file (entry)
+  (let ((path (zotero-lib-plist-get* entry :object :data :path)))
     (zotero-browser-open-file path)))
 
-(defun zotero-browser-open-linked-url (object)
-  (let ((url (zotero-lib-plist-get* object :object :data :url)))
+(defun zotero-browser-open-linked-url (entry)
+  (let ((url (zotero-lib-plist-get* entry :object :data :url)))
     (browse-url url)))
 
 (defun zotero-browser--library-pp (key)
