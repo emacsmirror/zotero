@@ -686,14 +686,6 @@ request."
     (ht-set! deletions key value)
     (ht-remove! synccache key)))
 
-(cl-defun zotero-cache-undelete (&key type id resource key)
-  "Undelete KEY to cache."
-  (let* ((value (ht-get* zotero-cache "deletions" id resource key))
-         (synccache (ht-get* zotero-cache "synccache" id resource))
-         (deletions (ht-get* zotero-cache "deletions" id resource)))
-    (ht-set! synccache key `(:synced nil :object ,(plist-get value :object)))
-    (ht-remove! deletions key)))
-
 (cl-defun zotero-cache-trash (&key type id key &allow-other-keys)
   "Move item KEY to trash."
   (let* ((entry (zotero-cache-get :type type :id id :resource "item" :key key))
