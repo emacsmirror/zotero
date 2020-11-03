@@ -683,6 +683,13 @@ request."
   (let* ((value (ht-get* zotero-cache "synccache" id resource key))
          (synccache (ht-get* zotero-cache "synccache" id resource))
          (deletions (ht-get* zotero-cache "deletions" id resource)))
+    ;; Remove all items from the collection
+    (when (equal resource "collections")
+      (let* ((collection key)
+             (table (zotero-cache-get :type type :id id :resource "collection-items" :key collection :include-trashed t)))
+        (ht-each (lambda (key value)
+                   (zotero-cache-remove-from-collection :type type :id id :key key :collection collection))
+                 table)))
     (ht-set! deletions key value)
     (ht-remove! synccache key)))
 
