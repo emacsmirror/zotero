@@ -848,6 +848,8 @@ If region is active, call FN on entries in active region instead."
   "Return the path of attachment at point."
   (zotero-browser-ensure-browser-buffer)
   (when-let ((ewoc zotero-browser-ewoc)
+             (type zotero-browser-type)
+             (id zotero-browser-id)
              (key (ewoc-data (ewoc-locate ewoc)))
              (entry (zotero-cache-get :type type :id id :resource "item" :key key))
              (filename (zotero-lib-plist-get* entry :object :data :filename))
