@@ -536,7 +536,7 @@ reversed."
 Return a list of the field values."
   (ht-map (lambda (key value) (cons (zotero-lib-plist-get* value :object :data field) key)) table))
 
-(cl-defun zotero-cache-get (&key type id resource key)
+(cl-defun zotero-cache-get (&key type id resource key include-trashed)
   "Get RESOURCE from library in cache.
 Return table for multiple item request or entry for a single item
 request."
@@ -569,50 +569,67 @@ request."
        selection))
     ("items"
      (let* ((table (ht-get* zotero-cache "synccache" id "items"))
-            (selection (zotero-cache--filter
-                        (lambda (elt) (not (eq (plist-get elt :deleted) 1)))
-                        table)))
+            (selection (if include-trashed
+                           table
+                         (zotero-cache--filter (lambda (elt) (not (eq (plist-get elt :deleted) 1)))
+                                               table))))
        selection))
     ("items-top"
      (let* ((table (ht-get* zotero-cache "synccache" id "items"))
-            (selection (zotero-cache--filter
-                        (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
-                                           (or (eq (plist-get elt :collections) [])
-                                               (eq (plist-get elt :collections) :json-empty))))
-                        table)))
+            (selection (if include-trashed
+                           (zotero-cache--filter (lambda (elt) (or (eq (plist-get elt :collections) [])
+                                                                   (eq (plist-get elt :collections) :json-empty)))
+                                                 table)
+                         (zotero-cache--filter (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
+                                                                  (or (eq (plist-get elt :collections) [])
+                                                                      (eq (plist-get elt :collections) :json-empty))))
+                                               table))))
        selection))
     ("trash-items"
      (let* ((table (ht-get* zotero-cache "synccache" id "items"))
-            (selection (zotero-cache--filter
-                        (lambda (elt) (eq (plist-get elt :deleted) 1))
-                        table)))
+            (selection (zotero-cache--filter (lambda (elt) (eq (plist-get elt :deleted) 1))
+                                             table)))
        selection))
     ("item"
      (ht-get* zotero-cache "synccache" id "items" key))
     ("item-children"
      (let* ((table (ht-get* zotero-cache "synccache" id "items"))
-            (selection (zotero-cache--filter
-                        (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
-                                           (equal (plist-get elt :parentItem) key)))
-                        table)))
+            (selection (if include-trashed
+                           (zotero-cache--filter
+                            (lambda (elt) (equal (plist-get elt :parentItem) key))
+                            table)
+                         (zotero-cache--filter
+                          (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
+                                             (equal (plist-get elt :parentItem) key)))
+                          table))))
        selection))
     ;; TODO
     ;; ("publication-items")
     ("collection-items"
      (let* ((table (ht-get* zotero-cache "synccache" id "items"))
-            (selection (zotero-cache--filter
-                        (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
-                                           (seq-contains-p (plist-get elt :collections) key)))
-                        table)))
+            (selection (if include-trashed
+                           (zotero-cache--filter
+                            (lambda (elt) (seq-contains-p (plist-get elt :collections) key))
+                            table)
+                         (zotero-cache--filter
+                          (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
+                                             (seq-contains-p (plist-get elt :collections) key)))
+                          table))))
        selection))
     ("collection-items-top"
      (let* ((table (ht-get* zotero-cache "synccache" id "items"))
-            (selection (zotero-cache--filter
-                        (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
-                                           (seq-contains-p (plist-get elt :collections) key)
-                                           (or (not (plist-member elt :parentItem))
-                                               (eq (plist-get elt :parentItem) :json-false))))
-                        table)))
+            (selection (if include-trashed
+                           (zotero-cache--filter
+                            (lambda (elt) (and (seq-contains-p (plist-get elt :collections) key)
+                                               (or (not (plist-member elt :parentItem))
+                                                   (eq (plist-get elt :parentItem) :json-false))))
+                            table)
+                         (zotero-cache--filter
+                          (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
+                                             (seq-contains-p (plist-get elt :collections) key)
+                                             (or (not (plist-member elt :parentItem))
+                                                 (eq (plist-get elt :parentItem) :json-false))))
+                          table))))
        selection))
     ("searches"
      (let ((table (ht-get* zotero-cache "synccache" id "searches")))
