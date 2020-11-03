@@ -503,19 +503,19 @@ All currently available key bindings:
     (pop-to-buffer buffer)))
 
 (defun zotero-browser-all-items ()
-  "Show unsorted items."
+  "Show all items."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
   (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource "items"))
 
-(defun zotero-browser-unsorted-items ()
-  "Show unsorted items."
+(defun zotero-browser-unfiled-items ()
+  "Show unfiled items."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
   (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource "items-top"))
 
 (defun zotero-browser-trash-items ()
-  "Show unsorted items."
+  "Show trashed items."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
   (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource "trash-items"))
