@@ -1324,31 +1324,38 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
                    (zotero-cache-get :type type :id id :resource "collections"))
                   ('zotero-browser-items-mode
                    (zotero-cache-get :type type :id id :resource "items"))))
-         parents nodes)
+         (key (ewoc-data node))
+         parents)
     (zotero-browser--prefix "▸" (ewoc-location node))
     (while
-        (let* ((key (ewoc-data node))
-               (next-node (ewoc-next ewoc node))
+        (let* ((next-node (ewoc-next ewoc node))
                (next-key (when next-node (ewoc-data next-node)))
                (parent (pcase major-mode
                          ('zotero-browser-collections-mode
                           (zotero-cache-parentcollection next-key table))
                          ('zotero-browser-items-mode
                           (zotero-cache-parentitem next-key table)))))
+          ;; add to parents if the next entry is a child of the current entry
           (when (equal parent key)
             (push key parents))
+          ;; delete the next entry if it is a child of one of the parents
           (when (member parent parents)
-            (setq node next-node)
-            (push node nodes))))
-    (apply #'ewoc-delete ewoc nodes)))
+            (ewoc-delete ewoc next-node)
+            (seq-remove (lambda (elt) (equal elt next-key)) zotero-browser-keys)
+            (setq key next-key))))))
 
 (defun zotero-browser--add (ewoc node table)
   "Add items of TABLE after NODE in ewoc"
-  (let ((keys (pcase major-mode
-                ('zotero-browser-collections-mode
-                 (zotero-cache-sort-by :name 'asc table))
-                ('zotero-browser-items-mode
-                 (zotero-cache-sort-by :title 'asc table)))))
+  (let* ((key (ewoc-data node))
+         (idx (seq-position zotero-browser-keys key))
+         (head (seq-subseq zotero-browser-keys 0 (1+ idx)))
+         (tail (seq-subseq zotero-browser-keys (1+ idx)))
+         (keys (pcase major-mode
+                 ('zotero-browser-collections-mode
+                  (zotero-cache-sort-by :name 'asc table))
+                 ('zotero-browser-items-mode
+                  (zotero-cache-sort-by :title 'asc table)))))
+    (setq zotero-browser-keys (seq-concatenate 'list head keys tail))
     (while keys
       (setq node (ewoc-enter-after ewoc node (pop keys))))))
 
