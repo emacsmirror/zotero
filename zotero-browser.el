@@ -344,7 +344,7 @@ All currently available key bindings:
           (seq-do (lambda (key) (ewoc-enter-last ewoc key))))))
     buffer))
 
-(cl-defun zotero-browser-collections (&key type id)
+(cl-defun zotero-browser-collections (&key type id resource)
   "Create a collections browser buffer."
   (let ((buffer (get-buffer-create zotero-browser-collections-buffer-name)))
     (with-current-buffer buffer
@@ -353,8 +353,8 @@ All currently available key bindings:
             (inhibit-read-only t))
         ;; Remove previous entries
         (erase-buffer)
-        (when (and type id)
-          (let ((table (zotero-cache-get :type type :id id :resource "collections-top")))
+        (when (and type id resource)
+          (let* ((table (zotero-cache-get :type type :id id :resource resource))
             (setq zotero-browser-ewoc ewoc
                   zotero-browser-type type
                   zotero-browser-id id)
@@ -374,8 +374,8 @@ All currently available key bindings:
             (inhibit-read-only t))
         ;; Remove previous entries
         (erase-buffer)
-        (when (and type id)
-          (let ((table (zotero-cache-get :type type :id id :resource resource :key key)))
+        (when (and type id resource)
+          (let* ((table (zotero-cache-get :type type :id id :resource resource :key key))
             (setq zotero-browser-ewoc ewoc
                   zotero-browser-type type
                   zotero-browser-id id
@@ -406,7 +406,7 @@ All currently available key bindings:
             (id (plist-get (ht-get table key) :id)))
        (setq zotero-browser-type type
              zotero-browser-id id)
-       (display-buffer (zotero-browser-collections :type type :id id))
+       (display-buffer (zotero-browser-collections :type type :id id :resource "collections-top"))
        (display-buffer (zotero-browser-items :type type :id id :resource "items-top"))))
     ('zotero-browser-collections-mode
      (let* ((ewoc zotero-browser-ewoc)
@@ -432,7 +432,7 @@ All currently available key bindings:
   (zotero-browser-ensure-browser-buffer)
   (pcase major-mode
     ('zotero-browser-collections-mode
-     (display-buffer (zotero-browser-collections :type zotero-browser-type :id zotero-browser-id)))
+     (display-buffer (zotero-browser-collections :type zotero-browser-type :id zotero-browser-id :resource zotero-browser-resource)))
     ('zotero-browser-items-mode
      (display-buffer (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource zotero-browser-resource :key zotero-browser-collection)))))
 
