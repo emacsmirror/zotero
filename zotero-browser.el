@@ -87,6 +87,8 @@
 
 (defvar-local zotero-browser-resource nil)
 
+(defvar-local zotero-browser-keys nil)
+
 (defvar-local zotero-browser-collection nil)
 
 (defvar-local zotero-browser-table nil)
@@ -355,12 +357,13 @@ All currently available key bindings:
         (erase-buffer)
         (when (and type id resource)
           (let* ((table (zotero-cache-get :type type :id id :resource resource))
+                 (keys (zotero-cache-sort-by :name 'asc table)))
             (setq zotero-browser-ewoc ewoc
                   zotero-browser-type type
-                  zotero-browser-id id)
-            (thread-last table
-              (zotero-cache-sort-by :name 'asc)
-              (seq-do (lambda (key) (ewoc-enter-last ewoc key))))
+                  zotero-browser-resource resource
+                  zotero-browser-id id
+                  zotero-browser-keys keys)
+            (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
             (zotero-browser-expand-level zotero-browser-default-collection-level)
             (zotero-browser-items :type type :id id :resource "items-top")))))
     buffer))
@@ -376,14 +379,14 @@ All currently available key bindings:
         (erase-buffer)
         (when (and type id resource)
           (let* ((table (zotero-cache-get :type type :id id :resource resource :key key))
+                 (keys (zotero-cache-sort-by :date 'asc table)))
             (setq zotero-browser-ewoc ewoc
                   zotero-browser-type type
                   zotero-browser-id id
                   zotero-browser-resource resource
-                  zotero-browser-collection key)
-            (thread-last table
-              (zotero-cache-sort-by :date 'asc)
-              (seq-do (lambda (key) (ewoc-enter-last ewoc key))))
+                  zotero-browser-collection key
+                  zotero-browser-keys keys)
+            (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
             (zotero-browser-expand-level zotero-browser-default-item-level)))))
     buffer))
 
