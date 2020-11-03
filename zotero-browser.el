@@ -762,76 +762,48 @@ With a `C-u' prefix, move to top level."
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-move-to-trash ()
-  "Restore current entry from trash."
+  "Move current entry to trash.
+If region is active, trash entries in active region instead."
   (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (library (zotero-cache-get :resource "library" :id id)))
-    (if (zotero-cache-write-access-p library)
-        (when (eq major-mode 'zotero-browser-items-mode)
-          (let* ((node (ewoc-locate zotero-browser-ewoc))
-                 (key (ewoc-data node)))
-            (zotero-cache-trash :type type :id id :key key)
-            (zotero-browser-revert)))
-      (user-error "Library %s had no write access" id))))
+  (zotero-browser-do #'zotero-cache-trash))
 
 (defun zotero-browser-restore-from-trash ()
-  "Restore current entry from trash."
+  "Restore current entry from trash.
+If region is active, restore entries in active region instead."
   (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (library (zotero-cache-get :resource "library" :id id)))
-    (if (zotero-cache-write-access-p library)
-        (when (eq major-mode 'zotero-browser-items-mode)
-          (let* ((node (ewoc-locate zotero-browser-ewoc))
-                 (key (ewoc-data node)))
-            (zotero-cache-restore :type type :id id :key key)
-            (zotero-browser-revert)))
-      (user-error "Library %s had no write access" id))))
+  (zotero-browser-do #'zotero-cache-restore))
 
 (defun zotero-browser-delete ()
   "Delete current entry.
 If region is active, delete entries in active region instead."
   (interactive)
+  (zotero-browser-do #'zotero-cache-delete))
+
+(defun zotero-browser-do (fn)
+  "Call FN on current entry.
+If region is active, call FN on entries in active region instead."
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
          (ewoc zotero-browser-ewoc)
          (library (zotero-cache-get :resource "library" :id id))
-         (resource (pcase major-mode
-                     ('zotero-browser-collections-mode "collections")
-                     ('zotero-browser-items-mode "items"))))
+         resource)
     (if (zotero-cache-write-access-p library)
-        (let (nodes
-              keys)
-          (if (use-region-p)
-              (save-excursion
-                (let* ((first-node (ewoc-locate ewoc (region-beginning)))
-                       (last-node (ewoc-locate ewoc (region-end)))
-                       (node first-node))
-                  (while
-                      (progn
-                        (ewoc-goto-node ewoc node)
-                        (push node nodes)
-                        (push (ewoc-data node) keys)
-                        (setq node (ewoc-next ewoc node))
-                        (not (eq node (ewoc-next ewoc last-node)))))))
-            (let ((node (ewoc-locate ewoc)))
-              (push node nodes)
-              (push (ewoc-data node) keys)))
-          (if (equal resource "collections")
-              (dolist (key keys)
-                (let ((collection-items (zotero-cache-get :type type :id id :resource "collection-items" :key key))
-                      (subcollections (zotero-cache-get :type type :id id :resource "subcollections" :key key)))
-                  (unless (ht-empty? collection-items)
-                    (message "Collection %s contains %d items. Delete anyway? " key (ht-size collection-items)))
-                  (unless (ht-empty? subcollections)
-                    (message "Collection %s contains %d subcollections. Delete anyway? " key (ht-size subcollections)))))
-            (seq-do (lambda (key) (zotero-cache-delete :type type :id id :resource resource :key key)) keys)
-            (let ((inhibit-read-only t))
-              (apply #'ewoc-delete ewoc nodes)))
+        (progn
+          (pcase major-mode
+            ('zotero-browser-collections-mode
+             (setq resource "collections"))
+            ('zotero-browser-items-mode
+             (setq resource "items")))
+          (let (nodes
+                keys)
+            (if (use-region-p)
+                (let ((nodes (zotero-browser--region-nodes (region-beginning) (region-end) ewoc)))
+                  (setq keys (seq-map (lambda (node) (ewoc-data node)) nodes)))
+              (let ((node (ewoc-locate ewoc)))
+                (setq keys (list (ewoc-data node)))))
+            (dolist (key keys)
+              (funcall fn :type type :id id :resource resource :key key)))
           (zotero-browser-revert))
       (user-error "Library %s had no write access" id))))
 
