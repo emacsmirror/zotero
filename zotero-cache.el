@@ -409,7 +409,7 @@ of the personal or group library you want to access, e.g. the
 If DATA contains a prop `:key', it already exists in cache and is
 updated, else it is uploaded and a new entry is created. Return
 the object if successful, or nil."
-  (let ((table (zotero-cache-get :type type :id id :resource resource))
+  (let ((table (ht-get* zotero-cache "synccache" id resource))
         (key (plist-get data :key)))
     (if key
         (let* ((entry (ht-get table key))
