@@ -636,7 +636,7 @@ request."
     ;; ("deleted")
     ))
 
-(defun zotero-cache-add-to-collection (&key type id key collection)
+(cl-defun zotero-cache-add-to-collection (&key type id key collection)
   "Add item KEY to COLLECTION."
   (let* ((entry (zotero-cache-get :type type :id id :resource "item" :key key))
          (data (zotero-lib-plist-get* entry :object :data))
@@ -644,7 +644,7 @@ request."
          (updated-collections (unless (seq-contains-p collections collection) (vconcat collections (vector collection)))))
     (zotero-cache-save :type type :id id :resource "items" :data (plist-put data :collections updated-collections))))
 
-(defun zotero-cache-remove-from-collection (&key type id key collection)
+(cl-defun zotero-cache-remove-from-collection (&key type id key collection)
   "Remove item KEY from COLLECTION."
   (let* ((entry (zotero-cache-get :type type :id id :resource "item" :key key))
          (data (zotero-lib-plist-get* entry :object :data))
@@ -652,7 +652,7 @@ request."
          (updated-collections (seq-remove (lambda (elt) (equal elt collection)) collections)))
     (zotero-cache-save :type type :id id :resource "items" :data (plist-put data :collections updated-collections))))
 
-(defun zotero-cache-substitute-collection (&key type id key new old)
+(cl-defun zotero-cache-substitute-collection (&key type id key new old)
   "Substitute OLD with NEW collection in item KEY."
   (let* ((entry (zotero-cache-get :type type :id id :resource "item" :key key))
          (data (zotero-lib-plist-get* entry :object :data))
