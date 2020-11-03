@@ -826,46 +826,6 @@ If region is active, call FN on entries in active region instead."
   "Return keys of NODES."
   (seq-map (lambda (node) (ewoc-data node)) nodes))
 
-(defun zotero-browser-undelete ()
-  "Undelete current entry.
-If region is active, delete entries in active region instead."
-  (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (ewoc zotero-browser-ewoc)
-         (library (zotero-cache-get :resource "library" :id id))
-         resource)
-    (if (zotero-cache-write-access-p library)
-        (progn
-          (pcase major-mode
-            ('zotero-browser-collections-mode
-             (setq resource "collections"))
-            ('zotero-browser-items-mode
-             (setq resource "items")))
-          (let (nodes
-                keys)
-            (if (use-region-p)
-                (save-excursion
-                  (let* ((first-node (ewoc-locate ewoc (region-beginning)))
-                         (last-node (ewoc-locate ewoc (region-end)))
-                         (node first-node))
-                    (while
-                        (progn
-                          (ewoc-goto-node ewoc node)
-                          (push node nodes)
-                          (push (ewoc-data node) keys)
-                          (setq node (ewoc-next ewoc node))
-                          (not (eq node (ewoc-next ewoc last-node)))))))
-              (let ((node (ewoc-locate ewoc)))
-                (push node nodes)
-                (push (ewoc-data node) keys)
-                (zotero-cache-undelete :type type :id id :resource resource :key (ewoc-data node)))))
-          (zotero-browser-revert))
-      (user-error "Library %s had no write access" id))))
-          (zotero-browser-revert))
-      (user-error "Library %s had no write access" id))))
-
 (defun zotero-browser-open-attachment ()
   "Open attachment at point."
   (interactive)
