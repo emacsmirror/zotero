@@ -29,7 +29,6 @@
 
 ;; Note
 
-;; REVIEW: FILES is implemented only for curl backend for now.
 ;; Emacs 27 is required by zotero-cache.el because of ISO 8601 time parsing.
 
 ;;; Code:
