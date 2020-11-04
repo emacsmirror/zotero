@@ -433,11 +433,10 @@ All currently available key bindings:
   "Revert the buffer."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (pcase major-mode
-    ('zotero-browser-collections-mode
-     (display-buffer (zotero-browser-collections :type zotero-browser-type :id zotero-browser-id :resource zotero-browser-resource)))
-    ('zotero-browser-items-mode
-     (display-buffer (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource zotero-browser-resource :key zotero-browser-collection)))))
+  (let ((pos (point))
+        (ewoc zotero-browser-ewoc))
+    (ewoc-refresh ewoc)
+    (goto-char pos)))
 
 (defun zotero-browser-goto-next ()
   "Move point to the next item."
