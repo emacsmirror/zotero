@@ -518,10 +518,9 @@ All currently available key bindings:
   "Edit the text at point.
 \\<zotero-edit-text-mode-map>
 
-The text is copied to a separate buffer and the appropriate mode.
-When done, exit with `\\[zotero-edit-text-exit]'. This will
-remove the original text in the source buffer, and replace
-it with the edited version.
+The text is copied to a separate buffer. When done, exit with
+`\\[zotero-edit-text-exit]'. This will remove the original text
+in the source buffer, and replace it with the edited version.
 
 When optional argument BUFFER-NAME is non-nil, use it as the
 name of the sub-editing buffer."
