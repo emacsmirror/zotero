@@ -1,11 +1,6 @@
 ;;; zotero-browser.el --- Interface to Zotero  -*- lexical-binding: t; -*-
 
 ;; Author: Folkert van der Beek <folkertvanderbeek@gmail.com>
-;; Created: 2020-03-27
-;; Version: 0.1
-;; Keywords: zotero, hypermedia
-;; Package-Requires: ((emacs "25.1") (oauth "1.0.4") (request "0.3.2"))
-;; URL: https://gitlab.com/fvdbeek/emacs-zotero
 
 ;; This file is NOT part of GNU Emacs.
 

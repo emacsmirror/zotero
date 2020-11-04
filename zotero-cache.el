@@ -1,5 +1,7 @@
 ;;; zotero-cache.el --- Cache for Zotero -*- lexical-binding: t; -*-
 
+;; Author: Folkert van der Beek <folkertvanderbeek@gmail.com>
+
 ;; This file is NOT part of GNU Emacs.
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -35,29 +37,7 @@
 
 (defcustom zotero-cache-enable-caching t
   "When t enables caching.
-Caching is automatically enabled by default.
-
-For efficient usage of the API, clients should make conditional
-GET requests whenever possible. If \"If-Modified-Since-Version:
-<libraryVersion>\" is passed with a multi-object read
-request (e.g., \"/users/1/items\") and data has not changed in the
-library since the specified version, the API will return \"304 Not
-Modified\". Single-object conditional requests are not currently
-supported, but will be supported in the future.
-
-While a conditional GET request that returns a \"304\" should be
-fast, some clients may wish or need to perform additional caching
-on their own, using stored data for a period of time before
-making subsequent conditional requests to the Zotero API. This
-makes particular sense when the underlying Zotero data is known
-not to change frequently or when the data will be accessed
-frequently. For example, a website that displayed a bibliography
-from a Zotero collection might cache the returned bibliography
-for an hour, after which time it would make another conditional
-request to the Zotero API. If the API returned a \"304\", the website
-would continue to display the cached bibliography for another
-hour before retrying. This would prevent the website from making
-a request to the Zotero API every time a user loaded a page."
+Caching is automatically enabled by default."
   :group 'zotero-cache
   :type 'boolean)
 
@@ -156,7 +136,7 @@ The saved data can be restored with `zotero-cache--unserialize'."
 
 (defun zotero-cache--initialize-cache ()
   "Return an empty cache "
-  (ht ("version" 0.1)
+  (ht ("version" 1)
       ("libraries" (ht-create))
       ("groups" (ht-create))
       ("synccache" (ht-create))
@@ -425,6 +405,7 @@ the object if successful, or nil."
           (progn
             (message "Uploading...done.")
             (ht-set! table key `(:synced t :version ,version :object ,object))
+            (zotero-cache-serialize)
             object)
         (message "Uploading...failed.")
         nil))))

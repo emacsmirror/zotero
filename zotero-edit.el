@@ -1,9 +1,6 @@
 ;;; zotero-edit.el --- Interface to Zotero  -*- lexical-binding: t; -*-
 
 ;; Author: Folkert van der Beek <folkertvanderbeek@gmail.com>
-;; Created: 2020-03-27
-
-;; URL: https://gitlab.com/fvdbeek/emacs-zotero
 
 ;; This file is NOT part of GNU Emacs.
 
