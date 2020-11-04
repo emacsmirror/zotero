@@ -1381,7 +1381,7 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
           ;; delete the next entry if it is a child of one of the parents
           (when (member parent parents)
             (ewoc-delete ewoc next-node)
-            (seq-remove (lambda (elt) (equal elt next-key)) zotero-browser-keys)
+            (delete next-key zotero-browser-keys)
             (setq key next-key))))))
 
 (defun zotero-browser--add (ewoc node table)
