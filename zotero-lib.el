@@ -648,7 +648,7 @@ response. If the response is paginated the data is concatenated."
          (zotero-lib--dispatch handle)))
       ;; Service unavailable
       (503
-       (user-error Service" Unavailable")))))
+       (user-error "Service unavailable")))))
 
 (cl-defun zotero-lib-retrieve (&key url type id resource key api-key version format if-match if-none-match include-trashed itemtype last-modified-version linkmode locale since q qmode tag itemkey collectionkey searchkey)
   "Return the last-modified-version and the data returned by the Zotero request.
