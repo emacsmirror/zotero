@@ -535,7 +535,8 @@ name of the sub-editing buffer."
         (set-buffer-modified-p nil))
       ;; Switch to edit buffer.
       (pop-to-buffer buffer zotero-edit-text-buffer-action)
-      (zotero-edit-text-mode)
+      (zotero-edit-text-mode 1)
+      (visual-line-mode 1)
       (setq zotero-edit-widget widget)
       (message (substitute-command-keys zotero-edit-usage-message)))))
 
