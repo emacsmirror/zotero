@@ -704,8 +704,7 @@ With a `C-u' prefix, move to top level."
                   (setq updated-data (plist-put data :parentItem parent)))))
             (delete key zotero-browser-keys)
             (ewoc-delete ewoc node)
-            (zotero-cache-save :type type :id id :resource "items" :data updated-data)
-            (zotero-browser-revert)))
+            (zotero-cache-save :type type :id id :resource "items" :data updated-data)))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-move-to-collection ()
@@ -728,8 +727,7 @@ With a `C-u' prefix, move to top level."
                  (old zotero-browser-collection))
             (delete key zotero-browser-keys)
             (ewoc-delete ewoc node)
-            (zotero-cache-substitute-collection :type type :id id :key key :new new :old old)
-            (zotero-browser-revert)))
+            (zotero-cache-substitute-collection :type type :id id :key key :new new :old old)))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-copy-to-collection ()
@@ -753,8 +751,7 @@ With a `C-u' prefix, move to top level."
             (when (equal resource "items-top")
               (delete key zotero-browser-keys)
               (ewoc-delete ewoc node))
-            (zotero-cache-add-to-collection :type type :id id :key key :collection collection)
-            (zotero-browser-revert)))
+            (zotero-cache-add-to-collection :type type :id id :key key :collection collection)))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-remove-from-collection ()
@@ -773,8 +770,7 @@ With a `C-u' prefix, move to top level."
                  (collection zotero-browser-collection))
             (delete key zotero-browser-keys)
             (ewoc-delete ewoc node)
-            (zotero-cache-remove-from-collection :type type :id id :key key :collection collection)
-            (zotero-browser-revert)))
+            (zotero-cache-remove-from-collection :type type :id id :key key :collection collection)))
       (user-error "Library %s had no write access" id))))
 
 (defun zotero-browser-move-to-trash ()
@@ -1020,7 +1016,6 @@ client."
                (if (or (null parent) (eq parent :json-false))
                    (user-error "Links to URLs are not allowed as top-level items")
                  (display-buffer (zotero-edit-item :type type :id id :data template :locale zotero-lib-locale) zotero-browser-edit-buffer-action)))))
-        (zotero-browser-revert)
         (user-error "Library %s had no write access" id)))))
 
 (defun zotero-browser-update-attachment ()
@@ -1071,8 +1066,7 @@ client."
                              (plist-put :mtime nil))))
                 (unless (zotero-lib-upload-attachment :type type :id id :key key :file file :hash hash :api-key api-key)
                   (error "Failed to associate attachment with item %s" key))
-                (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action)
-                (zotero-browser-revert))))
+                (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
         (user-error "Library %s had no write access" id)))))
 
 (defun zotero-browser-recognize-attachment ()
