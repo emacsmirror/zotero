@@ -4,7 +4,7 @@
 ;; Created: 2020-03-27
 ;; Version: 0.1
 ;; Keywords: zotero, hypermedia
-;; Package-Requires: ((emacs "26.1") (ht "2.2") (oauth "1.0.4") (request "0.3.2") (s "1.12.0"))
+;; Package-Requires: ((emacs "27.1") (ht "2.2") (oauth "1.0.4") (request "0.3.2") (s "1.12.0"))
 ;; URL: https://gitlab.com/fvdbeek/emacs-zotero
 
 ;; This file is NOT part of GNU Emacs.
@@ -30,7 +30,7 @@
 ;; Note
 
 ;; REVIEW: FILES is implemented only for curl backend for now.
-;; REVIEW: Emacs 26 is required because of the incompatible struct changes, accessors for the value returned by `file-attributes', the use of `read-multiple-choice'
+;; Emacs 27 is required by zotero-cache.el because of ISO 8601 time parsing.
 
 ;;; Code:
 
