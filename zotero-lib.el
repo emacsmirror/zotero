@@ -89,12 +89,6 @@
                    :tag "tag")
   "The parameter keys and their strings.")
 
-;; (defvar zotero-lib-status-line-regexp "\\([^ ]+\\) \\([[:digit:]]\\{3\\}\\) \\(.*\\)")
-;; (defvar zotero-lib-fieldname-regexp (regexp-opt-charset (nconc (number-sequence 33 57) (number-sequence 59 126))))
-;; (defvar zotero-lib-fieldbody-regexp (regexp-opt-charset (nconc '(9) (number-sequence 32 126))))
-;; (defvar zotero-lib-header-regexp (concat "^\\(" zotero-lib-fieldname-regexp "+\\)"
-;;                                          ": \\(" zotero-lib-fieldbody-regexp "*\\)$"))
-
 (defvar zotero-lib-link-regexp "<\\([^>]*\\)>; rel=\"\\([[:word:]]+\\)\""
   "A regular expression matching the body of the link header.")
 
@@ -135,13 +129,6 @@
                  (const rights)
                  (const addedBy)
                  (const :tag "numItems (tags)" numItems)))
-
-;; This variable is not used, because the default sorting direction varies by sort method.
-;; (defcustom zotero-lib-direction 'asc
-;;   "The sorting direction of the field specified in the sort parameter."
-;;   :group 'zotero-lib
-;;   :type '(choice (const asc)
-;;                  (const desc)))
 
 (defcustom zotero-lib-limit 100
   "The maximum number of results to return with a single request.
@@ -266,28 +253,6 @@ modified since the passed version."
              (not (looking-at "^\r?\n"))))
     (forward-line 1)
     (buffer-substring (point) (point-max))))
-
-;; (defun zotero-lib-parse-statusline (string)
-;;   "Return a plist with the parsed status line from STRING.
-;; The status line is the first line of a response message, consisting of the protocol version followed by a 3-digit status code and its associated reason phrase, with each element separated by space characters."
-;;   (string-match zotero-lib-status-line-regexp string)
-;;   `(:http-version ,(match-string 1 string) :status-code ,(match-string 2 string) :reason-phrase ,(match-string 3 string)))
-
-(defun zotero-lib--parse-headers (string)
-  "Return an alist with the parsed response headers from STRING.
-
-Header fields are lines beginning with a field name, followed by
-a colon, followed by a field body. A field name is composed of
-printable US-ASCII characters (i.e., characters that have values
-between 33 and 126), except colon. A field body may be composed
-of printable US-ASCII characters as well as the space (ASCII
-value 32) and horizontal tab (ASCII value 9) characters."
-  (let ((pos 0)        ; string marker
-        (matches ()))  ; return list
-    (while (string-match zotero-lib-header-regexp string pos)
-      (push `(,(match-string 1 string) . ,(match-string 2 string)) matches)
-      (setq pos (match-end 0)))
-    (nreverse matches)))
 
 (defun zotero-lib--parse-links (string)
   "Return links header as a plist.
