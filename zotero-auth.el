@@ -30,16 +30,19 @@
 
 ;;;; Variables
 
+(defvar zotero-auth-token nil
+  "The access token.")
+
 ;; The Client Key and Client Secret for use during all future OAuth handshakes between emacs-zotero and zotero.org.
 (defconst zotero-auth-client-key "28b59774b8e3e022a296"
-  "The key issued by Zotero.")
+  "The client key issued by Zotero.")
 
 (defconst zotero-auth-client-secret "ed094e305ae7305ebbbc"
-  "The secret issued by Zotero.")
+  "The client secret issued by Zotero.")
 
 ;; The OAuth endpoints for access to the Zotero API:
 (defconst zotero-auth-request-token-endpoint "https://www.zotero.org/oauth/request"
-  "Temporary Credential Request.")
+  "Temporary Credential Request URI.")
 
 (defconst zotero-auth-token-endpoint "https://www.zotero.org/oauth/access"
   "Token Request URI.")
@@ -89,23 +92,30 @@ obtain new token info."
     zotero-auth-token)))
 
 (defun zotero-auth-token-valid-p (token)
-  "Return t if the access token is valid, else return nil.
-  An access token is considered valid if it is a struct type called ‘zotero-auth-token’ that contains at least the two slots \"userID\" (the user ID) and \"oauth_token_secret\" (the API key)."
+  "Return t if TOKEN is valid, else return nil.
+
+An access token is considered valid if it is a struct type called
+‘zotero-auth-token’ that contains at least the two slots
+\"userID\" (the user ID) and \"oauth_token_secret\" (the API
+key)."
   (when (and (zotero-auth-token-p token) (zotero-auth-token-token-secret token) (zotero-auth-token-userid token)) t))
 
 (defun zotero-auth-api-key (token)
-  "Return the Zotero API key.
+  "Return the Zotero API key in TOKEN.
+
 In Zotero's case the token and secret are just the same Zotero
 API key."
   (zotero-auth-token-token-secret token))
 
 (defun zotero-auth-userid (token)
-  "Return the Zotero user ID.
+  "Return the Zotero user ID in TOKEN.
+
 Zotero will send the userID associated with the key along too."
   (zotero-auth-token-userid token))
 
 (defun zotero-auth-username (token)
-  "Return the Zotero username.
+  "Return the Zotero username in TOKEN.
+
 Zotero will send the username associated with the key along too."
   (zotero-auth-token-username token))
 
@@ -144,7 +154,7 @@ Fetch an access token, secret, user ID and username from the service provider. T
   (advice-remove #'oauth-fetch-token #'zotero-auth--fetch-token))
 
 (defun zotero-auth--save-token (token)
-  "Save the acces token for future sessions and return it."
+  "Save the TOKEN for future sessions and return it."
   (customize-save-variable 'zotero-auth-token token))
 
 (provide 'zotero-auth)
