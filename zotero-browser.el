@@ -1109,7 +1109,7 @@ client."
               (let* ((file (zotero-browser-find-attachment))
                      (attributes (zotero-lib-file-attributes file))
                      (content-type (plist-get attributes :content-type)))
-                (zotero-fulltext-index-fulltext :type type :id id :key key :file file :content-type content-type))))
+                (zotero-lib-index-item type id key file content-type))))
         (user-error "Library %s had no write access" id)))))
 
 (defun zotero-browser-open-file (path)

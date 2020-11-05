@@ -71,22 +71,6 @@ for your operating system."
   :group 'zotero-fulltext
   :type 'integer)
 
-(cl-defun zotero-fulltext-index-fulltext (&key type id key file content-type)
-  "A convenient wrapper around `zotero-lib-set-item-fulltext'"
-  (let* ((token (zotero-auth-token))
-         (api-key (zotero-auth-api-key token))
-         (filename (file-name-nondirectory file))
-         (path (expand-file-name file))
-         (content-type (or content-type (mailcap-file-name-to-mime-type filename)))
-         (object (cond ((equal content-type "application/pdf")
-                        (zotero-fulltext--index-pdf path))
-                       ((equal contenttype "application/msword")
-                        (zotero-fulltext--index-antiword path))
-                       ((assoc content-type zotero-fulltext-pandoc-mimetypes)
-                        (zotero-fulltext--index-pandoc path content-type)))))
-    (when object
-      (zotero-lib-set-item-fulltext object :type type :id id :key key :api-key api-key))))
-
 ;;;;; Indexing functions
 
 (defun zotero-fulltext--index-pdf (file)

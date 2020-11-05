@@ -1491,6 +1491,32 @@ to access, e.g. the \"user ID\" or \"group ID\"."
          (status-code (plist-get response :status-code)))
     (if (eq status-code 204) t nil)))
 
+(defun zotero-lib-index-item (type id key file &optional content-type)
+  "A convenient wrapper around `zotero-lib-set-item-fulltext'.
+
+TYPE is \"user\" for your personal library, and \"group\" for the
+group libraries. ID is the ID of the personal or group library
+you want to access, e.g. the user ID or group ID. Your personal
+library ID is available at URL
+`https://www.zotero.org/settings/keys/'. For group libraries, the
+ID can be found by opening the group's page at URL
+`https://www.zotero.org/groups/'. KEY is the item key. FILE is
+the file path to be indexed. If optional argument CONTENT-TYPE is
+not provided, it will be guessed."
+  (let* ((token (zotero-auth-token))
+         (api-key (zotero-auth-api-key token))
+         (filename (file-name-nondirectory file))
+         (path (expand-file-name file))
+         (content-type (or content-type (mailcap-file-name-to-mime-type filename)))
+         (object (cond ((equal content-type "application/pdf")
+                        (zotero-fulltext--index-pdf path))
+                       ((equal content-type "application/msword")
+                        (zotero-fulltext--index-antiword path))
+                       ((assoc content-type zotero-fulltext-pandoc-mimetypes)
+                        (zotero-fulltext--index-pandoc path content-type)))))
+    (when object
+      (zotero-lib-set-item-fulltext object :type type :id id :key key :api-key api-key))))
+
 ;;;; File Uploads
 
 (cl-defun zotero-lib-authorize-upload (&key type id key filename filesize md5 mtime hash api-key)
