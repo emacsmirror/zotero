@@ -216,27 +216,6 @@ Argument PLIST is the permissions of the user or group library as
 returned by `zotero-lib-get-key'."
   (eq (plist-get plist :files) t))
 
-(defun zotero-cache-level (key table)
-  "Return the level of KEY."
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (table (pcase major-mode
-                  ('zotero-browser-collections-mode
-                   (zotero-cache-get :type type :id id :resource "collections"))
-                  ('zotero-browser-items-mode
-                   (zotero-cache-get :type type :id id :resource "items"))))
-         (level 0))
-    (while
-        (let ((parent (pcase major-mode
-                        ('zotero-browser-collections-mode
-                         (zotero-cache-parentcollection key table))
-                        ('zotero-browser-items-mode
-                         (zotero-cache-parentitem key table)))))
-          (setq level (1+ level))
-          (unless (or (eq parent :json-false) (null parent))
-            (setq key parent))))
-    level))
-
 (defun zotero-cache-parentitem (key table)
   "Return the parent of KEY, or nil."
   (let ((value (ht-get table key)))

@@ -606,7 +606,7 @@ All currently available key bindings:
         (while
             (let* ((node (ewoc-locate ewoc))
                    (key (ewoc-data node))
-                   (level (zotero-cache-level key table)))
+                   (level (zotero-browser--level key table)))
               (when (zotero-browser--has-children-p node)
                 (cond
                  ((and (zotero-browser--expanded-p ewoc node)
@@ -1216,7 +1216,7 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
   "Pretty print KEY."
   (let* ((table (zotero-cache-get :type zotero-browser-type :id zotero-browser-id :resource "collections"))
          (entry (zotero-cache-get :type zotero-browser-type :id zotero-browser-id :resource "collection" :key key))
-         (level (zotero-cache-level key table))
+         (level (zotero-browser--level key table))
          (indentation (+ zotero-browser-padding level))
          (prefix (make-string indentation ?\s))
          (values (seq-map (lambda (key) (zotero-lib-plist-get* entry :object :data key)) zotero-browser-collection-keys))
@@ -1229,7 +1229,7 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
   (let* ((table (zotero-cache-get :type zotero-browser-type :id zotero-browser-id :resource "items"))
          (entry (zotero-cache-get :type zotero-browser-type :id zotero-browser-id :resource "item" :key key))
          (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-         (level (zotero-cache-level key table))
+         (level (zotero-browser--level key table))
          (indentation (+ zotero-browser-padding level))
          (prefix (make-string indentation ?\s)))
     (let ((beg (point)))
@@ -1335,6 +1335,27 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
                       (insert " "))))))
              ('notes)))))
       (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix)))))
+
+(defun zotero-browser--level (key table)
+  "Return the level of KEY."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (table (pcase major-mode
+                  ('zotero-browser-collections-mode
+                   (zotero-cache-get :type type :id id :resource "collections"))
+                  ('zotero-browser-items-mode
+                   (zotero-cache-get :type type :id id :resource "items"))))
+         (level 0))
+    (while
+        (let ((parent (pcase major-mode
+                        ('zotero-browser-collections-mode
+                         (zotero-cache-parentcollection key table))
+                        ('zotero-browser-items-mode
+                         (zotero-cache-parentitem key table)))))
+          (setq level (1+ level))
+          (unless (or (eq parent :json-false) (null parent))
+            (setq key parent))))
+    level))
 
 (defun zotero-browser--expand (ewoc node)
   "Expand the children of NODE in EWOC."
