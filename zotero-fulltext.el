@@ -36,6 +36,21 @@
     ("text/x-tex" . "latex"))
   "An alist of MIME content-types and corresponding input formats understood by pandoc.")
 
+;;;; Customization
+
+(defgroup zotero-fulltext nil
+  "Fulltext indexing for Zotero"
+  :group 'zotero)
+
+(defcustom zotero-fulltext-pdftotext "pdftotext"
+  "Executable for pdftotext.
+Needed for fulltext indexing of PDF documents. It is freely
+available and included by default with many Linux distributions,
+and is also available for Windows as part of the Xpdf Windows
+port."
+  :group 'zotero-fulltext
+  :type 'string)
+
 (defcustom zotero-fulltext-pdfinfo "pdfinfo"
   "Executable for pdfinfo.
 Needed for fulltext indexing of PDF documents. It is freely

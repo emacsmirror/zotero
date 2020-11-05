@@ -54,7 +54,7 @@ save, or \\[zotero-edit-text-abort] to abort.")
 
 (defgroup zotero-edit nil
   "Interface to Zotero-Edit."
-  :group 'external)
+  :group 'zotero)
 
 (defcustom zotero-edit-buffer-name "*Zotero Edit*"
   "The default buffer name."

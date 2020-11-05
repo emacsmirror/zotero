@@ -93,9 +93,13 @@
 
 ;;;; Customization
 
+(defgroup zotero nil
+  "Emacs client for Zotero"
+  :group 'external)
+
 (defgroup zotero-lib nil
   "Library for the Zotero API"
-  :group 'external)
+  :group 'zotero)
 
 (defconst zotero-lib-directory
   (or (and load-file-name

@@ -198,8 +198,8 @@
 ;;;; Customization
 
 (defgroup zotero-browser nil
-  "Interface to Zotero-Browser."
-  :group 'external)
+  "Interface to Zotero Browser."
+  :group 'zotero)
 
 (defcustom zotero-browser-libraries-buffer-name "*Zotero Libraries*"
   "The default buffer name."

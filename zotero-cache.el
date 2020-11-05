@@ -35,6 +35,10 @@
 
 ;;;; Customization
 
+(defgroup zotero-cache nil
+  "Caching for Zotero"
+  :group 'zotero)
+
 (defcustom zotero-cache-enable-caching t
   "When t enables caching.
 Caching is automatically enabled by default."
