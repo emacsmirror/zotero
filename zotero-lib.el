@@ -109,7 +109,7 @@
 
 (defcustom zotero-lib-timeout 30
   "Default timeout in seconds.
-`nil' means no timeout."
+nil means no timeout."
   :group 'zotero-lib
   :type '(choice (integer :tag "Timeout seconds")
                  (boolean :tag "No timeout" nil)))
@@ -177,7 +177,7 @@ Add a leading \":\" to the string."
   "Recursively extract a value from a property list.
 
 This function returns the value corresponding to the given PROPS
-in a nested plist. The lookup for each prop should return another
+in a nested PLIST. The lookup for each prop should return another
 plist, except for the final prop, which may return any value."
   (while props
     (setf plist (plist-get plist (pop props))))
@@ -195,20 +195,34 @@ plist, except for the final prop, which may return any value."
     plist))
 
 (defun zotero-lib-error-p (response)
-  "Return t if the request gave an error, else return nil."
+  "Return t if the request gave an error, else return nil.
+
+RESPONSE is the response returned by `zotero-lib--request'."
   (plist-get response :error-thrown))
 
 (defun zotero-lib-succes-p (response)
-  "Return t if the request was succesfull, else return nil."
+  "Return t if the request was succesfull, else return nil.
+
+RESPONSE is the response returned by `zotero-lib--request'."
   (when (eq (plist-get response :symbol-status) 'succes) t))
 
 (defun zotero-lib-not-modified-p (response)
   "Return t if the data was not modified, else return nil.
-If the \"If-Modified-Since-Version\" header is passed with a multi-object read request and data has not changed in the library since the specified version, the API will return 304 Not Modified. Single-object conditional requests are not currently supported, but will be supported in the future."
+
+RESPONSE is the response returned by `zotero-lib--request'.
+
+If the \"If-Modified-Since-Version\" header is passed with a
+multi-object read request and data has not changed in the library
+since the specified version, the API will return 304 Not
+Modified. Single-object conditional requests are not currently
+supported, but will be supported in the future according to the
+Zotero API documentation."
   (if (eq (plist-get response :status-code) 304) t nil))
 
 (defun zotero-lib-modified-p (response)
-  "Return t if the data has changed since retrieval (i.e., the provided item version no longer matches), else return nil.
+  "Return t if the data has changed since retrieval, else return nil.
+
+RESPONSE is the response returned by `zotero-lib--request'.
 
 The \"If-Unmodified-Since-Version\" request header is used to
 ensure that existing data won't be overwritten by a client with
@@ -297,7 +311,7 @@ when reading or writing a JSON empty object."
 (defun json-encode--empty-object (orig-fun arg)
   "Advice around `json-encode' to write `:json-empty' as JSON empty object (\"{}\").
 
-Both \"null\" and \"{}\" are parsed as `nil', so there's no
+Both \"null\" and \"{}\" are parsed as nil, so there's no
 convenient way to differentiate between an empty value or an
 empty object. However, a \"null\" instead of \"{}\" for an empty
 object will return a \"400 Bad Request\" error. The advices
@@ -403,6 +417,8 @@ Each of the OBJECTS may be:
 (defun zotero-lib--rate-limit (response)
   "Return the number of seconds to wait if the rate is limited, else return nil.
 
+RESPONSE is the response returned by `zotero-lib--request'.
+
 If the API servers are overloaded, the API may include a
 \"Backoff: <seconds>\" HTTP header in responses, indicating that
 the client should perform the minimum number of requests
@@ -421,7 +437,10 @@ retrying the request."
     (string-to-number seconds)))
 
 (defun zotero-lib--add-to-headers (handle &rest keys)
-  "Return an alist with the headers to send with the request."
+  "Return an alist with the headers to send with the request.
+
+HANDLE is the plist passed to `zotero-lib--request'. KEYS are the
+headers to be included."
   (let ((headers))
     (dolist (key keys headers)
       (when-let ((fieldname (plist-get zotero-lib-headers key))
@@ -429,7 +448,10 @@ retrying the request."
         (setq headers (cons `(,fieldname . ,fieldbody) headers))))))
 
 (defun zotero-lib--add-to-params (handle &rest keys)
-  "Return an alist with the params to send with the request."
+  "Return an alist with the params to send with the request.
+
+HANDLE is the plist passed to `zotero-lib--request'. KEYS are the
+params to be included."
   (let ((params))
     (dolist (key keys params)
       (when-let ((param (plist-get zotero-lib-params key))
@@ -497,9 +519,10 @@ at <https://www.zotero.org/groups/>."
                    (_ nil))))
     (concat zotero-lib-base-url prefix suffix)))
 
-;; FIXME: cleaner handling of headers and params
 (defun zotero-lib--request (handle)
-  "Return response for an API request to Zotero."
+  "Return response for an API request to Zotero.
+
+HANDLE is the plist passed to `zotero-lib--request'."
   (let* ((response (request (plist-get handle :url)
                      :type (plist-get handle :method)
                      :headers (apply #'zotero-lib--add-to-headers handle (cl-loop for key in zotero-lib-headers by #'cddr collect key))
@@ -550,7 +573,9 @@ at <https://www.zotero.org/groups/>."
                     :data ,data)))
 
 (defun zotero-lib--authorize (handle)
-  "Reauthorize Zotero and return a new request handle."
+  "Reauthorize Zotero and return a new request handle.
+
+HANDLE is the plist passed to `zotero-lib--request'."
   (if (y-or-n-p (format "Invalid API key. Authorize Zotero and retry? "))
       (when-let ((token (zotero-auth-authorize))
                  (api-key (zotero-auth-api-key token)))
@@ -558,7 +583,9 @@ at <https://www.zotero.org/groups/>."
     (user-error "Invalid API key")))
 
 (defun zotero-lib--privileges (handle)
-  "Forward to Zotero key settings an return a new request handle."
+  "Forward to Zotero key settings an return a new request handle.
+
+HANDLE is the plist passed to `zotero-lib--request'."
   (let* ((api-key (plist-get handle :api-key))
          (url (concat "https://www.zotero.org/settings/keys/edit/" api-key)))
     (kill-new url)
@@ -630,15 +657,15 @@ response. If the response is paginated the data is concatenated."
        (user-error "409 Conflict: The target library is locked"))
       (412
        (user-error "412 Precondition Failed: The file has changed
-       remotely since retrieval (i.e., the provided ETag no
-       longer matches). Conflict resolution is left to the
-       client"))
+  remotely since retrieval (i.e., the provided ETag no
+                                  longer matches). Conflict resolution is left to the
+  client"))
       (413
        (user-error "413 Request Entity Too Large: The upload
-       would exceed the storage quota of the library owner"))
+  would exceed the storage quota of the library owner"))
       (428
        (user-error "428 Precondition Required: the \"If-Match\"
-       or \"If-None-Match\" header was not provided."))
+  or \"If-None-Match\" header was not provided"))
       (429
        ;; If a client has made too many requests within a given time
        ;; period, the API may return 429 Too Many Requests with a
@@ -654,37 +681,113 @@ response. If the response is paginated the data is concatenated."
        (user-error "Service unavailable")))))
 
 (cl-defun zotero-lib-retrieve (&key url type id resource key api-key version format if-match if-none-match include-trashed itemtype last-modified-version linkmode locale since q qmode tag itemkey collectionkey searchkey)
-  "Return the last-modified-version and the data returned by the Zotero request.
-The result is a cons of (version . data).
+  "Return the response of the Zotero request.
+
+URL is the URL of the endpoint. TYPE is \"user\" (default) for
+your personal library, and \"group\" for the group libraries. ID
+is the ID of the personal or group library you want to access,
+e.g. the user ID (default) or group ID. Your personal library ID
+is available at <https://www.zotero.org/settings/keys/>. For
+group libraries, the ID can be found by opening the group's page
+at <https://www.zotero.org/groups/>. RESOURCE is one of:
+
+- \"collections\": collections in the library
+- \"collections-top\": top-level collections in the library
+- \"collection\": a specific collection in the library
+- \"subcollections\": subcollections within a specific collection in the library
+- \"items\": all items in the library, excluding trashed items
+- \"items-top\": top-level items in the library, excluding trashed items
+- \"trash-items\": items in the trash
+- \"item\": a specific item in the library
+- \"item-children\": child items under a specific item
+- \"publication-items\": items in My Publications
+- \"collection-items\": items within a specific collection in the library
+- \"collection-items-top\": top-level items within a specific collection in the library
+- \"searches\": all saved searches in the library
+- \"search\": a specific saved search in the library
+- \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
+- \"item-tags\": tags associated with a specific item
+- \"collection-tags\": tags within a specific collection in the library
+- \"items-tags\": all tags in the library, with the ability to filter based on the items
+- \"items-top-tags\": tags assigned to top-level items
+- \"trash-items-tags\": tags assigned to items in the trash
+- \"collection-items-tags\": tags assigned to items in a given collection
+- \"collection-items-top-tags\": tags assigned to top-level items in a given collection
+- \"publication-items-tags\": tags assigned to items in My Publications
+- \"keys\": the user id and privileges of the given API key
+- \"groups\": the set of groups the current API key has access to, including public groups the key owner belongs to even if the key doesn't have explicit permissions for them
+- \"all-fulltext\": all full-text content
+- \"item-fulltext\": an item's full-text content
+- \"file\": an item's attachment file
+- \"deleted\": all deleted data.
 
 KEY is the item key, collection key, or search key. Which key is
-needed varies by resource. TYPE is \"user\" (default) for your
-personal library, and \"group\" for the group libraries. ID is the
-ID of the personal or group library you want to access, e.g. the
-user ID (default) or group ID. Your personal library ID is
-available at <https://www.zotero.org/settings/keys/>. For group
-libraries, the ID can be found by opening the group's page at
-<https://www.zotero.org/groups/>."
+needed varies by resource. API-KEY is the Zotero API key. The
+other keys, VERSION, FORMAT, IF-MATCH, IF-NONE-MATCH,
+INCLUDE-TRASHED, ITEMTYPE, LAST-MODIFIED-VERSION, LINKMODE,
+LOCALE, SINCE, Q, QMODE, TAG, ITEMKEY, COLLECTIONKEY, and
+SEARCHKEY are optional headers and parameters."
   ;; Request the specified URL or construct the endpoint of the resource
   (let* ((url (or url
-                  (zotero-lib--endpoint :type type :id id :resource resource :key key)))
+                  (zotero-lib--endpoint type id resource key)))
          (handle `(:url ,url :method "GET" :api-key ,api-key :api-version ,zotero-lib-api-version :collectionkey ,collectionkey :format ,format :if-modified-since-version ,version :itemkey ,itemkey :if-match ,if-match :if-none-match ,if-none-match :include-trashed ,include-trashed :itemtype ,itemtype :last-modified-version ,last-modified-version :linkmode ,linkmode :locale ,locale :searchkey ,searchkey :since ,since :q ,q :qmode ,qmode :tag ,tag)))
     (zotero-lib--dispatch handle)))
 
-(cl-defun zotero-lib-submit (&key method url type id resource key data api-key version content-type expect if-match if-none-match write-token)
-  "Return a plist with the response of the Zotero request.
+(cl-defun zotero-lib-submit (&key method url type id resource key data api-key version content-type if-match if-none-match write-token)
+  "Return the response of the Zotero request.
+
+METHOD is the HTTP method. URL is the URL of the endpoint. KEY is
+the item key, collection key, or search key. Which key is needed
+varies by resource. TYPE is \"user\" (default) for your personal
+library, and \"group\" for the group libraries. ID is the ID of
+the personal or group library you want to access, e.g. the user
+ID (default) or group ID. Your personal library ID is available
+at <https://www.zotero.org/settings/keys/>. For group libraries,
+the ID can be found by opening the group's page at
+<https://www.zotero.org/groups/>. RESOURCE is one of:
+
+- \"collections\": collections in the library
+- \"collections-top\": top-level collections in the library
+- \"collection\": a specific collection in the library
+- \"subcollections\": subcollections within a specific collection in the library
+- \"items\": all items in the library, excluding trashed items
+- \"items-top\": top-level items in the library, excluding trashed items
+- \"trash-items\": items in the trash
+- \"item\": a specific item in the library
+- \"item-children\": child items under a specific item
+- \"publication-items\": items in My Publications
+- \"collection-items\": items within a specific collection in the library
+- \"collection-items-top\": top-level items within a specific collection in the library
+- \"searches\": all saved searches in the library
+- \"search\": a specific saved search in the library
+- \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
+- \"item-tags\": tags associated with a specific item
+- \"collection-tags\": tags within a specific collection in the library
+- \"items-tags\": all tags in the library, with the ability to filter based on the items
+- \"items-top-tags\": tags assigned to top-level items
+- \"trash-items-tags\": tags assigned to items in the trash
+- \"collection-items-tags\": tags assigned to items in a given collection
+- \"collection-items-top-tags\": tags assigned to top-level items in a given collection
+- \"publication-items-tags\": tags assigned to items in My Publications
+- \"keys\": the user id and privileges of the given API key
+- \"groups\": the set of groups the current API key has access to, including public groups the key owner belongs to even if the key doesn't have explicit permissions for them
+- \"all-fulltext\": all full-text content
+- \"item-fulltext\": an item's full-text content
+- \"file\": an item's attachment file
+- \"deleted\": all deleted data.
 
 KEY is the item key, collection key, or search key. Which key is
-needed varies by resource. TYPE is \"user\" (default) for your
-personal library, and \"group\" for the group libraries. ID is the
-ID of the personal or group library you want to access, e.g. the
-user ID (default) or group ID. Your personal library ID is
-available at <https://www.zotero.org/settings/keys/>. For group
-libraries, the ID can be found by opening the group's page at
-<https://www.zotero.org/groups/>."
-  ;; Request the specified URL or construct the endpoint of the resource
+needed varies by resource. DATA is the payload to be submitted,
+most frequently a JSON object. The other keys, API-KEY, VERSION,
+CONTENT-TYPE, IF-MATCH, IF-NONE-MATCH, and WRITE-TOKEN are
+optional headers and parameters."
+  ;; Apparently for data > 1024 bytes CURL automatically sets "Expect:
+  ;; 100-continue". The client expects the server to only fetch the header and
+  ;; then send a "100" return code to get the rest of the data. However, passing
+  ;; an Expect header is unsupported and will result in a 417 Expectation Failed
+  ;; response. Setting "Expect: " explicitly disables this automatic behaviour.
   (let* ((url (or url
-                  (zotero-lib--endpoint :resource resource :key key :type type :id id)))
+                  (zotero-lib--endpoint type id resource key )))
          (handle `(:url ,url :method ,method :api-key ,api-key :api-version ,zotero-lib-api-version :content-type ,(or content-type "application/json") :data ,data :expect "" :if-match ,if-match :if-unmodified-since-version ,version :if-none-match ,if-none-match :write-token ,write-token)))
     (zotero-lib--dispatch handle)))
 
