@@ -103,9 +103,8 @@ Argument FILE is the file path to be indexed."
          (let* ((total-pages (with-temp-buffer
                                (call-process zotero-fulltext-pdfinfo nil t nil file)
                                (goto-char (point-min))
-                               (let* ((match (re-search-forward "Pages:[[:blank:]]+\\([[:digit:]]+\\)" nil t))
-                                      (pages (match-string-no-properties 1)))
-                                 (string-to-number pages))))
+                               (re-search-forward "Pages:[[:blank:]]+\\([[:digit:]]+\\)" nil t)
+                               (string-to-number (match-string-no-properties 1))))
                 (indexed-pages (if (> total-pages zotero-fulltext-max-pages) zotero-fulltext-max-pages total-pages))
                 (content (with-temp-buffer
                            (call-process zotero-fulltext-pdftotext nil t nil "-l" (number-to-string indexed-pages) file "-" )
