@@ -589,7 +589,7 @@ HANDLE is the plist passed to `zotero-lib--request'."
          (url (concat "https://www.zotero.org/settings/keys/edit/" api-key)))
     (kill-new url)
     (message "Added URL of Zotero API key settings to the kill-ring")
-    (if (y-or-n-p (format "Insufficient privileges. Ask a WWW browser to visit the Zotero settings and retry? " url))
+    (if (y-or-n-p (format "Insufficient privileges. Ask a WWW browser to visit the Zotero settings and retry? "))
         (progn
           (browse-url url)
           (read-string "Press enter when you have changed the privileges: ")
