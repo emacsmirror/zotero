@@ -753,9 +753,9 @@ retries."
         ('concurrent-update
          (cond
           ((zerop zotero-cache-max-delay)
-           (user-error "Syncing cache failed: concurrent update."))
+           (user-error "Syncing cache failed: concurrent update"))
           ((zerop zotero-cache-max-retries)
-           (user-error "Syncing cache failed: concurrent update."))
+           (user-error "Syncing cache failed: concurrent update"))
           ((> retries zotero-cache-max-retries)
            (user-error "Syncing cache failed: concurrent update and maximum of %d retries reached" zotero-cache-max-retries))
           (t
