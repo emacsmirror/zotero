@@ -37,6 +37,7 @@
 
 (require 'cl-lib)
 (require 'json)
+(require 'mailcap)
 (require 'seq)
 (require 'subr-x)
 (require 'url)
@@ -44,6 +45,7 @@
 (require 'request)
 (require 's)
 (require 'zotero-auth)
+(require 'zotero-fulltext)
 
 ;;;; Variables
 
