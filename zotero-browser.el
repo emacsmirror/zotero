@@ -982,7 +982,7 @@ client."
                             (key (plist-get object :key))
                             (token (zotero-auth-token))
                             (api-key (zotero-auth-api-key token)))
-                   (unless (zotero-lib-upload-attachment :type type :id id :key key :file file :api-key api-key)
+                   (unless (zotero-lib-upload-attachment type id key api-key file)
                      (error "Failed to associate attachment with item %s" key))
                    (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
               ("imported_url"
@@ -1034,7 +1034,7 @@ client."
                  (path (concat (file-name-as-directory dir) filename))
                  (token (zotero-auth-token))
                  (api-key (zotero-auth-api-key token))
-                 (hash (zotero-lib-get-file-hash :type type :id id :key key :api-key api-key)))
+                 (hash (zotero-lib-get-file-hash type id key api-key)))
             (when (and (equal itemtype "attachment")
                        (equal linkmode "imported_file"))
               (let* ((file (expand-file-name (read-file-name "Select file: " dir nil t path)))
@@ -1059,7 +1059,7 @@ client."
                              ;; along with the corresponding file.
                              (plist-put :md5 nil)
                              (plist-put :mtime nil))))
-                (unless (zotero-lib-upload-attachment :type type :id id :key key :file file :hash hash :api-key api-key)
+                (unless (zotero-lib-upload-attachment type id key api-key file hash)
                   (error "Failed to associate attachment with item %s" key))
                 (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-lib-locale) zotero-browser-edit-buffer-action))))
         (user-error "Library %s had no write access" id)))))
