@@ -90,7 +90,7 @@ for your operating system."
   :group 'zotero-fulltext
   :type 'integer)
 
-;;;;; Indexing functions
+;;;; Functions
 
 (defun zotero-fulltext-index-pdf (file)
   "Convert Portable Document Format (PDF) to text.
