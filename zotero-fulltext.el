@@ -21,6 +21,10 @@
 
 ;;; Code:
 
+;;;; Requirements
+
+(require 'zotero-auth)
+
 ;;;; Variables
 
 (defvar zotero-fulltext-pandoc-mimetypes
