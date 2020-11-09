@@ -1708,11 +1708,11 @@ not provided, it will be guessed."
          (path (expand-file-name file))
          (content-type (or content-type (mailcap-file-name-to-mime-type filename)))
          (object (cond ((equal content-type "application/pdf")
-                        (zotero-fulltext--index-pdf path))
+                        (zotero-fulltext-index-pdf path))
                        ((equal content-type "application/msword")
-                        (zotero-fulltext--index-antiword path))
+                        (zotero-fulltext-index-antiword path))
                        ((assoc content-type zotero-fulltext-pandoc-mimetypes)
-                        (zotero-fulltext--index-pandoc path content-type)))))
+                        (zotero-fulltext-index-pandoc path content-type)))))
     (when object
       (zotero-lib-set-item-fulltext type id key api-key object))))
 

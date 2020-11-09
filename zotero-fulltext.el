@@ -88,8 +88,9 @@ for your operating system."
 
 ;;;;; Indexing functions
 
-(defun zotero-fulltext--index-pdf (file)
-  "Convert Portable Document Format (PDF) to text."
+(defun zotero-fulltext-index-pdf (file)
+  "Convert Portable Document Format (PDF) to text.
+Argument FILE is the file path to be indexed."
   (cond ((not (executable-find zotero-fulltext-pdftotext))
          (error "Executable %s not found" zotero-fulltext-pdftotext))
         ((not (executable-find zotero-fulltext-pdfinfo))
@@ -107,8 +108,11 @@ for your operating system."
                            (buffer-string))))
            `(:content ,content :indexedPages ,indexed-pages :totalPages ,total-pages)))))
 
-(defun zotero-fulltext--index-pandoc (file content-type)
-  "Convert pandoc compatible markup format to text."
+(defun zotero-fulltext-index-pandoc (file content-type)
+  "Convert pandoc compatible markup format to text.
+
+Argument FILE is the file path to be indexed. Argument
+CONTENT-TYPE is the content-type."
   (cond ((not (executable-find zotero-fulltext-pandoc))
          (error "Executable %s not found" zotero-fulltext-pandoc))
         (t
@@ -122,8 +126,10 @@ for your operating system."
                     (total-chars (buffer-size)))
                `(:content ,content :indexedChars ,indexed-chars :totalChars ,total-chars)))))))
 
-(defun zotero-fulltext--index-antiword (file)
-  "Convert MS Word version 2, 6, 7, 97, 2000 and 2003 to text."
+(defun zotero-fulltext-index-antiword (file)
+  "Convert MS Word version 2, 6, 7, 97, 2000 and 2003 to text.
+
+Argument FILE is the file path to be indexed."
   (cond ((not (executable-find zotero-fulltext-antiword))
          (error "Executable %s not found" zotero-fulltext-antiword))
         (t
