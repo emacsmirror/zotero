@@ -1642,11 +1642,11 @@ ID is the ID of the personal or group library you want to access,
 e.g. the \"user ID\" or \"group ID\"."
   (cond
    ((> (length keys) 50)
-    (user-error "Up to 50 searches can be deleted in a single request."))
+    (user-error "Up to 50 searches can be deleted in a single request"))
    (t
     (let* ((searches (s-join "," keys))
            (response (zotero-lib-submit :method "DELETE" :resource "searches" :type type :id id :searchkey searches :version version :api-key api-key)))
-      (plist-get :data)))))
+      (plist-get response :data)))))
 
 (defun zotero-lib-delete-tags (type id tags api-key &optional version)
   "Delete multiple tags.
@@ -1658,8 +1658,8 @@ library, and \"group\" for the group libraries. Keyword argument
 ID is the ID of the personal or group library you want to access,
 e.g. the \"user ID\" or \"group ID\"."
   (cond
-   ((> (length keys) 50)
-    (user-error "Up to 50 tags can be deleted in a single request."))
+   ((> (length tags) 50)
+    (user-error "Up to 50 tags can be deleted in a single request"))
    (t
     (let* ((url-encoded-tags (mapcar #'url-hexify-string tags))
            (value (s-join "||" url-encoded-tags))
