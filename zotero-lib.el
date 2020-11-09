@@ -1663,8 +1663,7 @@ e.g. the \"user ID\" or \"group ID\"."
    ((> (length tags) 50)
     (user-error "Up to 50 tags can be deleted in a single request"))
    (t
-    (let* ((url-encoded-tags (mapcar #'url-hexify-string tags))
-           (value (s-join "||" url-encoded-tags))
+    (let* ((value (s-join "||" (mapcar #'url-hexify-string tags)))
            (response (zotero-lib-submit :method "DELETE" :resource "tags" :type type :id id :tag value :version version :api-key api-key)))
       (plist-get response :data)))))
 
