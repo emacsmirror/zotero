@@ -1202,7 +1202,7 @@ Keyword argument TYPE is \"user\" for your personal library, and
 of the personal or group library you want to access, e.g. the
 \"user ID\" or \"group ID\"."
   (let* ((items (s-join "," keys))
-         (response (zotero-lib-retrieve :resource resource :type type :id id :itemtype query :qmode mode :itemkey items :api-key api-key)))
+         (response (zotero-lib-retrieve :resource resource :type type :id id :itemtype query :qmode mode :itemkey items :since since :api-key api-key)))
     (plist-get response :data)))
 
 (defun zotero-lib-search-tag (type id resource keys query mode since api-key)
@@ -1451,7 +1451,7 @@ personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
   (let* ((json (zotero-lib-encode-object object))
-         (response (zotero-lib-submit :method "PUT" :resource "item" :type type :id id :key key :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+         (response (zotero-lib-submit :method "PUT" :resource "item" :type type :id id :key key :data json :content-type "application/json" :version version :api-key api-key)))
     (plist-get response :data)))
 
 (cl-defun zotero-lib-update-items (&key type id objects version api-key)
@@ -1492,7 +1492,7 @@ Keyword argument LIBRARY is user' for your personal library, and
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
   (let* ((json (zotero-lib-encode-object objects))
-         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+         (response (zotero-lib-submit :method "POST" :resource "items" :type type :id id :data json :content-type "application/json" :version version :api-key api-key)))
     (plist-get response :data)))
 
 (defun zotero-lib-delete-item (type id key api-key &optional version)
@@ -1536,7 +1536,7 @@ for your personal library, and \"group\" for the group libraries.
 Keyword argument ID is the ID of the personal or group library
 you want to access, e.g. the \"user ID\" or \"group ID\"."
   (let* ((json (zotero-lib-encode-object object))
-         (response (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+         (response (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :api-key api-key)))
     (plist-get response :data)))
 
 (defun zotero-lib-update-collection (type id key api-key object &optional version)
@@ -1575,7 +1575,7 @@ Keyword argument LIBRARY is user' for your personal library, and
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
   (let* ((json (zotero-lib-encode-object objects))
-         (response (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :expect "" :api-key api-key)))
+         (response (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :api-key api-key)))
     (plist-get response :data)))
 
 (defun zotero-lib-delete-collection (type id key api-key &optional version)
@@ -1633,7 +1633,7 @@ Keyword argument LIBRARY is user' for your personal library, and
 the personal or group library you want to access, e.g. the \"user
 ID\" or \"group ID\"."
   (let* ((json (zotero-lib-encode-object objects))
-         (response (zotero-lib-submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json" :expect "" :api-key api-key)))
+         (response (zotero-lib-submit :method "POST" :resource "searches" :type type :id id :data json :content-type "application/json" :version version :api-key api-key)))
     (plist-get response :data)))
 
 (defun zotero-lib-delete-searches (type id keys api-key &optional version)
@@ -1691,7 +1691,7 @@ personal library, and \"group\" for the group libraries. Keyword
 argument ID is the ID of the personal or group library you want
 to access, e.g. the \"user ID\" or \"group ID\"."
   (let* ((json (zotero-lib-encode-object object))
-         (response (zotero-lib-submit :method "PUT" :resource "item-fulltext" :type type :id id :key key :data json :expect "" :api-key api-key))
+         (response (zotero-lib-submit :method "PUT" :resource "item-fulltext" :type type :id id :key key :data json :api-key api-key))
          (status-code (plist-get response :status-code)))
     (if (eq status-code 204) t nil)))
 
