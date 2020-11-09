@@ -1444,12 +1444,7 @@ item, the item's `:dateModified' value will be set to the current
 time. Editable data returned from the API includes `:dateAdded'
 and `:dateModified' in the correct format, so clients that are
 content with server-set modification times can simply ignore
-these properties.
-
-KEY is the item key. Keyword argument LIBRARY is user' for your
-personal library, and \"group\" for the group libraries. Keyword
-argument ID is the ID of the personal or group library you want
-to access, e.g. the \"user ID\" or \"group ID\"."
+these properties."
   (let* ((json (zotero-lib-encode-object object))
          (response (zotero-lib-submit :method "PUT" :resource "item" :type type :id id :key key :data json :content-type "application/json" :version version :api-key api-key)))
     (plist-get response :data)))
@@ -1457,7 +1452,6 @@ to access, e.g. the \"user ID\" or \"group ID\"."
 ;; TODO: tot hier
 (defun zotero-lib-update-items (type id api-key objects &optional version)
   "Update existing items in the library.
-
 Up to 50 items can be updated in a single request. Note that any
 properties not specified will be left untouched on the server. To
 erase an existing property, include it with an empty string or
@@ -1572,9 +1566,9 @@ server. To erase an existing property, include it with an empty
 string or false as the value.
 
 Keyword argument LIBRARY is user' for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID of
-the personal or group library you want to access, e.g. the \"user
-ID\" or \"group ID\"."
+\"group\" for the group libraries. Keyword argument ID is the ID
+of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\"."
   (let* ((json (zotero-lib-encode-object objects))
          (response (zotero-lib-submit :method "POST" :resource "collections" :type type :id id :data json :content-type "application/json" :version version :api-key api-key)))
     (plist-get response :data)))
@@ -1643,8 +1637,8 @@ Up to 50 searches can be deleted in a single request.
 
 KEYS are the search keys. VERSION is the last-known library
 version. Keyword argument LIBRARY is user' for your personal
-library, and \"group\" for the group libraries. Keyword argument ID
-is the ID of the personal or group library you want to access,
+library, and \"group\" for the group libraries. Keyword argument
+ID is the ID of the personal or group library you want to access,
 e.g. the \"user ID\" or \"group ID\"."
   (cond
    ((> (length keys) 50)
@@ -1658,10 +1652,10 @@ e.g. the \"user ID\" or \"group ID\"."
   "Delete multiple tags.
 Up to 50 tags can be deleted in a single request.
 
-TAGS are the tag strings. VERSION is the last-known library
+TAGS is a list of tag strings. VERSION is the last-known library
 version. Keyword argument LIBRARY is user' for your personal
-library, and \"group\" for the group libraries. Keyword argument ID
-is the ID of the personal or group library you want to access,
+library, and \"group\" for the group libraries. Keyword argument
+ID is the ID of the personal or group library you want to access,
 e.g. the \"user ID\" or \"group ID\"."
   (cond
    ((> (length keys) 50)
@@ -1679,18 +1673,18 @@ e.g. the \"user ID\" or \"group ID\"."
 
 (defun zotero-lib-set-item-fulltext (type id key api-key object)
   "Set an item's full-text content.
-Return t if the full-text content was updated
-successfully, else return nil.
+Return t if the full-text content was updated successfully, else
+return nil.
 
 OBJECT should be a a plist containing three props:
 - `:content': the full-text content, and either
 - `:indexedChars' and `:totalChars' for text documents, or
 - `:indexedPages' and `:totalPages' for PDFs.
 
-KEY is the item key. Keyword argument TYPE is \"user\" for your
-personal library, and \"group\" for the group libraries. Keyword
-argument ID is the ID of the personal or group library you want
-to access, e.g. the \"user ID\" or \"group ID\"."
+Keyword argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. Keyword argument ID is the ID
+of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\". KEY is the item key."
   (let* ((json (zotero-lib-encode-object object))
          (response (zotero-lib-submit :method "PUT" :resource "item-fulltext" :type type :id id :key key :data json :api-key api-key))
          (status-code (plist-get response :status-code)))
@@ -1749,7 +1743,8 @@ See also URL `https://www.zotero.org/support/dev/web_api/v3/file_upload#get_uplo
 (defun zotero-lib-upload-file (file url content-type prefix suffix)
   "Upload FILE.
 
-See also URL `https://www.zotero.org/support/dev/web_api/v3/file_upload#i_post_file'
+See also URL
+`https://www.zotero.org/support/dev/web_api/v3/file_upload#i_post_file'
 
 Concatenate prefix, the file contents, and suffix and POST to url
 with the Content-Type header set to contentType.
@@ -1758,8 +1753,7 @@ prefix and suffix are strings containing multipart/form-data. In
 some environments, it may be easier to work directly with the form
 parameters. Add params=1 to the upload authorization request above
 to retrieve the individual parameters in a params array, which will
-replace contentType, prefix, and suffix.
-"
+replace contentType, prefix, and suffix."
   (let ((content (with-temp-buffer
                    (insert-file-contents-literally file)
                    (buffer-string))))
