@@ -808,7 +808,7 @@ version properties), Zotero-Write-Token is redundant and should
 be omitted."
   (let ((characters "0123456789abcdefghijklmnopqrstuvwxyz")
         (token ""))
-    (dotimes (i 32 token)
+    (dotimes (_ 32 token)
       (let ((char (elt characters (random 36))))
         (setq token (concat token (string char)))))))
 
