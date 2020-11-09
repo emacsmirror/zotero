@@ -1454,7 +1454,8 @@ to access, e.g. the \"user ID\" or \"group ID\"."
          (response (zotero-lib-submit :method "PUT" :resource "item" :type type :id id :key key :data json :content-type "application/json" :version version :api-key api-key)))
     (plist-get response :data)))
 
-(cl-defun zotero-lib-update-items (&key type id objects version api-key)
+;; TODO: tot hier
+(defun zotero-lib-update-items (type id api-key objects &optional version)
   "Update existing items in the library.
 
 Up to 50 items can be updated in a single request. Note that any
@@ -1671,12 +1672,12 @@ e.g. the \"user ID\" or \"group ID\"."
            (response (zotero-lib-submit :method "DELETE" :resource "tags" :type type :id id :tag value :version version :api-key api-key)))
       (plist-get response :data)))))
 
-(cl-defun zotero-lib-delete-key (&key api-key)
+(defun zotero-lib-delete-key (api-key)
   "Delete the API key."
   (let ((response (zotero-lib-submit :method "DELETE" :resource "keys" :key api-key)))
     (plist-get response :data)))
 
-(cl-defun zotero-lib-set-item-fulltext (object &key type id key api-key)
+(defun zotero-lib-set-item-fulltext (type id key api-key object)
   "Set an item's full-text content.
 Return t if the full-text content was updated
 successfully, else return nil.
