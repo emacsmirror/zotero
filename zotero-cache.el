@@ -246,16 +246,16 @@ returned by `zotero-lib-get-key'."
 (defun zotero-cache-has-attachments-p (key table)
   "Return non-nil if KEY in TABLE has attachments."
   (zotero-cache--some (lambda (elt)
-                        (and (equal (plist-get value :parentItem) key)
-                             (equal (plist-get value :itemType) "attachment")))
+                        (and (equal (plist-get elt :parentItem) key)
+                             (equal (plist-get elt :itemType) "attachment")))
                       table))
 
 (defun zotero-cache-has-notes-p (key table)
-  (zotero-cache-some (lambda (elt)
-                       (and (equal (plist-get elt :parentItem) key)
-                            (equal (plist-get elt :itemType) "note")))
-                     table))
   "Return non-nil if KEY in TABLE has attachments."
+  (zotero-cache--some (lambda (elt)
+                        (and (equal (plist-get elt :parentItem) key)
+                             (equal (plist-get elt :itemType) "note")))
+                      table))
 
 (defun zotero-cache-itemtype-locale (itemtype &optional locale)
   "Return translation of ITEMTYPE for LOCALE."
