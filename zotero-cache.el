@@ -1060,7 +1060,7 @@ sufficient access and offer to remove a local library or reset
 local changes. Argument CACHE is the current cache, e.g. (a copy
 of) `zotero-cache'."
   ;; TODO: deduplicate handling of user and group libraries
-  (let* ((remote-access (zotero-lib-get-key :api-key api-key))
+  (let* ((remote-access (zotero-lib-get-key api-key))
          (libraries (ht-get cache "libraries"))
          (groups (ht-get cache "groups"))
          (synccache (ht-get cache "synccache"))
@@ -1242,7 +1242,7 @@ Zotero API key."
                (if (eq remote-version local-version)
                    (message "Metadata of group %s already up to date." group)
                  ;; FIXME: metadata cannot be retrieved from read-only groups
-                 (let* ((response (zotero-lib-get-group :id group :api-key api-key))
+                 (let* ((response (zotero-lib-get-group group api-key))
                         (data (plist-get response :data)))
                    (ht-set! groups group data)))))
     cache))
@@ -1467,10 +1467,10 @@ Keyword CACHE is the hash table containing the cache."
                               (not (equal md5 (plist-get attributes :md5)))
                               (y-or-n-p (format "File \"%s\" is changed. Overwrite? " filename)))
                      (with-demoted-errors "Error downloading file: %S"
-                       (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key)))))
+                       (zotero-lib-download-file type id key api-key filename dir)))))
                 (t
                  (with-demoted-errors "Error downloading file: %S"
-                   (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key))))))))
+                   (zotero-lib-download-file type id key api-key filename dir ))))))))
 
 (cl-defun zotero-cache--sync-templates (&key cache)
   "Sync the item and attachment templates.
