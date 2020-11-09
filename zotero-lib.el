@@ -239,58 +239,12 @@ endpoints, the API will return a 412 if the object has been
 modified since the passed version."
   (if (eq (plist-get response :status-code) 412) t nil))
 
-;;;; Parser functions
-
-(defun zotero-lib--get-statusline (buffer)
-  "Return the status-line from a response BUFFER."
-  (with-current-buffer buffer
-    (goto-char (point-min))
-    (buffer-substring (point-min) (line-end-position))))
-
-(defun zotero-lib--get-header (buffer)
-  "Return the headers from a response BUFFER."
-  (with-current-buffer buffer
-    ;; Move beyond status line
-    (goto-char (point-min))
-    (forward-line 1)
-    (let ((pos (point)))
-      ;; Move to blank line at end of headers.
-      (while (progn
-               (forward-line 1)
-               (not (looking-at "^\r?\n"))))
-      (buffer-substring pos (point)))))
-
-(defun zotero-lib--get-body (buffer)
-  "Return the body from a response BUFFER."
-  (with-current-buffer buffer
-    ;; Move beyond blank line at end of headers.
-    (goto-char (point-min))
-    (while (progn
-             (forward-line 1)
-             (not (looking-at "^\r?\n"))))
-    (forward-line 1)
-    (buffer-substring (point) (point-max))))
-
-(defun zotero-lib--parse-links (string)
-  "Return links header as a plist.
-
-STRING is the HTTP \"Link\" header. Return a plist containing
-the `:alternate', `:last', `:next', `:prev', and `:first' links."
-  (when string
-    (let ((pos 0)
-          (matches ()))
-      (while (string-match zotero-lib-link-regexp string pos)
-        (push (intern (concat ":" (match-string 2 string))) matches)
-        (push (match-string 1 string) matches)
-        (setq pos (match-end 0)))
-      (nreverse matches))))
-
 ;;;; JSON parsing
 
 (defun json-read-object--empty-object (orig-fun)
   "Advice around `json-read' to read `:json-empty' as JSON empty object (\"{}\").
 
-Both \"null\" and \"{}\" are parsed as `nil', so there's no
+Both \"null\" and \"{}\" are parsed as nil, so there's no
 convenient way to differentiate between an empty value or an
 empty object. However, a \"null\" instead of \"{}\" for an empty
 object will return a \"400 Bad Request\" error. The advices
@@ -413,6 +367,20 @@ Each of the OBJECTS may be:
       (zotero-lib--after-write-function))))
 
 ;;;; Resources
+
+(defun zotero-lib--parse-links (string)
+  "Return links header as a plist.
+
+STRING is the HTTP \"Link\" header. Return a plist containing
+the `:alternate', `:last', `:next', `:prev', and `:first' links."
+  (when string
+    (let ((pos 0)
+          (matches ()))
+      (while (string-match zotero-lib-link-regexp string pos)
+        (push (intern (concat ":" (match-string 2 string))) matches)
+        (push (match-string 1 string) matches)
+        (setq pos (match-end 0)))
+      (nreverse matches))))
 
 (defun zotero-lib--rate-limit (response)
   "Return the number of seconds to wait if the rate is limited, else return nil.
