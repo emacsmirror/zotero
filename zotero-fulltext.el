@@ -18,12 +18,22 @@
 ;; this program. If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
+;; Functions to access and create full-text content of Zotero items. To index
+;; documents external dependencies are needed. The pdftotext executable is
+;; needed for PDFs, the antiword executable for Microsoft Word documents until
+;; version 2003, and the pandoc executable for pandoc compatible markup formats.
+;; See the variable `zotero-fulltext-pandoc-mimetypes' for a list of formats
+;; understood by pandoc.
+
+;; zotero-recognize-install-pdftools
 
 ;;; Code:
 
 ;;;; Requirements
 
-(require 'zotero-auth)
+(require 'mailcap)
+(require 'zotero)
+(require 'zotero-json)
 
 ;;;; Variables
 
@@ -71,14 +81,20 @@ for your operating system."
   :link '(url-link "https://github.com/zotero/cross-poppler"))
 
 (defcustom zotero-fulltext-pandoc "pandoc"
-  "Executable for pandoc executable."
+  "Executable for pandoc executable.
+Pandoc is an open-source document converter that supports many
+formats and is freely available for most operating systems."
   :group 'zotero-fulltext
-  :type 'string)
+  :type 'string
+  :link '(url-link "http://pandoc.org/"))
 
 (defcustom zotero-fulltext-antiword "antiword"
-  "Executable for antiword executable."
+  "Executable for antiword executable.
+Antiword is an open source reader for proprietary Microsoft Word
+documents and is freely available for most operating systems."
   :group 'zotero-fulltext
-  :type 'string)
+  :type 'string
+  :link '(url-link "http://www.winfield.demon.nl/"))
 
 (defcustom zotero-fulltext-max-chars 500000
   "How much text is indexed (default: 500000 characters)."
@@ -92,9 +108,11 @@ for your operating system."
 
 ;;;; Functions
 
-(defun zotero-fulltext-index-pdf (file)
+(defun zotero-fulltext--index-pdf (file)
   "Convert Portable Document Format (PDF) to text.
-Argument FILE is the file path to be indexed."
+Argument FILE is the file path to be indexed.
+
+An executable for pdftotext is needed."
   (cond ((not (executable-find zotero-fulltext-pdftotext))
          (error "Executable %s not found" zotero-fulltext-pdftotext))
         ((not (executable-find zotero-fulltext-pdfinfo))
@@ -111,7 +129,7 @@ Argument FILE is the file path to be indexed."
                            (buffer-string))))
            `(:content ,content :indexedPages ,indexed-pages :totalPages ,total-pages)))))
 
-(defun zotero-fulltext-index-pandoc (file content-type)
+(defun zotero-fulltext--index-pandoc (file content-type)
   "Convert pandoc compatible markup format to text.
 
 Argument FILE is the file path to be indexed. Argument
@@ -129,7 +147,7 @@ CONTENT-TYPE is the content-type."
                     (total-chars (buffer-size)))
                `(:content ,content :indexedChars ,indexed-chars :totalChars ,total-chars)))))))
 
-(defun zotero-fulltext-index-antiword (file)
+(defun zotero-fulltext--index-antiword (file)
   "Convert MS Word version 2, 6, 7, 97, 2000 and 2003 to text.
 
 Argument FILE is the file path to be indexed."
@@ -144,6 +162,69 @@ Argument FILE is the file path to be indexed."
                   (indexed-chars (length content))
                   (total-chars (buffer-size)))
              `(:content ,content :indexedChars ,indexed-chars :totalChars ,total-chars))))))
+
+(cl-defun zotero-fulltext-item (key &key type id api-key)
+  "Return fulltext content of item KEY.
+
+Keyword TYPE is \"user\" for your personal library, and \"group\"
+for the group libraries. ID is the ID of the personal or group
+library you want to access, e.g. the \"user ID\" or \"group ID\".
+API-KEY is the Zotero API key."
+  (zotero-request "GET" "item-fulltext" key :type type :id id :api-key api-key))
+
+(cl-defun zotero-fulltext-create-item (key object &key type id api-key)
+  "Create full-text content for item KEY.
+
+OBJECT should be a a plist containing three props:
+- `:content': the full-text content, and either
+- `:indexedChars' and `:totalChars' for text documents, or
+- `:indexedPages' and `:totalPages' for PDFs.
+
+Keyword TYPE is \"user\" for your personal library, and \"group\"
+for the group libraries. ID is the ID of the personal or group
+library you want to access, e.g. the \"user ID\" or \"group ID\".
+API-KEY is the Zotero API key."
+  (let ((json (zotero-json-encode-object object)))
+    (zotero-request "PUT" "item-fulltext" key
+                    :type type
+                    :id id
+                    :api-key api-key
+                    :data json)))
+
+(cl-defun zotero-fulltext-index-item (key file &optional content-type &key type id api-key)
+  "Create full-text content for item KEY.
+
+FILE is the file path to be indexed. If optional argument
+CONTENT-TYPE is not provided, it will be guessed.
+
+Keyword TYPE is \"user\" for your personal library, and \"group\"
+for the group libraries. ID is the ID of the personal or group
+library you want to access, e.g. the \"user ID\" or \"group ID\".
+API-KEY is the Zotero API key.
+
+This is a convenient wrapper around `zotero-fulltext-create-item'
+that is able to index a variety of file formats, including but
+not limited to:
+- Portable Document Format (PDF)
+- OpenDocument (ODT)
+- Microsoft Word version 2, 6, 7, 97, 2000 and 2003 (DOC)
+- Office Open XML (DOCX)
+- EPUB
+- LaTeX
+- Org-mode."
+  (let* ((filename (file-name-nondirectory file))
+         (path (expand-file-name file))
+         (content-type (or content-type (mailcap-file-name-to-mime-type filename)))
+         (object (cond ((equal content-type "application/pdf")
+                        (zotero-fulltext--index-pdf path))
+                       ((equal content-type "application/msword")
+                        (zotero-fulltext--index-antiword path))
+                       ((assoc content-type zotero-fulltext-pandoc-mimetypes)
+                        (zotero-fulltext--index-pandoc path content-type))
+                       (t
+                        (user-error "Content-type \"%s\" is not supported" content-type)))))
+    (when object
+      (zotero-fulltext-create-item key object :type type :id id :api-key api-key))))
 
 (provide 'zotero-fulltext)
 

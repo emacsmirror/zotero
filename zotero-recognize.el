@@ -18,8 +18,19 @@
 ;; this program. If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
+;; Functions to retrieve metadata PDF documents. PDFs are recognized using an
+;; undocumented Zotero web service that operates on the first few pages of text
+;; using extraction algorithms and known metadata from CrossRef. The Zotero
+;; lookup service doesn't require a Zotero account, and data about the content
+;; or results of searches are not logged.
 
 ;;; Code:
+
+;;;; Requirements
+
+(require 'url)
+(require 'zotero)
+(require 'zotero-json)
 
 ;;;; Variables
 
@@ -35,7 +46,7 @@
 
 (defconst zotero-recognize-pdftools-url (concat "https://zotero-download.s3.amazonaws.com/pdftools/pdftools-" zotero-recognize-pdftools-version ".tar.gz"))
 
-(defcustom zotero-recognize-pdftools-dir (concat zotero-lib-directory "pdftools/")
+(defcustom zotero-recognize-pdftools-dir (concat zotero-directory "pdftools/")
   "The directory were PDF tools should be installed."
   :group 'zotero-recognize
   :type 'directory)
@@ -81,7 +92,36 @@ directory."
 
 ;;;; Functions
 
-;;;;; PDF tools
+(defun zotero-recognize--pdftojson (file)
+  "Wrapper around the pdftotext executable modified by Zotero.
+Return JSON with metadata, layout and rich text of FILE."
+  (if (executable-find zotero-recognize-pdftotext)
+      (let ((tempfile (make-nearby-temp-file "recognize-pdf-cache" nil ".json")))
+        (when (file-exists-p tempfile) (delete-file tempfile))
+        (let ((status (call-process zotero-recognize-pdftotext nil nil nil "-json" "-l" "5" (expand-file-name file) tempfile)))
+          (if (eq status 0)
+              (prog1
+                  (with-temp-buffer
+                    (insert-file-contents tempfile)
+                    (buffer-string))
+                (delete-file tempfile))
+            (error "Executable %s cannot output to json" zotero-recognize-pdftotext))))
+    (error "Executable %s not found" zotero-recognize-pdftotext)))
+
+(defun zotero-recognize--submit (json)
+  "Return metadata recognized from JSON returned by `zotero-recognize--pdftojson'.
+
+PDFs are recognized using an undocumented Zotero web service that
+operates on the first few pages of text using extraction
+algorithms and known metadata from CrossRef. The Zotero lookup
+service doesn't require a Zotero account, and data about the
+content or results of searches are not logged."
+  (let* ((url (concat zotero-recognize-base-url "/recognize"))
+         (url-request-method "POST")
+         (url-request-data json)
+         (url-request-extra-headers `(("Content-Type" . "application/json"))))
+    (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
+      (funcall #'zotero--handle-response))))
 
 (defun zotero-recognize-install-pdftools ()
   "Install the PDF tools modified by Zotero.
@@ -120,8 +160,8 @@ available at URL `https://github.com/zotero/cross-poppler'."
             ('windows-nt
              (setq pdftotext-filename (concat pdftotext-filename "-win.exe"))
              (setq pdfinfo-filename (concat pdfinfo-filename "-win.exe")))
-            (system
-             (error "No binaries for operating system %S available.")))
+            (_
+             (error "No binaries for operating system %S available" system-type)))
           (unless (file-directory-p zotero-recognize-pdftools-dir)
             (make-directory zotero-recognize-pdftools-dir))
           (dolist (member `(,pdftotext-filename ,pdfinfo-filename "poppler-data"))
@@ -135,8 +175,6 @@ available at URL `https://github.com/zotero/cross-poppler'."
           (customize-save-variable 'zotero-recognize-pdfdata (concat (file-name-as-directory zotero-recognize-pdftools-dir) "poppler-data/"))
           (delete-file filename))
       (error "Executable tar not found"))))
-
-;;;;; Recognizer functions
 
 (defun zotero-recognize (file)
   "Return metadata recognized from PDF FILE.
@@ -156,37 +194,13 @@ METADATA-PDF is the (incorrectly) recognized metadata as returned
 by `zotero-recognize'. METADATA-ITEM is the attachment
 item metadata. Optional argument DESCRIPTION is a
 string for the report."
-  (let ((url (concat zotero-recognize-base-url "/report"))
-        (json (zotero-lib-encode-object `(,description ,zotero-lib-api-version ,metadata-pdf ,metadata-item))))
-    (zotero-lib-submit :method "POST" :url url :data json :content-type "application/json" :expect "")))
-
-(defun zotero-recognize--pdftojson (file)
-  "Wrapper around the pdftotext executable modified by Zotero.
-Return JSON with metadata, layout and rich text of FILE."
-  (if (executable-find zotero-recognize-pdftotext)
-      (let ((tempfile (make-nearby-temp-file "recognize-pdf-cache" nil ".json")))
-        (when (file-exists-p tempfile) (delete-file tempfile))
-        (let ((status (call-process zotero-recognize-pdftotext nil nil nil "-json" "-l" "5" (expand-file-name file) tempfile)))
-          (if (eq status 0)
-              (prog1
-                  (with-temp-buffer
-                    (insert-file-contents tempfile)
-                    (buffer-string))
-                (delete-file tempfile))
-            (error "Executable %s cannot output to json" zotero-recognize-pdftotext))))
-    (error "Executable %s not found" zotero-recognize-pdftotext)))
-
-(defun zotero-recognize--submit (json)
-  "Return metadata recognized from JSON returned by `zotero-recognize--pdftojson'.
-
-PDFs are recognized using an undocumented Zotero web service that
-operates on the first few pages of text using extraction
-algorithms and known metadata from CrossRef. The Zotero lookup
-service doesn't require a Zotero account, and data about the
-content or results of searches are not logged."
-  (let* ((url (concat zotero-recognize-base-url "/recognize"))
-         (response (zotero-lib-submit :method "POST" :url url :data json :expect "")))
-    (plist-get response :data)))
+  (let* ((url (concat zotero-recognize-base-url "/report"))
+         (data (zotero-json-encode-object `(,description ,zotero-api-version ,metadata-pdf ,metadata-item)))
+         (url-request-method "POST")
+         (url-request-data data)
+         (url-request-extra-headers `(("Content-Type" . "application/json"))))
+    (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
+      (funcall #'zotero--handle-response))))
 
 (provide 'zotero-recognize)
 

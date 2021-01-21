@@ -1,0 +1,30 @@
+(ert-deftest zotero-json-read-object ()
+  "Tests the."
+  (should (equal (zotero-json-read-object "{\"key\":\"value\"}") '(:key "value")))
+  (should (equal (zotero-json-read-object "{\"key\":null}") '(:key nil)))
+  (should (equal (zotero-json-read-object "{\"key\":false}") '(:key :json-false)))
+  (should (equal (zotero-json-read-object "{\"key\":{}}") '(:key :json-empty)))
+  (should (equal (let ((buffer (generate-new-buffer "temp")))
+                   (with-current-buffer buffer (insert "{\"key\":\"value\"}"))
+                   (prog1
+                       (zotero-json-read-object buffer)
+                     (kill-buffer buffer)))
+                 '(:key "value")))
+  (should (equal (zotero-json-read-object (lambda () "{\"key\":\"value\"}")) '(:key "value"))))
+
+(ert-deftest zotero-json-encode-object ()
+  "Tests the."
+  (should (equal (zotero-json-encode-object '(:key :value)) "[{\"key\":\"value\"}]"))
+  (should (equal (zotero-json-encode-object '(:key nil)) "[{\"key\":null}]"))
+  (should (equal (zotero-json-encode-object '(:key :json-false)) "[{\"key\":false}]"))
+  (should (equal (zotero-json-encode-object '(:key :json-empty)) "[{\"key\":{}}]"))
+  (should (equal (zotero-json-encode-object "(:key :value)") "[{\"key\":\"value\"}]"))
+  (should (equal (let ((buffer (generate-new-buffer "temp")))
+                   (with-current-buffer buffer (insert "(:key :value)"))
+                   (prog1
+                       (zotero-json-encode-object buffer)
+                     (kill-buffer buffer)))
+                 "[{\"key\":\"value\"}]"))
+  (should (equal (zotero-json-encode-object (lambda () (list :key :value))) "[{\"key\":\"value\"}]"))
+  (should (equal (zotero-json-encode-object '(:key :value) '(:key nil) '(:key :json-false) '(:key :json-empty))
+                 "[{\"key\":\"value\"},{\"key\":null},{\"key\":false},{\"key\":{}}]")))
