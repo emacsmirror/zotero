@@ -341,7 +341,7 @@ All currently available key bindings:
           (widget-create 'push-button
 		         :notify (lambda (&rest ignore)
                                    (message "Saving...")
-                                   (if-let ((object (zotero-cache-save :type type :id id :resource "items" :data zotero-edit-data-copy)))
+                                   (if-let ((object (zotero-cache-save zotero-edit-data-copy "items" type id)))
                                        (progn
                                          (message "Saving...done.")
                                          (with-current-buffer zotero-browser-items-buffer-name
@@ -430,7 +430,7 @@ All currently available key bindings:
         (widget-create 'push-button
 		       :notify (lambda (&rest ignore)
 	                         (message "Saving...")
-                                 (if-let ((object (zotero-cache-save :type type :id id :resource "collections" :data zotero-edit-data-copy)))
+                                 (if-let ((object (zotero-cache-save zotero-edit-data-copy "collections" type id)))
                                      (progn
                                        (message "Saving...done.")
                                        (with-current-buffer zotero-browser-collections-buffer-name
@@ -490,6 +490,7 @@ All currently available key bindings:
     (message "Item reset.")
     (zotero-edit-item :type type :id id :data data :locale locale)))
 
+;; FIXME
 (defun zotero-edit-save ()
   "Save current item."
   (interactive)

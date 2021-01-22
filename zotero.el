@@ -818,7 +818,7 @@ invoked manually to create and save the access token for future
 sessions."
   (let* ((method (upcase method))
          (host (or host zotero-base-url))
-         (url (zotero--url resource key :type type :id id :api-key api-key :host host))
+         (url (zotero--url resource key :type type :id id :host host))
          (api-version (number-to-string zotero-api-version))
          (no-auth (or no-auth
                       (pcase resource
