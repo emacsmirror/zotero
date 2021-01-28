@@ -121,7 +121,7 @@ content or results of searches are not logged."
          (url-request-data json)
          (url-request-extra-headers `(("Content-Type" . "application/json"))))
     (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
-      (funcall #'zotero--handle-response))))
+      (funcall #'zotero-handle-response))))
 
 (defun zotero-recognize-install-pdftools ()
   "Install the PDF tools modified by Zotero.
@@ -184,8 +184,11 @@ attachment, by looking up item metadata when supplied with a
 standard identifier. Zotero uses the following databases for
 looking up item metadata: Library of Congress and WorldCat for
 ISBNs, CrossRef for DOIs, and NCBI PubMed for PubMed IDs."
-  (let ((json (zotero-recognize--pdftojson file)))
-    (zotero-recognize--submit json)))
+  (let* ((json (zotero-recognize--pdftojson file))
+         (result (zotero-recognize--submit json))
+         (status-code (zotero-result-status-code result))
+         (data (zotero-result-data result)))
+    data))
 
 ;; TODO: needs testing
 (defun zotero-recognize-report (metadata-pdf metadata-item &optional description)
@@ -200,7 +203,7 @@ string for the report."
          (url-request-data data)
          (url-request-extra-headers `(("Content-Type" . "application/json"))))
     (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
-      (funcall #'zotero--handle-response))))
+      (funcall #'zotero-handle-response))))
 
 (provide 'zotero-recognize)
 

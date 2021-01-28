@@ -25,6 +25,7 @@
 
 (require 'zotero-lib)
 (require 'zotero-cache)
+(require 'zotero-sync)
 (require 'seq)
 (require 'widget)
 
@@ -280,7 +281,7 @@ All currently available key bindings:
                              (fieldname "Collections")
                              (value (plist-get data key))
                              (values (seq-into value 'list))
-                             (table (ht-get* zotero-cache "synccache" id "collections"))
+                             (table (zotero-cache-synccache "collections" type id))
                              (choices (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table)))
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
@@ -367,7 +368,7 @@ All currently available key bindings:
       (zotero-edit-mode)
       (erase-buffer)
       ;; (remove-overlays)
-      (let* ((template (zotero-lib-collection-template)))
+      (let* ((template (zotero-collection-template)))
         (setq zotero-edit-type type
               zotero-edit-id id
               zotero-edit-data data
@@ -400,7 +401,7 @@ All currently available key bindings:
                    ((and :parentCollection field)
                     (let* ((fieldname "Parent Collection" )
                            (value (plist-get data key))
-                           (table (ht-get* zotero-cache "synccache" id "collections"))
+                           (table (zotero-cache-synccache "collections" type id))
                            (collections (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table))
                            (choices (cons `(item :format "%t" :value :json-false :tag "None") collections)))
                       (widget-create 'menu-choice
@@ -455,7 +456,7 @@ All currently available key bindings:
 
 (cl-defun zotero-edit-create-collection (&key type id)
   "Create a new collection."
-  (let ((template (zotero-lib-collection-template)))
+  (let ((template (zotero-collection-template)))
     (zotero-edit-collection :type type :id id :data template)))
 
 (cl-defun zotero-edit-create-attachment (&key type id parent linkmode content-type charset filename md5 mtime accessdate locale)

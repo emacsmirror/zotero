@@ -433,7 +433,7 @@ be omitted."
       (let ((char (elt characters (random 36))))
         (setq token (concat token (string char)))))))
 
-(defun zotero--handle-response ()
+(defun zotero-handle-response ()
   "Handle response returned by `zotero--retrieve'.
 
 Return a `zotero-response' structure."
@@ -460,7 +460,7 @@ Return a `zotero-response' structure."
          (url-request-extra-headers (zotero-request-headers request)))
     (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
       (set-buffer-multibyte t) ; Necessary to handle non-ASCII characters
-      (funcall #'zotero--handle-response))))
+      (funcall #'zotero-handle-response))))
 
 (defun zotero--dispatch (request &optional result)
   "Return the response of REQUEST to the Zotero API.
@@ -1705,7 +1705,7 @@ See also URL
          (url-request-data data)
          (url-request-extra-headers `(("Content-Type" . ,content-type))))
     (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
-      (funcall #'zotero--handle-response))))
+      (funcall #'zotero-handle-response))))
 
 (cl-defun zotero-register-upload (key uploadkey &optional hash &key type id api-key)
   "Register upload to item KEY.
