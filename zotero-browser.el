@@ -333,12 +333,12 @@ If region is active, return a list of the keys in the active region instead."
   "Pretty print KEY."
   (let* ((table (zotero-cache-library))
          (value (ht-get table key))
-         (id (zotero-lib-plist-get* value :id))
-         (type (zotero-lib-plist-get* value :type))
+         (id (plist-get value :id))
+         (type (plist-get value :type))
          (name (pcase type
                  ("group"
                   (let* ((group (zotero-cache-group id))
-                         (name (zotero-lib-plist-get* group :data :name)))
+                         (name (zotero-lib-plist-get* group :object :data :name)))
                     name))
                  ("user" "User library")))
          (icon "treesource-library.png")
@@ -539,9 +539,9 @@ If region is active, return a list of the keys in the active region instead."
          (tail (seq-subseq zotero-browser-keys (1+ idx)))
          (keys (pcase major-mode
                  ('zotero-browser-collections-mode
-                  (zotero-cache-sort-by table :name 'asc))
+                  (zotero-cache-sort-by :name 'asc table))
                  ('zotero-browser-items-mode
-                  (zotero-cache-sort-by table :title 'asc)))))
+                  (zotero-cache-sort-by :title 'asc table)))))
     (setq zotero-browser-keys (seq-concatenate 'list head keys tail))
     (while keys
       (setq node (ewoc-enter-after ewoc node (pop keys))))))
@@ -655,126 +655,11 @@ If region is active, return a list of the keys in the active region instead."
           ("linked_file" (zotero-browser-open-linked-file entry))
           ("linked_url" (zotero-browser-open-linked-url entry)))))))
 
-(defun zotero-browser ()
-  "Create a new browser buffer, or switch."
-  (interactive)
-  (zotero-cache-maybe-initialize-cache)
-  (let ((items-buffer (or (get-buffer zotero-browser-items-buffer-name)
-                          (zotero-browser-items)))
-        (libraries-buffer (or (get-buffer zotero-browser-libraries-buffer-name)
-                              (zotero-browser-libraries)))
-        (collections-buffer (or (get-buffer zotero-browser-collections-buffer-name)
-                                (zotero-browser-collections))))
-    (pop-to-buffer items-buffer zotero-browser-items-buffer-action)
-    (display-buffer libraries-buffer zotero-browser-libraries-buffer-action)
-    (display-buffer collections-buffer zotero-browser-collections-buffer-action)
-    ;; Display the currently selected library
-    (with-current-buffer libraries-buffer
-      (zotero-browser-display))))
-
-(defun zotero-browser-libraries ()
-  "Create a libraries browser buffer."
-  (let ((buffer (get-buffer-create "*Zotero Libraries*")))
-    (with-current-buffer buffer
-      (zotero-browser-libraries-mode)
-      (let* ((table (zotero-cache-library))
-             (user (ht-select (lambda (key value) (equal (plist-get value :type) "user")) table))
-             (groups (ht-select (lambda (key value) (equal (plist-get value :type) "group")) table))
-             (ewoc (ewoc-create #'zotero-browser--library-pp nil nil))
-             (inhibit-read-only t))
-        (erase-buffer)
-        (setq zotero-browser-table table
-              zotero-browser-ewoc ewoc)
-        (thread-last user
-          (ht-keys)
-          (seq-do (lambda (key) (ewoc-enter-last ewoc key))))
-        (thread-last groups
-          (ht-keys)
-          (seq-do (lambda (key) (ewoc-enter-last ewoc key))))))
-    buffer))
-
-(cl-defun zotero-browser-collections (&key type id resource)
-  "Create a collections browser buffer."
-  (let ((buffer (get-buffer-create zotero-browser-collections-buffer-name)))
-    (with-current-buffer buffer
-      (zotero-browser-collections-mode)
-      (let ((ewoc (ewoc-create #'zotero-browser--collection-pp nil nil nil))
-            (inhibit-read-only t))
-        ;; Remove previous entries
-        (erase-buffer)
-        (when (and type id resource)
-          (let* ((table (zotero-cache-synccache resource type id))
-                 (keys (zotero-cache-sort-by table :name 'asc)))
-            (setq zotero-browser-ewoc ewoc
-                  zotero-browser-type type
-                  zotero-browser-resource resource
-                  zotero-browser-id id
-                  zotero-browser-keys keys)
-            (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
-            (zotero-browser-expand-level zotero-browser-default-collection-level)
-            (zotero-browser-items :type type :id id :resource "items-top")))))
-    buffer))
-
-(cl-defun zotero-browser-items (&key type id resource key)
-  "Create an items buffer."
-  (let ((buffer (get-buffer-create zotero-browser-items-buffer-name)))
-    (with-current-buffer buffer
-      (zotero-browser-items-mode)
-      (let ((ewoc (ewoc-create #'zotero-browser--item-pp nil nil nil))
-            (inhibit-read-only t))
-        ;; Remove previous entries
-        (erase-buffer)
-        (when (and type id resource)
-          (let* ((table (zotero-cache-synccache resource type id key))
-                 (keys (zotero-cache-sort-by table :date 'asc)))
-            (setq zotero-browser-ewoc ewoc
-                  zotero-browser-type type
-                  zotero-browser-id id
-                  zotero-browser-resource resource
-                  zotero-browser-collection key
-                  zotero-browser-keys keys)
-            (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
-            (zotero-browser-expand-level zotero-browser-default-item-level)))))
-    buffer))
-
 (defun zotero-browser-ensure-browser-buffer ()
   (unless (or (eq major-mode 'zotero-browser-libraries-mode)
               (eq major-mode 'zotero-browser-collections-mode)
               (eq major-mode 'zotero-browser-items-mode))
     (error "Current buffer is not a Zotero browser buffer")))
-
-(defun zotero-browser-display ()
-  "Display current library or collection."
-  (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (pcase major-mode
-    ('zotero-browser-libraries-mode
-     (let* ((node (ewoc-locate zotero-browser-ewoc))
-            (key (ewoc-data node))
-            (table zotero-browser-table)
-            (type (plist-get (ht-get table key) :type))
-            (id (plist-get (ht-get table key) :id)))
-       (setq zotero-browser-type type
-             zotero-browser-id id)
-       (display-buffer (zotero-browser-collections :type type :id id :resource "collections-top"))
-       (display-buffer (zotero-browser-items :type type :id id :resource "items-top"))))
-    ('zotero-browser-collections-mode
-     (let* ((ewoc zotero-browser-ewoc)
-            (node (ewoc-locate ewoc))
-            (key (ewoc-data node))
-            (type zotero-browser-type)
-            (id zotero-browser-id)
-            (table (zotero-cache-synccache "collections" type id)))
-       (display-buffer (zotero-browser-items :type type :id id :resource "collection-items" :key key))))
-    ('zotero-browser-items-mode
-     (let* ((ewoc zotero-browser-ewoc)
-            (node (ewoc-locate ewoc))
-            (key (ewoc-data node))
-            (type zotero-browser-type)
-            (id zotero-browser-id)
-            (entry (zotero-cache-synccache "item" type id key))
-            (data (zotero-lib-plist-get* entry :object :data)))
-       (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-locale) zotero-browser-edit-buffer-action)))))
 
 (defun zotero-browser-revert ()
   "Revert the buffer."
@@ -855,19 +740,19 @@ If region is active, return a list of the keys in the active region instead."
   "Show all items."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource "items"))
+  (zotero-browser-items "items" zotero-browser-type zotero-browser-id))
 
 (defun zotero-browser-unfiled-items ()
   "Show unfiled items."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource "items-top"))
+  (zotero-browser-items "items-top" zotero-browser-type zotero-browser-id))
 
 (defun zotero-browser-trash-items ()
   "Show trashed items."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (zotero-browser-items :type zotero-browser-type :id zotero-browser-id :resource "trash-items"))
+  (zotero-browser-items "trash-items" zotero-browser-type zotero-browser-id))
 
 (defun zotero-browser-toggle ()
   "Expand or collapse the children of the current item."
@@ -980,7 +865,7 @@ If region is active, return a list of the keys in the active region instead."
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (if (zotero-cache-write-access-p library)
         (pcase major-mode
           ('zotero-browser-collections-mode
@@ -1005,12 +890,11 @@ If region is active, return a list of the keys in the active region instead."
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (if (zotero-cache-write-access-p library)
         (pcase major-mode
           ('zotero-browser-libraries-mode
-           ;; TODO
-           )
+           (user-error "Creating new groups or libraries is not supported"))
           ('zotero-browser-collections-mode
            (display-buffer (zotero-edit-create-collection :type type :id id) zotero-browser-edit-buffer-action))
           ('zotero-browser-items-mode
@@ -1026,7 +910,7 @@ With a `C-u' prefix, move to top level."
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (if (zotero-cache-write-access-p library)
         (when (eq major-mode 'zotero-browser-items-mode)
           (let* ((inhibit-read-only t)
@@ -1041,7 +925,7 @@ With a `C-u' prefix, move to top level."
             (if (equal arg '(4))
                 (setq updated-data (zotero-lib-plist-delete data :parentItem))
               (let* ((table (zotero-cache-synccache "items" type id))
-                     (choices (zotero-cache-field table :title))
+                     (choices (zotero-cache-field :title table))
                      (name (completing-read "Select parent item:" choices nil t))
                      (parent (cdr (assoc name choices)))
                      (entry (ht-get table parent))
@@ -1061,14 +945,14 @@ With a `C-u' prefix, move to top level."
   (let* ((ewoc zotero-browser-ewoc)
          (type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (if (zotero-cache-write-access-p library)
         (when (eq major-mode 'zotero-browser-items-mode)
           (let* ((inhibit-read-only t)
                  (node (ewoc-locate ewoc))
                  (key (ewoc-data node))
                  (table (zotero-cache-synccache "collections" type id))
-                 (choices (zotero-cache-field table :name))
+                 (choices (zotero-cache-field :name table))
                  (name (completing-read "Select collection:" choices nil t))
                  (new (cdr (assoc name choices)))
                  (old zotero-browser-collection))
@@ -1085,14 +969,14 @@ With a `C-u' prefix, move to top level."
          (type zotero-browser-type)
          (id zotero-browser-id)
          (resource zotero-browser-resource)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (if (zotero-cache-write-access-p library)
         (when (eq major-mode 'zotero-browser-items-mode)
           (let* ((inhibit-read-only t)
                  (node (ewoc-locate ewoc))
                  (key (ewoc-data node))
                  (table (zotero-cache-synccache "collections" type id))
-                 (choices (zotero-cache-field table :name))
+                 (choices (zotero-cache-field :name table))
                  (name (completing-read "Select collection:" choices nil t))
                  (collection (cdr (assoc name choices))))
             (when (equal resource "items-top")
@@ -1108,7 +992,7 @@ With a `C-u' prefix, move to top level."
   (let* ((ewoc zotero-browser-ewoc)
          (type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (if (zotero-cache-write-access-p library)
         (when (eq major-mode 'zotero-browser-items-mode)
           (let* ((inhibit-read-only t)
@@ -1130,7 +1014,7 @@ If region is active, trash entries in active region instead."
          (resource (pcase major-mode
                      ('zotero-browser-collections-mode "collections")
                      ('zotero-browser-items-mode "items")))
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (if (zotero-cache-write-access-p library)
         (let ((inhibit-read-only t)
               (keys (zotero-browser--keys ewoc)))
@@ -1150,7 +1034,7 @@ If region is active, restore entries in active region instead."
          (resource (pcase major-mode
                      ('zotero-browser-collections-mode "collections")
                      ('zotero-browser-items-mode "items")))
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (if (zotero-cache-write-access-p library)
         (let ((inhibit-read-only t)
               (keys (zotero-browser--keys ewoc)))
@@ -1171,7 +1055,7 @@ If region is active, delete entries in active region instead."
          (resource (pcase major-mode
                      ('zotero-browser-collections-mode "collections")
                      ('zotero-browser-items-mode "items")))
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (if (zotero-cache-write-access-p library)
         (let ((inhibit-read-only t)
               (keys (zotero-browser--keys ewoc)))
@@ -1226,7 +1110,7 @@ With a `C-u' prefix, create a new top level note."
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (if (zotero-cache-write-access-p library)
         (when (eq major-mode 'zotero-browser-items-mode)
           (let* ((ewoc zotero-browser-ewoc)
@@ -1248,7 +1132,7 @@ client."
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (when (eq major-mode 'zotero-browser-items-mode)
       (if (zotero-cache-write-access-p library)
           (let* ((ewoc zotero-browser-ewoc)
@@ -1326,7 +1210,7 @@ client."
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (when (eq major-mode 'zotero-browser-items-mode)
       (if (zotero-cache-write-access-p library)
           (let* ((ewoc zotero-browser-ewoc)
@@ -1377,7 +1261,7 @@ client."
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (when (eq major-mode 'zotero-browser-items-mode)
       (if (zotero-cache-write-access-p library)
           (let* ((ewoc zotero-browser-ewoc)
@@ -1401,7 +1285,7 @@ client."
   (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library id)))
+         (library (zotero-cache-library type id)))
     (when (eq major-mode 'zotero-browser-items-mode)
       (if (zotero-cache-write-access-p library)
           (let* ((ewoc zotero-browser-ewoc)
@@ -1497,6 +1381,121 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
 (defun zotero-browser-open-linked-url (entry)
   (let ((url (zotero-lib-plist-get* entry :object :data :url)))
     (browse-url url)))
+
+(defun zotero-browser-libraries ()
+  "Create a libraries browser buffer."
+  (let ((buffer (get-buffer-create "*Zotero Libraries*")))
+    (with-current-buffer buffer
+      (zotero-browser-libraries-mode)
+      (let* ((table (zotero-cache-library))
+             (user (zotero-cache-library "user"))
+             (groups (zotero-cache-group))
+             (ewoc (ewoc-create #'zotero-browser--library-pp nil nil))
+             (inhibit-read-only t))
+        (erase-buffer)
+        (setq zotero-browser-table table
+              zotero-browser-ewoc ewoc)
+        (thread-last user
+          (ht-keys)
+          (seq-do (lambda (key) (ewoc-enter-last ewoc key))))
+        (thread-last groups
+          (zotero-cache-sort-by :name 'asc)
+          (seq-do (lambda (key) (ewoc-enter-last ewoc key))))))
+    buffer))
+
+(defun zotero-browser-collections (&optional resource type id)
+  "Create a collections browser buffer."
+  (let ((buffer (get-buffer-create zotero-browser-collections-buffer-name)))
+    (with-current-buffer buffer
+      (zotero-browser-collections-mode)
+      (let ((ewoc (ewoc-create #'zotero-browser--collection-pp nil nil nil))
+            (inhibit-read-only t))
+        ;; Remove previous entries
+        (erase-buffer)
+        (when (and type id resource)
+          (let* ((table (zotero-cache-synccache resource type id))
+                 (keys (zotero-cache-sort-by :name 'asc table)))
+            (setq zotero-browser-ewoc ewoc
+                  zotero-browser-type type
+                  zotero-browser-resource resource
+                  zotero-browser-id id
+                  zotero-browser-keys keys)
+            (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
+            (zotero-browser-expand-level zotero-browser-default-collection-level)
+            (zotero-browser-items "items-top" type id)))))
+    buffer))
+
+(defun zotero-browser-items (&optional resource type id key)
+  "Create an items buffer."
+  (let ((buffer (get-buffer-create zotero-browser-items-buffer-name)))
+    (with-current-buffer buffer
+      (zotero-browser-items-mode)
+      (let ((ewoc (ewoc-create #'zotero-browser--item-pp nil nil nil))
+            (inhibit-read-only t))
+        ;; Remove previous entries
+        (erase-buffer)
+        (when (and type id resource)
+          (let* ((table (zotero-cache-synccache resource type id key))
+                 (keys (zotero-cache-sort-by :date 'asc table)))
+            (setq zotero-browser-ewoc ewoc
+                  zotero-browser-type type
+                  zotero-browser-id id
+                  zotero-browser-resource resource
+                  zotero-browser-collection key
+                  zotero-browser-keys keys)
+            (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
+            (zotero-browser-expand-level zotero-browser-default-item-level)))))
+    buffer))
+
+(defun zotero-browser-display ()
+  "Display current library or collection."
+  (interactive)
+  (zotero-browser-ensure-browser-buffer)
+  (pcase major-mode
+    ('zotero-browser-libraries-mode
+     (let* ((node (ewoc-locate zotero-browser-ewoc))
+            (key (ewoc-data node))
+            (table zotero-browser-table)
+            (type (plist-get (ht-get table key) :type))
+            (id (plist-get (ht-get table key) :id)))
+       (setq zotero-browser-type type
+             zotero-browser-id id)
+       (display-buffer (zotero-browser-collections "collections-top" type id))
+       (display-buffer (zotero-browser-items "items-top" type id))))
+    ('zotero-browser-collections-mode
+     (let* ((ewoc zotero-browser-ewoc)
+            (node (ewoc-locate ewoc))
+            (key (ewoc-data node))
+            (type zotero-browser-type)
+            (id zotero-browser-id)
+            (table (zotero-cache-synccache "collections" type id)))
+       (display-buffer (zotero-browser-items "collection-items" type id key))))
+    ('zotero-browser-items-mode
+     (let* ((ewoc zotero-browser-ewoc)
+            (node (ewoc-locate ewoc))
+            (key (ewoc-data node))
+            (type zotero-browser-type)
+            (id zotero-browser-id)
+            (entry (zotero-cache-synccache "item" type id key))
+            (data (zotero-lib-plist-get* entry :object :data)))
+       (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-locale) zotero-browser-edit-buffer-action)))))
+
+(defun zotero-browser ()
+  "Create a new browser buffer, or switch."
+  (interactive)
+  (zotero-cache-maybe-initialize-cache)
+  (let ((items-buffer (or (get-buffer zotero-browser-items-buffer-name)
+                          (zotero-browser-items)))
+        (libraries-buffer (or (get-buffer zotero-browser-libraries-buffer-name)
+                              (zotero-browser-libraries)))
+        (collections-buffer (or (get-buffer zotero-browser-collections-buffer-name)
+                                (zotero-browser-collections))))
+    (pop-to-buffer items-buffer zotero-browser-items-buffer-action)
+    (display-buffer collections-buffer zotero-browser-collections-buffer-action)
+    (display-buffer libraries-buffer zotero-browser-libraries-buffer-action)
+    ;; Display the currently selected library
+    (with-current-buffer libraries-buffer
+      (zotero-browser-display))))
 
 (provide 'zotero-browser)
 

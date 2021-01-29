@@ -858,7 +858,7 @@ Optional argument API-KEY is the Zotero API key."
   (let ((api-key (or api-key (zotero-auth-api-key zotero-auth-token))))
     (zotero-request "DELETE" "keys" api-key :no-auth t)))
 
-(defun zotero-groups (&key type id api-key)
+(cl-defun zotero-groups (&key type id api-key)
   "Return all groups the API-KEY has access to.
 Public groups are included, even if the key doesn't have explicit
 permissions for them.

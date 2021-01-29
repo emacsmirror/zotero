@@ -146,7 +146,10 @@ Each of the OBJECTS may be:
             (push plist result)
           (error "Object %S doesn't return a property list" object))))
     (prog1
-        (json-encode-array (seq-into (nreverse result) 'vector))
+        (thread-first result
+          (nreverse)
+          (seq-into 'vector)
+          (json-encode-array ))
       (zotero-json--after-write-function))))
 
 (provide 'zotero-json)

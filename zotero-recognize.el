@@ -52,17 +52,20 @@
   :type 'directory)
 
 (defvar zotero-recognize-props
-  '(:type :itemType
-          :authors :creators
-          :language :language
-          :arxiv nil
-          :container
-          :year nil
-          :keywords :tags
-          :pages :pages
-          :title :title
-          :doi :DOI
-          :timeMs nil))
+  '((:abstract . :abstractNote)
+    (:authors . :creators)
+    (:arxiv . nil)
+    (:container . nil)
+    (:doi . :DOI)
+    (:keywords . :tags)
+    (:language . :language)
+    (:pages . :pages)
+    (:timeMs . nil)
+    (:title . :title)
+    (:type . :itemType)
+    (:url . :url)
+    (:volume . :volume)
+    (:year . :year)))
 
 (defcustom zotero-recognize-pdftotext "pdftotext"
   "Executable for pdftotext.
@@ -103,7 +106,7 @@ Return JSON with metadata, layout and rich text of FILE."
               (prog1
                   (with-temp-buffer
                     (insert-file-contents tempfile)
-                    (buffer-string))
+                    (encode-coding-string (buffer-string) 'utf-8))
                 (delete-file tempfile))
             (error "Executable %s cannot output to json" zotero-recognize-pdftotext))))
     (error "Executable %s not found" zotero-recognize-pdftotext)))
@@ -185,9 +188,9 @@ standard identifier. Zotero uses the following databases for
 looking up item metadata: Library of Congress and WorldCat for
 ISBNs, CrossRef for DOIs, and NCBI PubMed for PubMed IDs."
   (let* ((json (zotero-recognize--pdftojson file))
-         (result (zotero-recognize--submit json))
-         (status-code (zotero-result-status-code result))
-         (data (zotero-result-data result)))
+         (response (zotero-recognize--submit json))
+         (status-code (zotero-response-status-code response))
+         (data (zotero-response-data response)))
     data))
 
 ;; TODO: needs testing
@@ -203,7 +206,33 @@ string for the report."
          (url-request-data data)
          (url-request-extra-headers `(("Content-Type" . "application/json"))))
     (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
+      (set-buffer-multibyte t) ; Necessary to handle non-ASCII characters
       (funcall #'zotero-handle-response))))
+
+(defun zotero-recognize--convert (data)
+  (let ((itemType (pcase (plist-get data :type)
+                    ("book-chapter" "bookSection")
+                    ("journal-article" "journalArticle")))
+        (creators (seq-into (seq-map (lambda (elt) (plist-put elt :creatorType "author")) (plist-get data :authors)) 'vector))
+        (abstractNote (plist-get data :abstract))
+        (year (plist-get data :year))
+        (pages (plist-get data :pages))
+        (volume (plist-get data :volume))
+        (url (plist-get data :url))
+        (language (plist-get data :language))
+        issue
+        issn
+        publicationTitle
+        bookTitle
+        publisher)
+    (pcase itemType
+      ("journalArticle"
+       (setq issue (plist-get data :issue))
+       (setq issn (plist-get data :ISSN))
+       (setq publication-title (plist-get data :container)))
+      ("bookSection"
+       (setq book-title (plist-get data :container))
+       (setq publisher (plist-get data :publisher))))))
 
 (provide 'zotero-recognize)
 

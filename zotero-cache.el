@@ -167,8 +167,9 @@ the sorting order: 'asc for ascending or 'desc for descending."
                 ;; The :dateAdded and :dateModified fields are filled automatically in ISO 8601 format
                 ((or :dateAdded :dateModified)
                  (lambda (a b) (time-less-p (encode-time (iso8601-parse a)) (encode-time (iso8601-parse b)))))
+                ;; The :id and :owner fields are integers and only used in groups
                 ;; The :version and :mtime fields are integers
-                ((or :version :mtime)
+                ((or :id :owner :version :mtime)
                  #'<)
                 ;; The rest of the fields are strings
                 (_ #'string-lessp))))
@@ -278,16 +279,19 @@ access, i.e. the \"group ID\"."
       (ht-get* zotero-cache "groups" id)
     (ht-get zotero-cache "groups")))
 
-(defun zotero-cache-library (&optional id)
+(defun zotero-cache-library (&optional type id)
   "Get libraries from cache.
 Return table for multiple item request or entry for a single item
 request.
 
 Optional argument ID is the ID of the personal or group library
 you want to access, i.e. the \"user ID\" or \"group ID\"."
-  (if id
-      (ht-get* zotero-cache "libraries" id)
-    (ht-get* zotero-cache "libraries")))
+  (let ((table (ht-get zotero-cache "libraries")))
+    (cond
+     ((and type id) (ht-get (ht-select (lambda (key value) (equal (plist-get value :type) type)) table) id))
+     (type (ht-select (lambda (key value) (equal (plist-get value :type) type)) table))
+     (id (ht-get* zotero-cache "libraries" id))
+     (t (ht-get* zotero-cache "libraries")))))
 
 (defun zotero-cache-synccache (resource &optional type id key include-trashed)
   "Get RESOURCE from library in cache.
@@ -312,7 +316,7 @@ of the personal or group library you want to access, e.g. the
                                                              (equal (plist-get value :id) id))) table)
                        table)))
        (zotero-cache-filter-data (lambda (elt) (or (not (plist-member elt :parentCollection))
-                                                   (eq (plist-get elt :parentCollection) :json-false))) table)))
+                                                   (eq (plist-get elt :parentCollection) :json-false))) library)))
     ("collection"
      (ht-get* zotero-cache "synccache" "collections" key))
     ("subcollections"
@@ -330,7 +334,7 @@ of the personal or group library you want to access, e.g. the
                        table)))
        (if include-trashed
            library
-         (zotero-cache-filter-data (lambda (elt) (not (eq (plist-get elt :deleted) 1))) table))))
+         (zotero-cache-filter-data (lambda (elt) (not (eq (plist-get elt :deleted) 1))) library))))
     ("items-top"
      (let* ((table (ht-get* zotero-cache "synccache" "items"))
             (library (if (and type id)
@@ -717,7 +721,7 @@ of the personal or group library you want to access, e.g. the
      ;; This should not happen
      (t nil))))
 
-(defun zotero-cache-sort-by (table field direction)
+(defun zotero-cache-sort-by (field direction table)
   "Sort TABLE and return an ordered list of the keys.
 
 FIELD is the prop of the object plist to be sorted. DIRECTION is
@@ -733,7 +737,7 @@ the sorting order: 'asc for ascending or 'desc for descending."
                        (funcall pred a b))))
       (seq-map #'car))))
 
-(defun zotero-cache-field (table field)
+(defun zotero-cache-field (field table)
   "Get FIELD from entries in TABLE.
 Return a list of the field values."
   (ht-map (lambda (key value) (cons (zotero-lib-plist-get* value :object :data field) key)) table))

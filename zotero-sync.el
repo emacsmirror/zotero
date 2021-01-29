@@ -129,29 +129,46 @@ of) `zotero-cache'."
                                           (plist-put :type "group")
                                           (plist-put :id (zotero-lib-keyword->string key)))))
          (access (cons user-access group-access))
-         (groups (ht-get cache "groups"))
-         (libraries (ht-get cache "libraries")))
+         (libraries (ht-get cache "libraries"))
+         (groups (ht-get cache "groups")))
     (dolist (library-access access)
       ;; TODO: only write if changed
       ;; TODO: include note and file access of user library
-      (let ((type (plist-get library-access :type))
-            (id (plist-get library-access :id)))
+      (let* ((type (plist-get library-access :type))
+             (id (plist-get library-access :id))
+             (library (ht-get libraries id)))
         (pcase library-access
           ;; For each library without read access: offer to remove the library
           ((guard (not (zotero-cache-read-access-p library-access)))
            (if (y-or-n-p (format "%s library %s has no read access. Remove from cache? " (upcase-initials type) id))
                (progn
-                 (ht-clear! (zotero-cache-library id))
-                 (when (equal type "group") (ht-clear! (zotero-cache-group id)))
+                 (ht-clear! (ht-get libraries id))
+                 (when (equal type "group") (ht-clear! (ht-get groups id)))
                  (dolist (resource '("collections" "items" "searches"))
-                   (ht-clear! (zotero-cache-synccache resource type id nil t))
-                   (ht-clear! (zotero-cache-deletions resource type id nil t)))
+                   (let* ((table (ht-get* cache "synccache" resource))
+                          (library (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
+                                                                       (equal (plist-get value :id) id))) table)))
+                     (ht-clear! library))
+                   (let* ((table (ht-get* cache "deletions" resource))
+                          (library (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
+                                                                       (equal (plist-get value :id) id))) table)))
+                     (ht-clear! library)))
                  (message "%s library %s removed from cache." (upcase-initials type) id))
-             (ht-set! libraries id `(:type type :id ,id :library :json-false :write :json-false))
-             (message "%s library %s has no read access, so cannot be synced." (upcase-initials type) id)))
+             (let ((value (thread-first library
+                            (plist-put :type type)
+                            (plist-put :id id)
+                            (plist-put :library :json-false)
+                            (plist-put :write :json-false))))
+               (ht-set! libraries id value)
+               (message "%s library %s has no read access, so cannot be synced." (upcase-initials type) id))))
           ;; For each library without write access: offer to reset local changes
           ((pred zotero-cache-read-only-p) ; read only
-           (ht-set! libraries id `(:type type :id ,id :library t :write :json-false))
+           (let ((value (thread-first library
+                          (plist-put :type type)
+                          (plist-put :id id)
+                          (plist-put :library t)
+                          (plist-put :write :json-false))))
+             (ht-set! libraries id value))
            ;; TODO: local updates are removed. Could updates be reverted in stead?
            (let (updated)
              ;; Create an alist with the resource as `car' and a list of updated keys as `cdr'
@@ -161,10 +178,12 @@ of) `zotero-cache'."
                (when (and updated-p
                           (y-or-n-p (format "%s library %s has no write access. Reset local changes? " (upcase-initials type) id)))
                  (cl-loop for resource in '("collections" "items" "searches") do
-                          (let ((table (zotero-cache-synccache resource type id nil t))
-                                (keys (cdr (assoc resource updated))))
+                          (let* ((table (ht-get* cache "synccache" resource))
+                                 (selection (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
+                                                                                (equal (plist-get value :id) id))) table))
+                                 (keys (cdr (assoc resource updated))))
                             (dolist (key keys)
-                              (ht-remove! table key))))
+                              (ht-remove! selection key))))
                  (message "All local changes in %s library %s are reset." type id))))
            (let (deleted)
              ;; Create an alist with the resource as `car' and a list of updated keys as `cdr'
@@ -174,14 +193,21 @@ of) `zotero-cache'."
                (when (and deleted-p
                           (y-or-n-p (format "%s library %s has no write access. Reset local deletions? " (upcase-initials type) id)))
                  (cl-loop for resource in '("collections" "items" "searches") do
-                          (let ((table (zotero-cache-deletions resource type id nil t))
-                                (keys (cdr (assoc resource deleted))))
+                          (let* ((table (ht-get* cache "deletions" resource))
+                                 (selection (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
+                                                                                (equal (plist-get value :id) id))) table))
+                                 (keys (cdr (assoc resource deleted))))
                             (dolist (key keys)
-                              (ht-remove! table key))))
+                              (ht-remove! selection key))))
                  (message "All local deletions in user library %s are reset." id)))))
           ;; For each library with read and write access: continue to sync
           ((and (pred zotero-cache-read-access-p) (pred zotero-cache-write-access-p)) ; read/write
-           (ht-set! libraries id `(:type ,type :id ,id :library t :write t))))))
+           (let ((value (thread-first library
+                          (plist-put :type type)
+                          (plist-put :id id)
+                          (plist-put :library t)
+                          (plist-put :write t))))
+             (ht-set! libraries id value))))))
     cache))
 
 (defun zotero-sync--metadata (cache id api-key)
@@ -195,39 +221,41 @@ Zotero API key."
   ;; the version as value.
   (let* ((result (zotero-request "GET" "groups" nil :type "user" :id id :api-key api-key :params '(("format" "versions"))))
          (remote-groups (zotero-result-data result))
-         (local-groups (ht-get cache "groups")))
-    (cl-loop for group being the hash-keys of local-groups
+         (libraries (ht-get cache "libraries"))
+         (groups (ht-get cache "groups")))
+    (cl-loop for id being the hash-keys of groups
              using (hash-values value) do
-             (let ((key (zotero-lib-string->keyword group)))
+             (let ((key (zotero-lib-string->keyword id)))
                (if (plist-member remote-groups key)
                    ;; Update version of library
-                   (let ((remote-version (plist-get remote-groups key)))
-                     (ht-set! local-groups group (plist-put value :version remote-version)))
+                   (let ((library (ht-get libraries id))
+                         (remote-version (plist-get remote-groups key)))
+                     (ht-set! libraries id (plist-put library :version remote-version)))
                  ;; Delete any local groups not in the list, which either were deleted or
                  ;; are currently inaccessible. (The user may have been removed from a
                  ;; group, or the current API key may no longer have access.)
-                 (let ((choice (read-multiple-choice (format "Local group %s is not available remotely. Remove from cache or quit syncing to transfer modified data elsewhere? " group)
+                 (let ((choice (read-multiple-choice (format "Local group %s is not available remotely. Remove from cache or quit syncing to transfer modified data elsewhere? " id)
                                                      '((?d "remove from cache")
                                                        (?q "quit")))))
                    (pcase (car choice)
                      (?d
-                      (ht-remove! libraries group)
-                      (ht-remove! groups group)
+                      (ht-remove! libraries id)
+                      (ht-remove! groups id)
                       ;; FIXME: remove group items from synccache and deletions
-                      (message "Group %s removed from cache." group))
+                      (message "Group %s removed from cache." id))
                      (?q
                       (throw 'sync 'quit)))))))
     ;; For each group that doesn't exist locally or that has a different
     ;; version number, retrieve the group metadata
     (cl-loop for (key remote-version) on remote-groups by #'cddr do
-             (let* ((group (zotero-lib-keyword->string key))
-                    (local-version (plist-get (ht-get local-groups group) :version)))
+             (let* ((id (zotero-lib-keyword->string key))
+                    (local-version (plist-get (ht-get groups id) :version)))
                (if (eq remote-version local-version)
-                   (message "Metadata of group %s already up to date." group)
+                   (message "Metadata of group %s already up to date." id)
                  ;; FIXME: metadata cannot be retrieved from read-only groups
-                 (let* ((result (zotero-group group :api-key api-key))
+                 (let* ((result (zotero-group id :api-key api-key))
                         (data (zotero-result-data result)))
-                   (ht-set! local-groups group data)))))
+                   (ht-set! groups id `(:version ,remote-version :object ,data))))))
     cache))
 
 (defun zotero-sync--remotely-updated (cache type id api-key)
@@ -287,9 +315,9 @@ Zotero API key."
                (not (eq remote-version version)))
       (throw 'sync 'concurrent-update))
     ;; REVIEW: should tags and settings be synced as well?
-    (cl-loop for resource in '(:collections :items :searches) do
+    (cl-loop for resource in '("collections" "items" "searches") do
              (when-let ((table (ht-get* cache "synccache" resource))
-                        (keys (seq-into (plist-get deletions resource) 'list)))
+                        (keys (seq-into (plist-get deletions (zotero-lib-string->keyword resource)) 'list)))
                (setf table (zotero-sync--process-deletions table keys version))))
     cache))
 
