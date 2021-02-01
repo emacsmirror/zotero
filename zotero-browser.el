@@ -63,8 +63,6 @@
                                                                    (preserve-size . (t . nil))
                                                                    (reusable-frames . nil))))
 
-(defconst zotero-browser-base (file-name-directory load-file-name))
-
 (defvar zotero-browser-padding 1
   "Set the number of characters preceding each entry")
 
@@ -74,21 +72,29 @@
 (defvar zotero-browser-default-linkmodes nil
   "Default linkmodes when creating a new item.")
 
-(defvar-local zotero-browser-ewoc nil)
+(defvar-local zotero-browser-ewoc nil
+  "Ewoc of the current buffer.")
 
-(defvar-local zotero-browser-type nil)
+(defvar-local zotero-browser-type nil
+  "Type of the current buffer.")
 
-(defvar-local zotero-browser-id nil)
+(defvar-local zotero-browser-id nil
+  "ID of the current buffer.")
 
-(defvar-local zotero-browser-resource nil)
+(defvar-local zotero-browser-resource nil
+  "Resource of the current buffer.")
 
-(defvar-local zotero-browser-keys nil)
+(defvar-local zotero-browser-keys nil
+  "Keys of the current buffer.")
 
-(defvar-local zotero-browser-collection nil)
+(defvar-local zotero-browser-collection nil
+  "Collection of the current buffer.")
 
-(defvar-local zotero-browser-table nil)
+(defvar-local zotero-browser-table nil
+  "Table of the current buffer.")
 
-(defvar-local zotero-browser-status nil)
+(defvar-local zotero-browser-status nil
+  "Visibility status of the current buffer.")
 
 ;;;; Keymap
 
@@ -301,36 +307,283 @@ All currently available key bindings:
   ;; Turn on word wrap
   (visual-line-mode 1))
 
-(defun zotero-browser--keys (ewoc)
-  "Return a list with the key of the current entry.
-If region is active, return a list of the keys in the active region instead."
+;;;; Functions
+
+(defun zotero-browser--nodes (ewoc)
+  "Return a list with the EWOC node at point.
+If region is active, return a list of the nodes in the active
+region instead."
   (if (use-region-p)
-      (let ((nodes (zotero-browser--region-nodes (region-beginning) (region-end) ewoc)))
+      (save-excursion
+        (let* ((first-node (ewoc-locate ewoc (region-beginning)))
+               (last-node (ewoc-locate ewoc (region-end)))
+               (node first-node)
+               nodes)
+          (while
+              (progn
+                (ewoc-goto-node ewoc node)
+                (push node nodes)
+                (setq node (ewoc-next ewoc node))
+                (not (eq node (ewoc-next ewoc last-node)))))
+          nodes))
+    (list (ewoc-locate ewoc))))
+
+(defun zotero-browser--keys (ewoc)
+  "Return a list with the key of the EWOC node at point.
+If region is active, return a list of the keys in the active
+region instead."
+  (if (use-region-p)
+      (let ((nodes (zotero-browser--nodes ewoc)))
         (seq-map (lambda (node) (ewoc-data node)) nodes))
     (let ((node (ewoc-locate ewoc)))
       (list (ewoc-data node)))))
 
-(defun zotero-browser--region-nodes (beg end ewoc)
-  "Return nodes of EWOC in region."
-  (save-excursion
-    (let* ((first-node (ewoc-locate ewoc beg))
-           (last-node (ewoc-locate ewoc end))
-           (node first-node)
-           nodes)
-      (while
-          (progn
-            (ewoc-goto-node ewoc node)
-            (push node nodes)
-            (setq node (ewoc-next ewoc node))
-            (not (eq node (ewoc-next ewoc last-node)))))
-      nodes)))
+(defun zotero-browser--level (key table)
+  "Return the level of KEY."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (table (pcase major-mode
+                  ('zotero-browser-collections-mode
+                   (zotero-cache-synccache "collections" nil type id))
+                  ('zotero-browser-items-mode
+                   (zotero-cache-synccache "items" nil type id))))
+         (level 0))
+    (while
+        (let ((parent (pcase major-mode
+                        ('zotero-browser-collections-mode
+                         (zotero-cache-parentcollection key table))
+                        ('zotero-browser-items-mode
+                         (zotero-cache-parentitem key table)))))
+          (setq level (1+ level))
+          (unless (or (eq parent :json-false) (null parent))
+            (setq key parent))))
+    level))
 
-(defun zotero-browser--node-keys (nodes)
-  "Return keys of NODES."
-  (seq-map (lambda (node) (ewoc-data node)) nodes))
+(defun zotero-browser--prefix (position string)
+  "Set the prefix of POSITION to STRING.
+STRING should contain only one character."
+  (let* ((prefix (get-text-property position 'line-prefix))
+         (spacing (substring prefix 0 -1)))
+    (put-text-property position (line-end-position) 'line-prefix (concat spacing string))))
+
+(defun zotero-browser--add (ewoc node table)
+  "Add items of TABLE after NODE in EWOC"
+  (let* ((key (ewoc-data node))
+         (idx (seq-position zotero-browser-keys key))
+         (head (seq-subseq zotero-browser-keys 0 (1+ idx)))
+         (tail (seq-subseq zotero-browser-keys (1+ idx)))
+         (keys (pcase major-mode
+                 ('zotero-browser-collections-mode
+                  (zotero-cache-sort-by :name 'asc table))
+                 ('zotero-browser-items-mode
+                  (zotero-cache-sort-by :title 'asc table)))))
+    (setq zotero-browser-keys (seq-concatenate 'list head keys tail))
+    (while keys
+      (setq node (ewoc-enter-after ewoc node (pop keys))))))
+
+(defun zotero-browser--has-children-p (node)
+  "Return non-nil if NODE has children."
+  (let ((type zotero-browser-type)
+        (id zotero-browser-id)
+        (key (ewoc-data node)))
+    (pcase major-mode
+      ('zotero-browser-collections-mode
+       (let ((table (zotero-cache-synccache "collections" nil type id)))
+         (zotero-cache-has-subcollections-p key table)))
+      ('zotero-browser-items-mode
+       (let ((table (zotero-cache-synccache "items" nil type id)))
+         (zotero-cache-has-subitems-p key table))))))
+
+(defun zotero-browser--expanded-p (ewoc node)
+  "Return non-nil if NODE in EWOC is expanded."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (table (pcase major-mode
+                  ('zotero-browser-collections-mode
+                   (zotero-cache-synccache "collections" nil type id))
+                  ('zotero-browser-items-mode
+                   (zotero-cache-synccache "items" nil type id))))
+         (key (ewoc-data node))
+         (next-node (ewoc-next ewoc node))
+         (next-key (when next-node (ewoc-data next-node)))
+         (parent (pcase major-mode
+                   ('zotero-browser-collections-mode
+                    (zotero-cache-parentcollection next-key table))
+                   ('zotero-browser-items-mode
+                    (zotero-cache-parentitem next-key table)))))
+    (equal parent key)))
+
+(defun zotero-browser--children (key)
+  "Return the children of KEY."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (table (pcase major-mode
+                  ('zotero-browser-collections-mode
+                   (zotero-cache-synccache "collections" nil type id))
+                  ('zotero-browser-items-mode
+                   (zotero-cache-synccache "items" nil type id)))))
+    (pcase major-mode
+      ('zotero-browser-collections-mode
+       (zotero-cache-subcollections key table))
+      ('zotero-browser-items-mode
+       (zotero-cache-subitems key table)))))
+
+(defun zotero-browser--parent (key)
+  "Return the parent of KEY."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (table (pcase major-mode
+                  ('zotero-browser-collections-mode
+                   (zotero-cache-synccache "collections" nil type id))
+                  ('zotero-browser-items-mode
+                   (zotero-cache-synccache "items" nil type id)))))
+    (pcase major-mode
+      ('zotero-browser-collections-mode
+       (zotero-cache-parentcollection key table))
+      ('zotero-browser-items-mode
+       (zotero-cache-parentitem key table)))))
+
+(defun zotero-browser--expand (ewoc node)
+  "Expand the children of NODE in EWOC."
+  (let* ((key (ewoc-data node))
+         (table (zotero-browser--children key)))
+    (zotero-browser--prefix (ewoc-location node) "▾")
+    (zotero-browser--add ewoc node table)))
+
+(defun zotero-browser--collapse (ewoc node)
+  "Collapse the children of NODE in EWOC."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (table (pcase major-mode
+                  ('zotero-browser-collections-mode
+                   (zotero-cache-synccache "collections" nil type id))
+                  ('zotero-browser-items-mode
+                   (zotero-cache-synccache "items" nil type id))))
+         (key (ewoc-data node))
+         parents)
+    (zotero-browser--prefix (ewoc-location node) "▸")
+    (while
+        (let* ((next-node (ewoc-next ewoc node))
+               (next-key (when next-node (ewoc-data next-node)))
+               (parent (pcase major-mode
+                         ('zotero-browser-collections-mode
+                          (zotero-cache-parentcollection next-key table))
+                         ('zotero-browser-items-mode
+                          (zotero-cache-parentitem next-key table)))))
+          ;; add to parents if the next entry is a child of the current entry
+          (when (equal parent key)
+            (push key parents))
+          ;; delete the next entry if it is a child of one of the parents
+          (when (member parent parents)
+            (ewoc-delete ewoc next-node)
+            (delete next-key zotero-browser-keys)
+            (setq key next-key))))))
+
+(defun zotero-browser--itemtype-icon (itemtype)
+  "Return the icon file for ITEMTYPE, or nil if none exists."
+  (let* ((icon (concat  "treeitem-" itemtype ".png"))
+         (dir (file-name-as-directory "img"))
+         (filename (expand-file-name (concat dir icon) zotero-directory))
+         (fallback (expand-file-name (concat dir "treeitem.png") zotero-directory)))
+    (cond
+     ((file-readable-p filename) filename)
+     ((file-readable-p fallback) fallback)
+     (t
+      nil))))
+
+(defun zotero-browser--attachment-icon (linkmode)
+  "Return the icon file for LINKMODE, or nil if none exists."
+  (let* ((icon (pcase linkmode
+                 ("imported_url" "treeitem-attachment-snapshot.png")
+                 ("imported_file" "treeitem-attachment-pdf.png")
+                 ("linked_file" "treeitem-attachment-pdf-link.png")
+                 ("linked_url" "treeitem-attachment-web-link.png")))
+         (dir (file-name-as-directory "img"))
+         (filename (expand-file-name (concat dir icon) zotero-directory)))
+    (if (file-readable-p filename) filename nil)))
+
+(defun zotero-browser--open-externally (path)
+  "Open PATH in an external program.
+
+This function is intented for graphical desktop environments on
+GNU/Linux, macOS, or Microsoft Windows."
+  (pcase system-type
+    ('cygwin
+     (start-process-shell-command "zotero-browser-open-externally" nil (concat "cygstart" " " (shell-quote-argument path))))
+    ('darwin
+     (start-process-shell-command "zotero-browser-open-externally" nil (concat "open" " " (shell-quote-argument path))))
+    ('gnu/linux
+     (start-process-shell-command "zotero-browser-open-externally" nil (concat "xdg-open" " " (shell-quote-argument path))))
+    ('windows-nt
+     (w32-shell-execute "open" path))
+    (system
+     (error "Unable to determine default application on operating system %S."))))
+
+(defun zotero-browser--open-file (path)
+  "Open the file at PATH.
+
+The preferred method of opening is customizable by setting the
+variable `zotero-browser-preferred-application'. If no
+application is found, Emacs simply visits the file."
+  (let ((file (expand-file-name path)))
+    (pcase zotero-browser-preferred-application
+      ('emacs
+       (find-file-other-frame file))
+      ('external
+       (zotero-browser--open-externally file))
+      ('mailcap
+       (mailcap-parse-mailcaps)
+       (let* ((mime-type (mailcap-extension-to-mime (file-name-extension file)))
+	      (command (mailcap-mime-info mime-type))
+              cmd)
+         (if (stringp command)
+	     (setq cmd command)
+	   (setq cmd 'emacs))
+         (cond
+          ((and (stringp cmd) (not (string-match "^[[:space:]]*$" cmd)))
+           ;; Remove quotes around the file name - we'll use shell-quote-argument.
+           (while (string-match "['\"]%s['\"]" cmd)
+             (setq cmd (replace-match "%s" t t cmd)))
+           (setq cmd (replace-regexp-in-string
+	              "%s"
+	              (shell-quote-argument file)
+	              cmd
+	              nil t))
+           (start-process-shell-command cmd nil cmd))
+          ((or (stringp cmd)
+	       (eq cmd 'emacs))
+           (find-file-other-frame file))))))))
+
+(defun zotero-browser--open-imported-file (entry)
+  (let ((path (expand-file-name (zotero-browser-find-attachment))))
+    (zotero-browser--open-file path)))
+
+(defun zotero-browser--open-imported-url (entry)
+  (let ((path (expand-file-name (zotero-browser-find-attachment)))
+        (contenttype (zotero-lib-plist-get* entry :object :data :contentType))
+        (key (zotero-lib-plist-get* entry :object :data :key))
+        (filename (zotero-lib-plist-get* entry :object :data :filename))
+        (dir (concat temporary-file-directory key)))
+    (if (equal contenttype "application/pdf")
+        (zotero-browser--open-file path)
+      (let* ((unzip (or (executable-find "unzip")
+                        (error "Unable to find executable \"unzip\"")))
+             (exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
+        (if (eq exit-status 0)
+            (let ((path (concat (file-name-as-directory dir) filename)))
+              (browse-url-file-url path))
+          (error "Error extracting snapshot"))))))
+
+(defun zotero-browser--open-linked-file (entry)
+  (let ((path (zotero-lib-plist-get* entry :object :data :path)))
+    (zotero-browser--open-file path)))
+
+(defun zotero-browser--open-linked-url (entry)
+  (let ((url (zotero-lib-plist-get* entry :object :data :url)))
+    (browse-url url)))
 
 (defun zotero-browser--library-pp (key)
-  "Pretty print KEY."
+  "Pretty print library KEY."
   (let* ((table (zotero-cache-library))
          (value (ht-get table key))
          (id (plist-get value :id))
@@ -343,7 +596,7 @@ If region is active, return a list of the keys in the active region instead."
                  ("user" "User library")))
          (icon "treesource-library.png")
          (dir (file-name-as-directory "img"))
-         (filename (expand-file-name (concat dir icon) zotero-browser-base)))
+         (filename (expand-file-name (concat dir icon) zotero-directory)))
     (when (file-readable-p filename)
       (let ((image (create-image filename 'png)))
         (insert-image image)
@@ -351,9 +604,9 @@ If region is active, return a list of the keys in the active region instead."
     (insert name)))
 
 (defun zotero-browser--collection-pp (key)
-  "Pretty print KEY."
-  (let* ((table (zotero-cache-synccache "collections" zotero-browser-type zotero-browser-id))
-         (entry (zotero-cache-synccache "collection" zotero-browser-type zotero-browser-id key))
+  "Pretty print collection KEY."
+  (let* ((table (zotero-cache-synccache "collections" nil zotero-browser-type zotero-browser-id))
+         (entry (zotero-cache-synccache "collection" key zotero-browser-type zotero-browser-id))
          (level (zotero-browser--level key table))
          (indentation (+ zotero-browser-padding level))
          (prefix (make-string indentation ?\s))
@@ -363,9 +616,9 @@ If region is active, return a list of the keys in the active region instead."
     (insert text)))
 
 (defun zotero-browser--item-pp (key)
-  "Pretty print KEY."
-  (let* ((table (zotero-cache-synccache "items" zotero-browser-type zotero-browser-id))
-         (entry (zotero-cache-synccache "item" zotero-browser-type zotero-browser-id key))
+  "Pretty print item KEY."
+  (let* ((table (zotero-cache-synccache "items" nil zotero-browser-type zotero-browser-id))
+         (entry (zotero-cache-synccache "item" key zotero-browser-type zotero-browser-id))
          (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
          (level (zotero-browser--level key table))
          (indentation (+ zotero-browser-padding level))
@@ -466,174 +719,13 @@ If region is active, return a list of the keys in the active region instead."
               (when (zotero-cache-has-attachments-p entry table)
                 (let* ((icon "attach.png")
                        (dir (file-name-as-directory "img"))
-                       (file (expand-file-name (concat dir icon) zotero-browser-base)))
+                       (file (expand-file-name (concat dir icon) zotero-directory)))
                   (when (file-readable-p file)
                     (let ((image (create-image file 'png)))
                       (insert-image image "attachments")
                       (insert " "))))))
              ('notes)))))
       (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix)))))
-
-(defun zotero-browser--level (key table)
-  "Return the level of KEY."
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (table (pcase major-mode
-                  ('zotero-browser-collections-mode
-                   (zotero-cache-synccache "collections" type id))
-                  ('zotero-browser-items-mode
-                   (zotero-cache-synccache "items" type id))))
-         (level 0))
-    (while
-        (let ((parent (pcase major-mode
-                        ('zotero-browser-collections-mode
-                         (zotero-cache-parentcollection key table))
-                        ('zotero-browser-items-mode
-                         (zotero-cache-parentitem key table)))))
-          (setq level (1+ level))
-          (unless (or (eq parent :json-false) (null parent))
-            (setq key parent))))
-    level))
-
-(defun zotero-browser--expand (ewoc node)
-  "Expand the children of NODE in EWOC."
-  (let* ((key (ewoc-data node))
-         (table (zotero-browser--children key)))
-    (zotero-browser--prefix "▾" (ewoc-location node))
-    (zotero-browser--add ewoc node table)))
-
-(defun zotero-browser--collapse (ewoc node)
-  "Collapse the children of NODE in EWOC."
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (table (pcase major-mode
-                  ('zotero-browser-collections-mode
-                   (zotero-cache-synccache "collections" type id))
-                  ('zotero-browser-items-mode
-                   (zotero-cache-synccache "items" type id))))
-         (key (ewoc-data node))
-         parents)
-    (zotero-browser--prefix "▸" (ewoc-location node))
-    (while
-        (let* ((next-node (ewoc-next ewoc node))
-               (next-key (when next-node (ewoc-data next-node)))
-               (parent (pcase major-mode
-                         ('zotero-browser-collections-mode
-                          (zotero-cache-parentcollection next-key table))
-                         ('zotero-browser-items-mode
-                          (zotero-cache-parentitem next-key table)))))
-          ;; add to parents if the next entry is a child of the current entry
-          (when (equal parent key)
-            (push key parents))
-          ;; delete the next entry if it is a child of one of the parents
-          (when (member parent parents)
-            (ewoc-delete ewoc next-node)
-            (delete next-key zotero-browser-keys)
-            (setq key next-key))))))
-
-(defun zotero-browser--add (ewoc node table)
-  "Add items of TABLE after NODE in ewoc"
-  (let* ((key (ewoc-data node))
-         (idx (seq-position zotero-browser-keys key))
-         (head (seq-subseq zotero-browser-keys 0 (1+ idx)))
-         (tail (seq-subseq zotero-browser-keys (1+ idx)))
-         (keys (pcase major-mode
-                 ('zotero-browser-collections-mode
-                  (zotero-cache-sort-by :name 'asc table))
-                 ('zotero-browser-items-mode
-                  (zotero-cache-sort-by :title 'asc table)))))
-    (setq zotero-browser-keys (seq-concatenate 'list head keys tail))
-    (while keys
-      (setq node (ewoc-enter-after ewoc node (pop keys))))))
-
-(defun zotero-browser--prefix (string pos)
-  (let* ((prefix (get-text-property (point) 'line-prefix))
-         (spacing (substring prefix 0 -1)))
-    (put-text-property (point) (line-end-position) 'line-prefix (concat spacing string))))
-
-(defun zotero-browser--has-children-p (node)
-  "Return non-nil if KEY has children."
-  (let ((type zotero-browser-type)
-        (id zotero-browser-id)
-        (key (ewoc-data node)))
-    (pcase major-mode
-      ('zotero-browser-collections-mode
-       (let ((table (zotero-cache-synccache "collections" type id)))
-         (zotero-cache-has-subcollections-p key table)))
-      ('zotero-browser-items-mode
-       (let ((table (zotero-cache-synccache "items" type id)))
-         (zotero-cache-has-subitems-p key table))))))
-
-(defun zotero-browser--expanded-p (ewoc node)
-  "Return non-nil if NODE in EWOC is expanded."
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (table (pcase major-mode
-                  ('zotero-browser-collections-mode
-                   (zotero-cache-synccache "collections" type id))
-                  ('zotero-browser-items-mode
-                   (zotero-cache-synccache "items" type id))))
-         (key (ewoc-data node))
-         (next-node (ewoc-next ewoc node))
-         (next-key (when next-node (ewoc-data next-node)))
-         (parent (pcase major-mode
-                   ('zotero-browser-collections-mode
-                    (zotero-cache-parentcollection next-key table))
-                   ('zotero-browser-items-mode
-                    (zotero-cache-parentitem next-key table)))))
-    (equal parent key)))
-
-(defun zotero-browser--children (key)
-  "Return the children of KEY."
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (table (pcase major-mode
-                  ('zotero-browser-collections-mode
-                   (zotero-cache-synccache "collections" type id))
-                  ('zotero-browser-items-mode
-                   (zotero-cache-synccache "items" type id)))))
-    (pcase major-mode
-      ('zotero-browser-collections-mode
-       (zotero-cache-subcollections key table))
-      ('zotero-browser-items-mode
-       (zotero-cache-subitems key table)))))
-
-(defun zotero-browser--parent (key)
-  "Return the parent of KEY."
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (table (pcase major-mode
-                  ('zotero-browser-collections-mode
-                   (zotero-cache-synccache "collections" type id))
-                  ('zotero-browser-items-mode
-                   (zotero-cache-synccache "items" type id)))))
-    (pcase major-mode
-      ('zotero-browser-collections-mode
-       (zotero-cache-parentcollection key table))
-      ('zotero-browser-items-mode
-       (zotero-cache-parentitem key table)))))
-
-(defun zotero-browser--itemtype-icon (itemtype)
-  "Return the icon file for ITEMTYPE, or nil if none exists."
-  (let* ((icon (concat  "treeitem-" itemtype ".png"))
-         (dir (file-name-as-directory "img"))
-         (filename (expand-file-name (concat dir icon) zotero-browser-base))
-         (fallback (expand-file-name (concat dir "treeitem.png") zotero-browser-base)))
-    (cond
-     ((file-readable-p filename) filename)
-     ((file-readable-p fallback) fallback)
-     (t
-      nil))))
-
-(defun zotero-browser--attachment-icon (linkmode)
-  (let* ((icon (pcase linkmode
-                 ("imported_url" "treeitem-attachment-snapshot.png")
-                 ("imported_file" "treeitem-attachment-pdf.png")
-                 ("linked_file" "treeitem-attachment-pdf-link.png")
-                 ("linked_url" "treeitem-attachment-web-link.png")))
-         (dir (file-name-as-directory "img"))
-         (filename (expand-file-name (concat dir icon) zotero-browser-base)))
-    (if (file-readable-p filename) filename nil)))
 
 ;;;; Commands
 
@@ -645,29 +737,51 @@ If region is active, return a list of the keys in the active region instead."
          (type zotero-browser-type)
          (id zotero-browser-id)
          (key (ewoc-data (ewoc-locate ewoc)))
-         (entry (zotero-cache-synccache "item" type id key))
+         (entry (zotero-cache-synccache "item" key type id))
          (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
     (when (equal itemtype "attachment")
       (let ((linkmode (zotero-lib-plist-get* entry :object :data :linkMode)))
         (pcase linkmode
-          ("imported_file" (zotero-browser-open-imported-file entry))
-          ("imported_url" (zotero-browser-open-imported-url entry))
-          ("linked_file" (zotero-browser-open-linked-file entry))
-          ("linked_url" (zotero-browser-open-linked-url entry)))))))
+          ("imported_file" (zotero-browser--open-imported-file entry))
+          ("imported_url" (zotero-browser--open-imported-url entry))
+          ("linked_file" (zotero-browser--open-linked-file entry))
+          ("linked_url" (zotero-browser--open-linked-url entry)))))))
 
 (defun zotero-browser-ensure-browser-buffer ()
+  "Check if the current buffer is a Zotero browser buffer."
   (unless (or (eq major-mode 'zotero-browser-libraries-mode)
               (eq major-mode 'zotero-browser-collections-mode)
               (eq major-mode 'zotero-browser-items-mode))
-    (error "Current buffer is not a Zotero browser buffer")))
+    (user-error "Current buffer is not a Zotero browser buffer")))
+
+(defun zotero-browser-ensure-items-mode ()
+  "Check if the current buffer is a Zotero items buffer."
+  (unless (eq major-mode 'zotero-browser-items-mode)
+    (user-error "Current buffer is not a Zotero items buffer")))
+
+(defun zotero-browser-ensure-write-access ()
+  "Check if the library in the current buffer has write access."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (library (zotero-cache-library type id)))
+    (unless (zotero-cache-write-access-p library)
+      (user-error "Library %s had no write access" id))))
+
+(defun zotero-browser-ensure-item-at-point ()
+  "Check if there is an item at point."
+  (unless (ewoc-locate zotero-browser-ewoc)
+    (user-error "No item at point")))
 
 (defun zotero-browser-revert ()
-  "Revert the buffer."
+  "Reload the current buffer."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (let ((pos (point))
-        (ewoc zotero-browser-ewoc))
-    (ewoc-refresh ewoc)
+  (let ((pos (point)))
+    (pcase major-mode
+      ('zotero-browser-collections-mode
+       (display-buffer (zotero-browser-collections zotero-browser-resource zotero-browser-type zotero-browser-id)))
+      ('zotero-browser-items-mode
+       (display-buffer (zotero-browser-items zotero-browser-resource zotero-browser-collection zotero-browser-type zotero-browser-id))))
     (goto-char pos)))
 
 (defun zotero-browser-goto-next ()
@@ -692,6 +806,7 @@ If region is active, return a list of the keys in the active region instead."
   "Move point to the parent item."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
+  (zotero-browser-ensure-item-at-point)
   (let ((ewoc zotero-browser-ewoc))
     (when (ewoc-nth ewoc 0)
       (let* ((node (ewoc-locate ewoc))
@@ -740,19 +855,19 @@ If region is active, return a list of the keys in the active region instead."
   "Show all items."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (zotero-browser-items "items" zotero-browser-type zotero-browser-id))
+  (zotero-browser-items "items" nil zotero-browser-type zotero-browser-id))
 
 (defun zotero-browser-unfiled-items ()
   "Show unfiled items."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (zotero-browser-items "items-top" zotero-browser-type zotero-browser-id))
+  (zotero-browser-items "items-top" nil zotero-browser-type zotero-browser-id))
 
 (defun zotero-browser-trash-items ()
   "Show trashed items."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (zotero-browser-items "trash-items" zotero-browser-type zotero-browser-id))
+  (zotero-browser-items "trash-items" nil zotero-browser-type zotero-browser-id))
 
 (defun zotero-browser-toggle ()
   "Expand or collapse the children of the current item."
@@ -832,9 +947,9 @@ If region is active, return a list of the keys in the active region instead."
          (id zotero-browser-id)
          (table (pcase major-mode
                   ('zotero-browser-collections-mode
-                   (zotero-cache-synccache "collections" type id))
+                   (zotero-cache-synccache "collections" nil type id))
                   ('zotero-browser-items-mode
-                   (zotero-cache-synccache "items" type id))))
+                   (zotero-cache-synccache "items" nil type id))))
          (num (or num 1))
          (inhibit-read-only t))
     (save-excursion
@@ -853,7 +968,7 @@ If region is active, return a list of the keys in the active region instead."
                        (or (< level num) (eq num 0)))
                   (zotero-browser--expand ewoc node))
                  (t
-                  (zotero-browser--prefix "▸" (ewoc-location node)))))
+                  (zotero-browser--prefix (ewoc-location node) "▸"))))
               (prog1
                   ;; End-test of while loop
                   (ewoc-next ewoc node)
@@ -863,216 +978,356 @@ If region is active, return a list of the keys in the active region instead."
   "Edit current entry."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
   (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (library (zotero-cache-library type id)))
-    (if (zotero-cache-write-access-p library)
-        (pcase major-mode
-          ('zotero-browser-collections-mode
-           (let* ((ewoc zotero-browser-ewoc)
-                  (node (ewoc-locate ewoc))
-                  (key (ewoc-data node))
-                  (entry (zotero-cache-synccache "collection" type id key))
-                  (data (zotero-lib-plist-get* entry :object :data)))
-             (pop-to-buffer (zotero-edit-collection :type type :id id :data data :locale zotero-locale) zotero-browser-edit-buffer-action)))
-          ('zotero-browser-items-mode
-           (let* ((ewoc zotero-browser-ewoc)
-                  (node (ewoc-locate ewoc))
-                  (key (ewoc-data node))
-                  (entry (zotero-cache-synccache "item" type id key))
-                  (data (zotero-lib-plist-get* entry :object :data)))
-             (pop-to-buffer (zotero-edit-item :type type :id id :data data :locale zotero-locale) zotero-browser-edit-buffer-action))))
-      (user-error "Library %s had no write access" id))))
-
-(defun zotero-browser-create ()
-  "Create a new collection or item."
-  (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (library (zotero-cache-library type id)))
-    (if (zotero-cache-write-access-p library)
-        (pcase major-mode
-          ('zotero-browser-libraries-mode
-           (user-error "Creating new groups or libraries is not supported"))
-          ('zotero-browser-collections-mode
-           (display-buffer (zotero-edit-create-collection :type type :id id) zotero-browser-edit-buffer-action))
-          ('zotero-browser-items-mode
-           (let ((itemtype (completing-read "Select an item type: " (zotero-cache-itemtypes) nil t nil nil zotero-browser-default-itemtypes )))
-             (cl-pushnew itemtype zotero-browser-default-itemtypes :test #'equal)
-             (display-buffer (zotero-edit-create-item :type type :id id :itemtype itemtype :locale zotero-locale) zotero-browser-edit-buffer-action))))
-      (user-error "Library %s had no write access" id))))
+         (id zotero-browser-id))
+    (pcase major-mode
+      ('zotero-browser-collections-mode
+       (let* ((ewoc zotero-browser-ewoc)
+              (node (ewoc-locate ewoc))
+              (key (ewoc-data node))
+              (entry (zotero-cache-synccache "collection" key type id))
+              (data (zotero-lib-plist-get* entry :object :data)))
+         (pop-to-buffer (zotero-edit-collection data type id) zotero-browser-edit-buffer-action)))
+      ('zotero-browser-items-mode
+       (let* ((ewoc zotero-browser-ewoc)
+              (node (ewoc-locate ewoc))
+              (key (ewoc-data node))
+              (entry (zotero-cache-synccache "item" key type id))
+              (data (zotero-lib-plist-get* entry :object :data)))
+         (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))))
 
 (defun zotero-browser-move-to-parent (&optional arg)
   "Move current entry to a parent item.
 With a `C-u' prefix, move to top level."
   (interactive "P")
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((type zotero-browser-type)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
+  (let* ((inhibit-read-only t)
+         (type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library type id)))
-    (if (zotero-cache-write-access-p library)
-        (when (eq major-mode 'zotero-browser-items-mode)
-          (let* ((inhibit-read-only t)
-                 (node (ewoc-locate zotero-browser-ewoc))
-                 (key (ewoc-data node))
-                 (entry (zotero-cache-synccache "item" type id key))
-                 (data (zotero-lib-plist-get* entry :object :data))
-                 (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-                 updated-data)
-            (unless (or (equal itemtype "attachment") (equal itemtype "note"))
-              (user-error "Item type %s cannot be moved to a parent"))
-            (if (equal arg '(4))
-                (setq updated-data (zotero-lib-plist-delete data :parentItem))
-              (let* ((table (zotero-cache-synccache "items" type id))
-                     (choices (zotero-cache-field :title table))
-                     (name (completing-read "Select parent item:" choices nil t))
-                     (parent (cdr (assoc name choices)))
-                     (entry (ht-get table parent))
-                     (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
-                (if (or (equal itemtype "attachment") (equal itemtype "note"))
-                    (user-error "Parent item cannot be a note or attachment")
-                  (setq updated-data (plist-put data :parentItem parent)))))
-            (delete key zotero-browser-keys)
-            (ewoc-delete ewoc node)
-            (zotero-cache-save updated-data "items" type id)))
-      (user-error "Library %s had no write access" id))))
+         (ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node))
+         (entry (zotero-cache-synccache "item" key type id))
+         (data (zotero-lib-plist-get* entry :object :data))
+         (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+         updated-data)
+    (unless (or (equal itemtype "attachment") (equal itemtype "note"))
+      (user-error "Item type %s cannot be moved to a parent"))
+    (if (equal arg '(4))
+        (setq updated-data (zotero-lib-plist-delete data :parentItem))
+      (let* ((table (zotero-cache-synccache "items" nil type id))
+             (choices (zotero-cache-field :title table))
+             (name (completing-read "Select parent item:" choices nil t))
+             (parent (cdr (assoc name choices)))
+             (entry (ht-get table parent))
+             (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
+        (if (or (equal itemtype "attachment") (equal itemtype "note"))
+            (user-error "Parent item cannot be a note or attachment")
+          (setq updated-data (plist-put data :parentItem parent)))))
+    (delete key zotero-browser-keys)
+    (ewoc-delete ewoc node)
+    (zotero-cache-save updated-data "items" type id)))
 
 (defun zotero-browser-move-to-collection ()
   "Move current entry to a collection."
   (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((ewoc zotero-browser-ewoc)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
+  (let* ((inhibit-read-only t)
+         (ewoc zotero-browser-ewoc)
          (type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library type id)))
-    (if (zotero-cache-write-access-p library)
-        (when (eq major-mode 'zotero-browser-items-mode)
-          (let* ((inhibit-read-only t)
-                 (node (ewoc-locate ewoc))
-                 (key (ewoc-data node))
-                 (table (zotero-cache-synccache "collections" type id))
-                 (choices (zotero-cache-field :name table))
-                 (name (completing-read "Select collection:" choices nil t))
-                 (new (cdr (assoc name choices)))
-                 (old zotero-browser-collection))
-            (delete key zotero-browser-keys)
-            (ewoc-delete ewoc node)
-            (zotero-cache-substitute-collection type id key new old)))
-      (user-error "Library %s had no write access" id))))
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node))
+         (table (zotero-cache-synccache "collections" nil type id))
+         (choices (zotero-cache-field :name table))
+         (name (completing-read "Select collection:" choices nil t))
+         (new (cdr (assoc name choices)))
+         (old zotero-browser-collection))
+    (delete key zotero-browser-keys)
+    (ewoc-delete ewoc node)
+    (zotero-cache-substitute-collection key new old type id)))
 
 (defun zotero-browser-copy-to-collection ()
   "Copy current entry to a collection."
   (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((ewoc zotero-browser-ewoc)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
+  (let* ((inhibit-read-only t)
+         (ewoc zotero-browser-ewoc)
          (type zotero-browser-type)
          (id zotero-browser-id)
          (resource zotero-browser-resource)
-         (library (zotero-cache-library type id)))
-    (if (zotero-cache-write-access-p library)
-        (when (eq major-mode 'zotero-browser-items-mode)
-          (let* ((inhibit-read-only t)
-                 (node (ewoc-locate ewoc))
-                 (key (ewoc-data node))
-                 (table (zotero-cache-synccache "collections" type id))
-                 (choices (zotero-cache-field :name table))
-                 (name (completing-read "Select collection:" choices nil t))
-                 (collection (cdr (assoc name choices))))
-            (when (equal resource "items-top")
-              (delete key zotero-browser-keys)
-              (ewoc-delete ewoc node))
-            (zotero-cache-add-to-collection type id key collection)))
-      (user-error "Library %s had no write access" id))))
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node))
+         (table (zotero-cache-synccache "collections" nil type id))
+         (choices (zotero-cache-field :name table))
+         (name (completing-read "Select collection:" choices nil t))
+         (collection (cdr (assoc name choices))))
+    (when (equal resource "items-top")
+      (delete key zotero-browser-keys)
+      (ewoc-delete ewoc node))
+    (zotero-cache-add-to-collection key collection type id)))
 
 (defun zotero-browser-remove-from-collection ()
   "Remove current entry from a collection."
   (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((ewoc zotero-browser-ewoc)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
+  (let* ((inhibit-read-only t)
          (type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library type id)))
-    (if (zotero-cache-write-access-p library)
-        (when (eq major-mode 'zotero-browser-items-mode)
-          (let* ((inhibit-read-only t)
-                 (node (ewoc-locate ewoc))
-                 (key (ewoc-data node))
-                 (collection zotero-browser-collection))
-            (delete key zotero-browser-keys)
-            (ewoc-delete ewoc node)
-            (zotero-cache-remove-from-collection type id key collection)))
-      (user-error "Library %s had no write access" id))))
+         (ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node))
+         (collection zotero-browser-collection))
+    (delete key zotero-browser-keys)
+    (ewoc-delete ewoc node)
+    (zotero-cache-remove-from-collection key collection type id)))
 
 (defun zotero-browser-move-to-trash ()
   "Move current entry to trash.
 If region is active, trash entries in active region instead."
   (interactive)
-  (let* ((ewoc zotero-browser-ewoc)
+  (zotero-browser-ensure-browser-buffer)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
+  (let* ((inhibit-read-only t)
          (type zotero-browser-type)
          (id zotero-browser-id)
          (resource (pcase major-mode
+                     ('zotero-browser-libraries-mode (user-error "Trashing libraries is not supported"))
                      ('zotero-browser-collections-mode "collections")
                      ('zotero-browser-items-mode "items")))
-         (library (zotero-cache-library type id)))
-    (if (zotero-cache-write-access-p library)
-        (let ((inhibit-read-only t)
-              (keys (zotero-browser--keys ewoc)))
-          (dolist (key keys)
-            (delete key zotero-browser-keys)
-            (ewoc-delete ewoc node)
-            (zotero-cache-trash type id key)))
-      (user-error "Library %s had no write access" id))))
+         (ewoc zotero-browser-ewoc)
+         (nodes (zotero-browser--nodes ewoc))
+         (keys (zotero-browser--keys ewoc)))
+    (dolist (key keys)
+      (delete key zotero-browser-keys)
+      (zotero-cache-trash key type id))
+    (apply #'ewoc-delete ewoc nodes)))
 
 (defun zotero-browser-restore-from-trash ()
   "Restore current entry from trash.
 If region is active, restore entries in active region instead."
   (interactive)
-  (let* ((ewoc zotero-browser-ewoc)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
+  (let* ((inhibit-read-only t)
          (type zotero-browser-type)
          (id zotero-browser-id)
          (resource (pcase major-mode
                      ('zotero-browser-collections-mode "collections")
                      ('zotero-browser-items-mode "items")))
-         (library (zotero-cache-library type id)))
-    (if (zotero-cache-write-access-p library)
-        (let ((inhibit-read-only t)
-              (keys (zotero-browser--keys ewoc)))
-          (dolist (key keys)
-            (delete key zotero-browser-keys)
-            (ewoc-delete ewoc node)
-            (zotero-cache-restore type id key)))
-      (user-error "Library %s had no write access" id))))
+         (ewoc zotero-browser-ewoc)
+         (nodes (zotero-browser--nodes ewoc))
+         (keys (zotero-browser--keys ewoc)))
+    (dolist (key keys)
+      (delete key zotero-browser-keys)
+      (zotero-cache-restore key type id))
+    (apply #'ewoc-delete ewoc nodes)))
 
-;; FIXME
 (defun zotero-browser-delete ()
   "Delete current entry.
 If region is active, delete entries in active region instead."
   (interactive)
-  (let* ((ewoc zotero-browser-ewoc)
-         (node (ewoc-locate ewoc))
+  (zotero-browser-ensure-browser-buffer)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
+  (let* ((inhibit-read-only t)
+         (type zotero-browser-type)
          (id zotero-browser-id)
          (resource (pcase major-mode
+                     ('zotero-browser-libraries-mode (user-error "Deleting libraries is not supported"))
                      ('zotero-browser-collections-mode "collections")
                      ('zotero-browser-items-mode "items")))
-         (library (zotero-cache-library type id)))
-    (if (zotero-cache-write-access-p library)
-        (let ((inhibit-read-only t)
-              (keys (zotero-browser--keys ewoc)))
-          (dolist (key keys)
-            (delete key zotero-browser-keys)
-            (ewoc-delete ewoc node)
-            (zotero-cache-delete type id resource key)))
-      (user-error "Library %s had no write access" id))))
+         (ewoc zotero-browser-ewoc)
+         (nodes (zotero-browser--nodes ewoc))
+         (keys (zotero-browser--keys ewoc)))
+    (dolist (key keys)
+      (delete key zotero-browser-keys)
+      (zotero-cache-delete resource key type id))
+    (apply #'ewoc-delete ewoc nodes)))
+
+(defun zotero-browser-create ()
+  "Create a new collection or item."
+  (interactive)
+  (zotero-browser-ensure-browser-buffer)
+  (zotero-browser-ensure-write-access)
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id))
+    (pcase major-mode
+      ('zotero-browser-libraries-mode
+       (user-error "Creating new groups or libraries is not supported"))
+      ('zotero-browser-collections-mode
+       (display-buffer (zotero-edit-create-collection type id) zotero-browser-edit-buffer-action))
+      ('zotero-browser-items-mode
+       (let ((itemtype (completing-read "Select an item type: " (zotero-cache-itemtypes) nil t nil nil zotero-browser-default-itemtypes )))
+         (cl-pushnew itemtype zotero-browser-default-itemtypes :test #'equal)
+         (pop-to-buffer (zotero-edit-create-item itemtype type id zotero-browser-collection) zotero-browser-edit-buffer-action))))))
+
+(defun zotero-browser-create-note (&optional arg)
+  "Create a new note.
+With a `C-u' prefix, create a new top level note."
+  (interactive "P")
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         ;; Top-level notes can be created by excluding the parentItem property
+         ;; or setting it to false.
+         (parent (cond
+                  ((equal arg '(4)) nil)
+                  ((null node) nil)
+                  (t (ewoc-data node)))))
+    (pop-to-buffer (zotero-edit-create-note type id parent) zotero-browser-edit-buffer-action)))
+
+(defun zotero-browser-create-attachment (&optional arg)
+  "Create a new attachment with the current entry as parent.
+With a `C-u' prefix, create a new top level attachment.
+
+Only file attachments (imported_file/linked_file) and PDF
+imported web attachments (imported_url with content type
+application/pdf) are allowed as top-level items, as in the Zotero
+client."
+  (interactive "P")
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         ;; Top-level attachments can be created by excluding the parentItem
+         ;; property or setting it to false.
+         (parent (cond
+                  ((equal arg '(4)) nil)
+                  ((null node) nil)
+                  (t (ewoc-data node))))
+         (linkmode (completing-read "Select a linkmode: " (zotero-attachment-linkmodes) nil t nil nil zotero-browser-default-linkmodes))
+         (template (copy-tree (zotero-cache-attachment-template linkmode))))
+    (cl-pushnew linkmode zotero-browser-default-linkmodes :test #'equal)
+    (pcase linkmode
+      ("imported_file"
+       (let* ((file (expand-file-name (read-file-name "Select file: " nil nil t)))
+              (attributes (zotero-file-attributes filefile))
+              (filename (file-name-nondirectory file))
+              (filesize (plist-get attributes :filesize))
+              (content-type (plist-get attributes :content-type))
+              (md5 (plist-get attributes :md5))
+              (mtime (plist-get attributes :mtime))
+              (accessdate (plist-get attributes :accessdate))
+              ;; REVIEW: charset cannot be determined without external tools
+              (data (thread-first template
+                      (plist-put :parentItem parent)
+                      (plist-put :title filename)
+                      (plist-put :accessDate accessdate)
+                      (plist-put :contentType content-type)
+                      (plist-put :filename filename)
+                      ;; md5 and mtime can be edited directly in
+                      ;; personal libraries for WebDAV-based file
+                      ;; syncing. They should not be edited directly
+                      ;; when using Zotero File Storage, which provides
+                      ;; an atomic method for setting the properties
+                      ;; along with the corresponding file.
+                      (plist-put :md5 nil)
+                      (plist-put :mtime nil))))
+         (when-let ((object (zotero-cache-save data "items" type id))
+                    (key (plist-get object :key)))
+           (unless (zotero-upload-attachment key file nil :type type :id id)
+             (error "Failed to associate attachment with item %s" key))
+           (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))
+      ("imported_url"
+       (user-error "Creating a snapshot is not supported"))
+      ("linked_file"
+       (unless (equal zotero-browser-type "user")
+         (user-error "Linked files can only be added to user library"))
+       (let* ((file (expand-file-name (read-file-name "Select file: " nil nil t)))
+              (attributes (zotero-file-attributes file))
+              (filename (file-name-nondirectory file))
+              (content-type (plist-get attributes :content-type))
+              (accessdate (plist-get attributes :accessdate))
+              (data (thread-first template
+                      (plist-put :parentItem parent)
+                      (plist-put :title filename)
+                      (plist-put :accessDate accessdate)
+                      (plist-put :contentType content-type)
+                      ;; (plist-put :charset charset) ; charset cannot be determined without external tools
+                      (plist-put :path file))))
+         (when-let ((object (zotero-cache-save data "items" type id))
+                    (key (plist-get object :key)))
+           (display-buffer (zotero-edit-item (plist-get object :data) type id) zotero-browser-edit-buffer-action))))
+      ("linked_url"
+       (if (or (null parent) (eq parent :json-false))
+           (user-error "Links to URLs are not allowed as top-level items")
+         (pop-to-buffer (zotero-edit-item template type id) zotero-browser-edit-buffer-action))))))
+
+(defun zotero-browser-update-attachment ()
+  "Update the attachment of the current entry."
+  (interactive)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node))
+         (entry (zotero-cache-synccache "item" key type id))
+         (data (zotero-lib-plist-get* entry :object :data))
+         (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+         (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
+         (filename (zotero-lib-plist-get* entry :object :data :filename))
+         (hash (zotero-lib-plist-get* entry :object :data :md5))
+         (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
+         (path (concat (file-name-as-directory dir) filename)))
+    (when (and (equal itemtype "attachment")
+               (equal linkmode "imported_file"))
+      (let* ((file (expand-file-name (read-file-name "Select file: " dir nil t path)))
+             (attributes (zotero-file-attributes file))
+             (filename (file-name-nondirectory file))
+             (filesize (plist-get attributes :filesize))
+             (content-type (plist-get attributes :content-type))
+             (md5 (plist-get attributes :md5))
+             (mtime (plist-get attributes :mtime))
+             (accessdate (plist-get attributes :accessdate))
+             (data (thread-first data
+                     (plist-put :title filename)
+                     (plist-put :accessDate accessdate)
+                     (plist-put :contentType content-type)
+                     ;; (plist-put :charset charset) ; charset cannot be determined without external tools
+                     (plist-put :filename filename)
+                     ;; md5 and mtime can be edited directly in
+                     ;; personal libraries for WebDAV-based file
+                     ;; syncing. They should not be edited directly
+                     ;; when using Zotero File Storage, which provides
+                     ;; an atomic method for setting the properties
+                     ;; along with the corresponding file.
+                     (plist-put :md5 nil)
+                     (plist-put :mtime nil))))
+        (unless (zotero-upload-attachment key file hash :type type :id id)
+          (error "Failed to associate attachment with item %s" key))
+        (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)))))
 
 (defun zotero-browser-find-attachment ()
-  "Return the path of attachment at point."
-  (zotero-browser-ensure-browser-buffer)
+  "Return the path of the attachment of the current entry."
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-item-at-point)
   (when-let ((ewoc zotero-browser-ewoc)
              (type zotero-browser-type)
              (id zotero-browser-id)
-             (key (ewoc-data (ewoc-locate ewoc)))
-             (entry (zotero-cache-synccache "item" type id key))
+             (node (ewoc-locate ewoc))
+             (key (ewoc-data node))
+             (entry (zotero-cache-synccache "item" key type id))
              (filename (zotero-lib-plist-get* entry :object :data :filename))
              (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
              (file (concat (file-name-as-directory dir) filename)))
@@ -1088,299 +1343,66 @@ If region is active, delete entries in active region instead."
       (zotero-browser-download-attachment temporary-file-directory)))))
 
 (defun zotero-browser-download-attachment (&optional dir)
-  "Download the attachment at point."
-  (zotero-browser-ensure-browser-buffer)
+  "Download the attachment of the current entry."
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-item-at-point)
   (let* ((ewoc zotero-browser-ewoc)
-         (key (ewoc-data (ewoc-locate ewoc)))
-         (entry (zotero-cache-synccache "item" type id key))
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node))
+         (entry (zotero-cache-synccache "item" key type id))
          (filename (zotero-lib-plist-get* entry :object :data :filename))
          (dir (or dir (concat (file-name-as-directory zotero-cache-storage-dir) key)))
          (type zotero-browser-type)
-         (id zotero-browser-id)
-         (token (zotero-auth-token))
-         (api-key (zotero-auth-api-key token)))
+         (id zotero-browser-id))
     (unless (file-exists-p dir)
       (make-directory dir t))
-    (zotero-lib-download-file :file filename :dir dir :type type :id id :key key :api-key api-key)))
+    (zotero-download-file key filename dir t :type type :id id)))
 
-(defun zotero-browser-create-note (&optional arg)
-  "Create a new note.
-With a `C-u' prefix, create a new top level note."
-  (interactive "P")
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (library (zotero-cache-library type id)))
-    (if (zotero-cache-write-access-p library)
-        (when (eq major-mode 'zotero-browser-items-mode)
-          (let* ((ewoc zotero-browser-ewoc)
-                 (node (ewoc-locate ewoc))
-                 (key (ewoc-data node))
-                 (parent (if (equal arg '(4)) :json-false key)))
-            (display-buffer (zotero-edit-create-note :type type :id id :parent parent :itemtype "note" :locale zotero-locale) zotero-browser-edit-buffer-action)))
-      (user-error "Library %s had no write access" id))))
-
-(defun zotero-browser-create-attachment (&optional arg)
-  "Create a new attachment with the current entry as parent.
-With a `C-u' prefix, create a new top level attachment.
-
-Only file attachments (imported_file/linked_file) and PDF
-imported web attachments (imported_url with content type
-application/pdf) are allowed as top-level items, as in the Zotero
-client."
-  (interactive "P")
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (library (zotero-cache-library type id)))
-    (when (eq major-mode 'zotero-browser-items-mode)
-      (if (zotero-cache-write-access-p library)
-          (let* ((ewoc zotero-browser-ewoc)
-                 (node (ewoc-locate ewoc))
-                 (key (ewoc-data node))
-                 ;; Top-level attachments can be created by excluding the
-                 ;; parentItem property or setting it to false.
-                 (parent (if (equal arg '(4)) :json-false key))
-                 (linkmode (completing-read "Select a linkmode: " (zotero-lib-attachment-linkmodes) nil t nil nil zotero-browser-default-linkmodes))
-                 (template (copy-tree (zotero-cache-attachment-template linkmode))))
-            (cl-pushnew linkmode zotero-browser-default-linkmodes :test #'equal)
-            (pcase linkmode
-              ("imported_file"
-               (let* ((file (expand-file-name (read-file-name "Select file: " nil nil t)))
-                      (attributes (zotero-lib-file-attributes file))
-                      (filename (file-name-nondirectory file))
-                      (filesize (plist-get attributes :filesize))
-                      (content-type (plist-get attributes :content-type))
-                      (md5 (plist-get attributes :md5))
-                      (mtime (plist-get attributes :mtime))
-                      (accessdate (plist-get attributes :accessdate))
-                      (data (thread-first template
-                              (plist-put :parentItem parent)
-                              (plist-put :title filename)
-                              (plist-put :accessDate accessdate)
-                              (plist-put :contentType content-type)
-                              ;; (plist-put :charset charset) ; charset cannot be determined without external tools
-                              (plist-put :filename filename)
-                              ;; md5 and mtime can be edited directly in
-                              ;; personal libraries for WebDAV-based file
-                              ;; syncing. They should not be edited directly
-                              ;; when using Zotero File Storage, which provides
-                              ;; an atomic method for setting the properties
-                              ;; along with the corresponding file.
-                              (plist-put :md5 nil)
-                              (plist-put :mtime nil))))
-                 (when-let ((object (zotero-cache-save data "items" type id))
-                            (key (plist-get object :key))
-                            (token (zotero-auth-token))
-                            (api-key (zotero-auth-api-key token)))
-                   (unless (zotero-lib-upload-attachment type id key api-key file)
-                     (error "Failed to associate attachment with item %s" key))
-                   (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-locale) zotero-browser-edit-buffer-action))))
-              ("imported_url"
-               (user-error "Creating a snapshot is not supported"))
-              ("linked_file"
-               (unless (equal zotero-browser-type "user")
-                 (user-error "Linked files can only be added to user library"))
-               (let* ((file (expand-file-name (read-file-name "Select file: " nil nil t)))
-                      (attributes (zotero-lib-file-attributes file))
-                      (filename (file-name-nondirectory file))
-                      (content-type (plist-get attributes :content-type))
-                      (accessdate (plist-get attributes :accessdate))
-                      (data (thread-first template
-                              (plist-put :parentItem parent)
-                              (plist-put :title filename)
-                              (plist-put :accessDate accessdate)
-                              (plist-put :contentType content-type)
-                              ;; (plist-put :charset charset) ; charset cannot be determined without external tools
-                              (plist-put :path file))))
-                 (when-let ((object (zotero-cache-save "items" data type id))
-                            (key (plist-get object :key))
-                            (token (zotero-auth-token))
-                            (api-key (zotero-auth-api-key token)))
-                   (display-buffer (zotero-edit-item :type type :id id :data (plist-get object :data) :locale zotero-locale) zotero-browser-edit-buffer-action))))
-              ("linked_url"
-               (if (or (null parent) (eq parent :json-false))
-                   (user-error "Links to URLs are not allowed as top-level items")
-                 (display-buffer (zotero-edit-item :type type :id id :data template :locale zotero-locale) zotero-browser-edit-buffer-action)))))
-        (user-error "Library %s had no write access" id)))))
-
-(defun zotero-browser-update-attachment ()
-  "Update attachment of the current entry."
-  (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (library (zotero-cache-library type id)))
-    (when (eq major-mode 'zotero-browser-items-mode)
-      (if (zotero-cache-write-access-p library)
-          (let* ((ewoc zotero-browser-ewoc)
-                 (node (ewoc-locate ewoc))
-                 (key (ewoc-data node))
-                 (entry (zotero-cache-synccache "item" type id key))
-                 (data (zotero-lib-plist-get* entry :object :data))
-                 (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-                 (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
-                 (filename (zotero-lib-plist-get* entry :object :data :filename))
-                 (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
-                 (path (concat (file-name-as-directory dir) filename))
-                 (token (zotero-auth-token))
-                 (api-key (zotero-auth-api-key token))
-                 (hash (zotero-lib-get-file-hash type id key api-key)))
-            (when (and (equal itemtype "attachment")
-                       (equal linkmode "imported_file"))
-              (let* ((file (expand-file-name (read-file-name "Select file: " dir nil t path)))
-                     (attributes (zotero-lib-file-attributes file))
-                     (filename (file-name-nondirectory file))
-                     (filesize (plist-get attributes :filesize))
-                     (content-type (plist-get attributes :content-type))
-                     (md5 (plist-get attributes :md5))
-                     (mtime (plist-get attributes :mtime))
-                     (accessdate (plist-get attributes :accessdate))
-                     (data (thread-first data
-                             (plist-put :title filename)
-                             (plist-put :accessDate accessdate)
-                             (plist-put :contentType content-type)
-                             ;; (plist-put :charset charset) ; charset cannot be determined without external tools
-                             (plist-put :filename filename)
-                             ;; md5 and mtime can be edited directly in
-                             ;; personal libraries for WebDAV-based file
-                             ;; syncing. They should not be edited directly
-                             ;; when using Zotero File Storage, which provides
-                             ;; an atomic method for setting the properties
-                             ;; along with the corresponding file.
-                             (plist-put :md5 nil)
-                             (plist-put :mtime nil))))
-                (unless (zotero-lib-upload-attachment type id key api-key file hash)
-                  (error "Failed to associate attachment with item %s" key))
-                (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-locale) zotero-browser-edit-buffer-action))))
-        (user-error "Library %s had no write access" id)))))
-
+;; TODO: finish this function
 (defun zotero-browser-recognize-attachment ()
   "Recognize content of the current entry."
   (interactive)
-  (zotero-browser-ensure-browser-buffer)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library type id)))
-    (when (eq major-mode 'zotero-browser-items-mode)
-      (if (zotero-cache-write-access-p library)
-          (let* ((ewoc zotero-browser-ewoc)
-                 (node (ewoc-locate ewoc))
-                 (key (ewoc-data node))
-                 (entry (zotero-cache-synccache "item" type id key))
-                 (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-                 (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
-                 (filename (zotero-lib-plist-get* entry :object :data :filename)))
-            (when (and (equal itemtype "attachment")
-                       (equal linkmode "imported_file"))
-              (let* ((file (zotero-browser-find-attachment))
-                     (attributes (zotero-lib-file-attributes file))
-                     (content-type (plist-get attributes :content-type)))
-                (zotero-recognize file))))
-        (user-error "Library %s had no write access" id)))))
+         (ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node))
+         (entry (zotero-cache-synccache "item" key type id))
+         (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+         (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
+         (filename (zotero-lib-plist-get* entry :object :data :filename)))
+    (when (and (equal itemtype "attachment")
+               (equal linkmode "imported_file"))
+      (let* ((file (zotero-browser-find-attachment))
+             (attributes (zotero-file-attributes file))
+             (content-type (plist-get attributes :content-type)))
+        (zotero-recognize file)))))
 
 (defun zotero-browser-set-fulltext ()
   "Set the full-text content of the current entry."
   (interactive)
-  (zotero-browser-ensure-browser-buffer)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (library (zotero-cache-library type id)))
-    (when (eq major-mode 'zotero-browser-items-mode)
-      (if (zotero-cache-write-access-p library)
-          (let* ((ewoc zotero-browser-ewoc)
-                 (node (ewoc-locate ewoc))
-                 (key (ewoc-data node))
-                 (entry (zotero-cache-synccache "item" type id key))
-                 (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-                 (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
-                 (filename (zotero-lib-plist-get* entry :object :data :filename)))
-            (when (and (equal itemtype "attachment")
-                       (equal linkmode "imported_file"))
-              (let* ((file (zotero-browser-find-attachment))
-                     (attributes (zotero-lib-file-attributes file))
-                     (content-type (plist-get attributes :content-type)))
-                (zotero-lib-index-item type id key file content-type))))
-        (user-error "Library %s had no write access" id)))))
-
-(defun zotero-browser-open-file (path)
-  "Open the file at PATH.
-
-The preferred method of opening is customizable by setting the
-variable `zotero-browser-preferred-application'. If no
-application is found, Emacs simply visits the file."
-  (let* ((file (expand-file-name path)))
-    (pcase zotero-browser-preferred-application
-      ('emacs
-       (find-file-other-frame file))
-      ('external
-       (zotero-browser-open-externally file))
-      ('mailcap
-       (mailcap-parse-mailcaps)
-       (let* ((mime-type (mailcap-extension-to-mime (file-name-extension file)))
-	      (command (mailcap-mime-info mime-type))
-              cmd)
-         (if (stringp command)
-	     (setq cmd command)
-	   (setq cmd 'emacs))
-         (cond
-          ((and (stringp cmd) (not (string-match "^[[:space:]]*$" cmd)))
-           ;; Remove quotes around the file name - we'll use shell-quote-argument.
-           (while (string-match "['\"]%s['\"]" cmd)
-             (setq cmd (replace-match "%s" t t cmd)))
-           (setq cmd (replace-regexp-in-string
-	              "%s"
-	              (shell-quote-argument file)
-	              cmd
-	              nil t))
-           (start-process-shell-command cmd nil cmd))
-          ((or (stringp cmd)
-	       (eq cmd 'emacs))
-           (find-file-other-frame file))))))))
-
-(defun zotero-browser-open-externally (path)
-  "Open PATH in an external program.
-
-This function is intented for graphical desktop environments on GNU/Linux, macOS, or Microsoft Windows."
-  (pcase system-type
-    ('cygwin
-     (start-process-shell-command "zotero-browser-open-externally" nil (concat "cygstart" " " (shell-quote-argument path))))
-    ('darwin
-     (start-process-shell-command "zotero-browser-open-externally" nil (concat "open" " " (shell-quote-argument path))))
-    ('gnu/linux
-     (start-process-shell-command "zotero-browser-open-externally" nil (concat "xdg-open" " " (shell-quote-argument path))))
-    ('windows-nt
-     (w32-shell-execute "open" path))
-    (system
-     (error "Unable to determine default application on operating system %S."))))
-
-(defun zotero-browser-open-imported-file (entry)
-  (let ((path (expand-file-name (zotero-browser-find-attachment))))
-    (zotero-browser-open-file path)))
-
-(defun zotero-browser-open-imported-url (entry)
-  (let ((path (expand-file-name (zotero-browser-find-attachment)))
-        (contenttype (zotero-lib-plist-get* entry :object :data :contentType))
-        (key (zotero-lib-plist-get* entry :object :data :key))
-        (filename (zotero-lib-plist-get* entry :object :data :filename))
-        (dir (concat temporary-file-directory key)))
-    (if (equal contenttype "application/pdf")
-        (zotero-browser-open-file path)
-      (let* ((unzip (or (executable-find "unzip")
-                        (error "Unable to find executable \"unzip\"")))
-             (exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
-        (if (eq exit-status 0)
-            (let ((path (concat (file-name-as-directory dir) filename)))
-              (browse-url-file-url path))
-          (error "Error extracting snapshot"))))))
-
-(defun zotero-browser-open-linked-file (entry)
-  (let ((path (zotero-lib-plist-get* entry :object :data :path)))
-    (zotero-browser-open-file path)))
-
-(defun zotero-browser-open-linked-url (entry)
-  (let ((url (zotero-lib-plist-get* entry :object :data :url)))
-    (browse-url url)))
+         (ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node))
+         (entry (zotero-cache-synccache "item" key type id))
+         (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+         (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
+         (filename (zotero-lib-plist-get* entry :object :data :filename)))
+    (when (and (equal itemtype "attachment")
+               (equal linkmode "imported_file"))
+      (let* ((file (zotero-browser-find-attachment))
+             (attributes (zotero-file-attributes file))
+             (content-type (plist-get attributes :content-type)))
+        ;; TODO: add full-text content to cache
+        (zotero-fulltext-index-item key file content-type :type type :id id)))))
 
 (defun zotero-browser-libraries ()
   "Create a libraries browser buffer."
@@ -1390,7 +1412,7 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
       (let* ((table (zotero-cache-library))
              (user (zotero-cache-library "user"))
              (groups (zotero-cache-group))
-             (ewoc (ewoc-create #'zotero-browser--library-pp nil nil))
+             (ewoc (ewoc-create #'zotero-browser--library-pp))
              (inhibit-read-only t))
         (erase-buffer)
         (setq zotero-browser-table table
@@ -1408,12 +1430,12 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
   (let ((buffer (get-buffer-create zotero-browser-collections-buffer-name)))
     (with-current-buffer buffer
       (zotero-browser-collections-mode)
-      (let ((ewoc (ewoc-create #'zotero-browser--collection-pp nil nil nil))
+      (let ((ewoc (ewoc-create #'zotero-browser--collection-pp))
             (inhibit-read-only t))
         ;; Remove previous entries
         (erase-buffer)
         (when (and type id resource)
-          (let* ((table (zotero-cache-synccache resource type id))
+          (let* ((table (zotero-cache-synccache resource nil type id))
                  (keys (zotero-cache-sort-by :name 'asc table)))
             (setq zotero-browser-ewoc ewoc
                   zotero-browser-type type
@@ -1422,26 +1444,26 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
                   zotero-browser-keys keys)
             (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
             (zotero-browser-expand-level zotero-browser-default-collection-level)
-            (zotero-browser-items "items-top" type id)))))
+            (zotero-browser-items "items-top" nil type id)))))
     buffer))
 
-(defun zotero-browser-items (&optional resource type id key)
+(defun zotero-browser-items (&optional resource collection type id)
   "Create an items buffer."
   (let ((buffer (get-buffer-create zotero-browser-items-buffer-name)))
     (with-current-buffer buffer
       (zotero-browser-items-mode)
-      (let ((ewoc (ewoc-create #'zotero-browser--item-pp nil nil nil))
+      (let ((ewoc (ewoc-create #'zotero-browser--item-pp))
             (inhibit-read-only t))
         ;; Remove previous entries
         (erase-buffer)
         (when (and type id resource)
-          (let* ((table (zotero-cache-synccache resource type id key))
+          (let* ((table (zotero-cache-synccache resource collection type id))
                  (keys (zotero-cache-sort-by :date 'asc table)))
             (setq zotero-browser-ewoc ewoc
                   zotero-browser-type type
                   zotero-browser-id id
                   zotero-browser-resource resource
-                  zotero-browser-collection key
+                  zotero-browser-collection collection
                   zotero-browser-keys keys)
             (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
             (zotero-browser-expand-level zotero-browser-default-item-level)))))
@@ -1451,37 +1473,33 @@ This function is intented for graphical desktop environments on GNU/Linux, macOS
   "Display current library or collection."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (pcase major-mode
-    ('zotero-browser-libraries-mode
-     (let* ((node (ewoc-locate zotero-browser-ewoc))
-            (key (ewoc-data node))
-            (table zotero-browser-table)
-            (type (plist-get (ht-get table key) :type))
-            (id (plist-get (ht-get table key) :id)))
-       (setq zotero-browser-type type
-             zotero-browser-id id)
-       (display-buffer (zotero-browser-collections "collections-top" type id))
-       (display-buffer (zotero-browser-items "items-top" type id))))
-    ('zotero-browser-collections-mode
-     (let* ((ewoc zotero-browser-ewoc)
-            (node (ewoc-locate ewoc))
-            (key (ewoc-data node))
-            (type zotero-browser-type)
-            (id zotero-browser-id)
-            (table (zotero-cache-synccache "collections" type id)))
-       (display-buffer (zotero-browser-items "collection-items" type id key))))
-    ('zotero-browser-items-mode
-     (let* ((ewoc zotero-browser-ewoc)
-            (node (ewoc-locate ewoc))
-            (key (ewoc-data node))
-            (type zotero-browser-type)
-            (id zotero-browser-id)
-            (entry (zotero-cache-synccache "item" type id key))
-            (data (zotero-lib-plist-get* entry :object :data)))
-       (display-buffer (zotero-edit-item :type type :id id :data data :locale zotero-locale) zotero-browser-edit-buffer-action)))))
+  (let* ((ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node)))
+    (pcase major-mode
+      ('zotero-browser-libraries-mode
+       (let* ((table zotero-browser-table)
+              (type (plist-get (ht-get table key) :type))
+              (id (plist-get (ht-get table key) :id)))
+         (setq zotero-browser-type type
+               zotero-browser-id id)
+         (display-buffer (zotero-browser-collections "collections-top" type id))
+         (display-buffer (zotero-browser-items "items-top" nil type id))))
+      ('zotero-browser-collections-mode
+       (let* ((type zotero-browser-type)
+              (id zotero-browser-id)
+              (table (zotero-cache-synccache "collections" nil type id)))
+         (display-buffer (zotero-browser-items "collection-items" key type id))))
+      ('zotero-browser-items-mode
+       (let* ((type zotero-browser-type)
+              (id zotero-browser-id)
+              (entry (zotero-cache-synccache "item" key type id))
+              (data (zotero-lib-plist-get* entry :object :data)))
+         (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))))
 
 (defun zotero-browser ()
-  "Create a new browser buffer, or switch."
+  "Create a new Zotero browser buffer.
+Switch if one already exists."
   (interactive)
   (zotero-cache-maybe-initialize-cache)
   (let ((items-buffer (or (get-buffer zotero-browser-items-buffer-name)

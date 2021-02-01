@@ -284,8 +284,10 @@ access, i.e. the \"group ID\"."
 Return table for multiple item request or entry for a single item
 request.
 
-Optional argument ID is the ID of the personal or group library
-you want to access, i.e. the \"user ID\" or \"group ID\"."
+Optional argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
   (let ((table (ht-get zotero-cache "libraries")))
     (cond
      ((and type id) (ht-get (ht-select (lambda (key value) (equal (plist-get value :type) type)) table) id))
@@ -293,15 +295,42 @@ you want to access, i.e. the \"user ID\" or \"group ID\"."
      (id (ht-get* zotero-cache "libraries" id))
      (t (ht-get* zotero-cache "libraries")))))
 
-(defun zotero-cache-synccache (resource &optional type id key include-trashed)
+(defun zotero-cache-synccache (resource &optional key type id include-trashed)
   "Get RESOURCE from library in cache.
 Return table for multiple item request or entry for a single item
 request.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
+RESOURCE is one of:
+  - \"collections\": collections in the library
+  - \"collections-top\": top-level collections in the library
+  - \"collection\": a specific collection in the library
+  - \"subcollections\": subcollections within a specific collection in the library
+  - \"items\": all items in the library, excluding trashed items
+  - \"items-top\": top-level items in the library, excluding trashed items
+  - \"trash-items\": items in the trash
+  - \"item\": a specific item in the library
+  - \"item-children\": child items under a specific item
+  - \"publication-items\": items in My Publications
+  - \"collection-items\": items within a specific collection in the library
+  - \"collection-items-top\": top-level items within a specific collection in the library
+  - \"searches\": all saved searches in the library
+  - \"search\": a specific saved search in the library
+  - \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
+  - \"item-tags\": tags associated with a specific item
+  - \"collection-tags\": tags within a specific collection in the library
+  - \"items-tags\": all tags in the library, with the ability to filter based on the items
+  - \"items-top-tags\": tags assigned to top-level items
+  - \"trash-items-tags\": tags assigned to items in the trash
+  - \"collection-items-tags\": tags assigned to items in a given collection
+  - \"collection-items-top-tags\": tags assigned to top-level items in a given collection
+  - \"publication-items-tags\": tags assigned to items in My Publications.
+
+Optional argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID. KEY is the item key, collection key, or search key. Which key
+is needed varies by resource. If INCLUDE-TRASHED is non-nil,
+items in the trash are included."
   (pcase resource
     ("collections"
      (let ((table (ht-get* zotero-cache "synccache" "collections")))
@@ -407,21 +436,44 @@ of the personal or group library you want to access, e.g. the
     ;; ("collection-items-tags")
     ;; ("collection-items-top-tags")
     ;; ("publication-items-tags")
-    ;; ("keys")
-    ;; ("all-fulltext")
-    ;; ("item-fulltext")
-    ;; ("file")
     ))
 
-(defun zotero-cache-deletions (resource &optional type id key include-trashed)
-  "Get RESOURCE from library in cache.
+(defun zotero-cache-deletions (resource &optional key type id include-trashed)
+  "Get RESOURCE from delete log in cache.
 Return table for multiple item request or entry for a single item
 request.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
+RESOURCE is one of:
+  - \"collections\": collections in the library
+  - \"collections-top\": top-level collections in the library
+  - \"collection\": a specific collection in the library
+  - \"subcollections\": subcollections within a specific collection in the library
+  - \"items\": all items in the library, excluding trashed items
+  - \"items-top\": top-level items in the library, excluding trashed items
+  - \"trash-items\": items in the trash
+  - \"item\": a specific item in the library
+  - \"item-children\": child items under a specific item
+  - \"publication-items\": items in My Publications
+  - \"collection-items\": items within a specific collection in the library
+  - \"collection-items-top\": top-level items within a specific collection in the library
+  - \"searches\": all saved searches in the library
+  - \"search\": a specific saved search in the library
+  - \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
+  - \"item-tags\": tags associated with a specific item
+  - \"collection-tags\": tags within a specific collection in the library
+  - \"items-tags\": all tags in the library, with the ability to filter based on the items
+  - \"items-top-tags\": tags assigned to top-level items
+  - \"trash-items-tags\": tags assigned to items in the trash
+  - \"collection-items-tags\": tags assigned to items in a given collection
+  - \"collection-items-top-tags\": tags assigned to top-level items in a given collection
+  - \"publication-items-tags\": tags assigned to items in My Publications.
+
+Optional argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID. KEY is the item key, collection key, or search key. Which key
+is needed varies by resource. If INCLUDE-TRASHED is non-nil,
+items in the trash are included."
   (pcase resource
     ("collections"
      (let ((table (ht-get* zotero-cache "deletions" "collections")))
@@ -539,7 +591,7 @@ Search titles and individual creator fields by default. Use the
 MODE argument to change the mode. Default is
 \"titleCreatorYear\". To include full-text content, use
 \"everything\"."
-  (let ((table (ht-get* zotero-cache "synccache" id "items")))
+  (let ((table (ht-get* zotero-cache "synccache" "items")))
     (zotero-cache-filter-data (lambda (elt) (let* ((title (plist-get elt :title))
                                                    (year (plist-get elt :date))
                                                    (creators (plist-get elt :creators)))
@@ -562,10 +614,10 @@ not (yet) implemented in the Zotero API."
   (let* ((template (ht-get* zotero-cache "templates" "items" itemtype))
          (last-sync (plist-get template :last-sync))
          (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
-    (when (or (null template) (> seconds-since-last-sync zotero-cache-expire))
-      (with-demoted-errors "Error downloading template: %S"
-        (zotero-sync--item-template zotero-cache itemtype)))
-    (plist-get template :object)))
+    (if (or (null template) (> seconds-since-last-sync zotero-cache-expire))
+        (with-demoted-errors "Error downloading template: %S"
+          (zotero-sync--item-template zotero-cache itemtype))
+      (plist-get template :object))))
 
 (defun zotero-cache-attachment-template (linkmode)
   "Return the attachment template for LINKMODE from CACHE.
@@ -576,10 +628,10 @@ not (yet) implemented in the Zotero API."
   (let* ((template (ht-get* zotero-cache "templates" "attachments" linkmode))
          (last-sync (plist-get template :last-sync))
          (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
-    (when (or (null template) (> seconds-since-last-sync zotero-cache-expire))
-      (with-demoted-errors "Error downloading template: %S"
-        (zotero-sync--attachment-template cache zotero-linkmode)))
-    (plist-get template :object)))
+    (if (or (null template) (> seconds-since-last-sync zotero-cache-expire))
+        (with-demoted-errors "Error downloading template: %S"
+          (zotero-sync--attachment-template cache zotero-linkmode))
+      (plist-get template :object))))
 
 (defun zotero-cache-schema ()
   "Return the schema with item types, fields, and creator types.
@@ -742,88 +794,154 @@ the sorting order: 'asc for ascending or 'desc for descending."
 Return a list of the field values."
   (ht-map (lambda (key value) (cons (zotero-lib-plist-get* value :object :data field) key)) table))
 
-(defun zotero-cache-add-to-collection (type id key collection)
+(defun zotero-cache-add-to-collection (key collection type id)
   "Add item KEY to COLLECTION.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
-  (let* ((entry (zotero-cache-synccache "item" type id key t))
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
+  (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
          (collections (zotero-lib-plist-get* entry :object :data :collections))
          (updated-collections (unless (seq-contains-p collections collection) (vconcat collections (vector collection)))))
     (zotero-cache-save (plist-put data :collections updated-collections) "items" type id)))
 
-(defun zotero-cache-remove-from-collection (type id key collection)
+(defun zotero-cache-remove-from-collection (key collection type id)
   "Remove item KEY from COLLECTION.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
-  (let* ((entry (zotero-cache-synccache "item" type id key t))
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
+  (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
          (collections (zotero-lib-plist-get* entry :object :data :collections))
          (updated-collections (seq-into (seq-remove (lambda (elt) (equal elt collection)) collections) 'vector)))
     (zotero-cache-save (plist-put data :collections updated-collections) "items" type id)))
 
-(defun zotero-cache-substitute-collection (type id key new old)
+(defun zotero-cache-substitute-collection (key new old type id)
   "Substitute OLD with NEW collection in item KEY.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
-  (let* ((entry (zotero-cache-synccache "item" type id key t))
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
+  (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
          (collections (zotero-lib-plist-get* entry :object :data :collections))
          (updated-collections (cl-substitute new old collection :test #'equal)))
     (zotero-cache-save (plist-put data :collections updated-collections) "items" type id)))
 
-(defun zotero-cache-delete (resource type id key)
+(defun zotero-cache-delete (resource key type id)
   "Delete KEY from cache.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
-  (let* ((value (zotero-cache-synccache resource type id key))
+RESOURCE is one of:
+  - \"collections\": collections in the library
+  - \"items\": all items in the library, excluding trashed items
+  - \"searches\": all saved searches in the library
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
+  (let* ((value (zotero-cache-synccache resource key type id))
          (synccache (ht-get* zotero-cache "synccache" resource))
          (deletions (ht-get* zotero-cache "deletions" resource)))
     ;; Remove all items from the collection
     (when (equal resource "collections")
       (let* ((collection key)
-             (table (zotero-cache-synccache "collection-items" type id collection t)))
+             (table (zotero-cache-synccache "collection-items" collection type id t)))
         (ht-each (lambda (key value)
                    (zotero-cache-remove-from-collection type id key collection))
                  table)))
     (ht-set! deletions key value)
     (ht-remove! synccache key)))
 
-(defun zotero-cache-trash (type id key)
+(defun zotero-cache-trash (key type id)
   "Move item KEY to trash.
 
 Keyword argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID
 of the personal or group library you want to access, e.g. the
 \"user ID\" or \"group ID\"."
-  (let* ((entry (zotero-cache-synccache "item" type id key t))
+  (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
          (updated-data (plist-put data :deleted 1)))
     (zotero-cache-save updated-data "items" type id)))
 
-(defun zotero-cache-restore (type id key)
+(defun zotero-cache-restore (key type id)
   "Restore item KEY from trash.
 
 Keyword argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. Keyword argument ID is the ID
 of the personal or group library you want to access, e.g. the
 \"user ID\" or \"group ID\"."
-  (let* ((entry (zotero-cache-synccache "item" type id key t))
+  (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
          (updated-data (zotero-lib-plist-delete data :deleted)))
     (zotero-cache-save updated-data "trash-items" type id)))
+
+(defun zotero-cache-save (data resource type id)
+  "Save DATA to cache.
+If DATA contains a prop `:key', it already exists in cache and is
+updated, else it is uploaded and a new entry is created. Return
+the object if successful, or nil.
+
+RESOURCE is one of:
+  - \"collections\": collections in the library
+  - \"items\": all items in the library, excluding trashed items
+  - \"searches\": all saved searches in the library
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
+  (let ((synccache (ht-get* zotero-cache "synccache" resource)))
+    (if-let ((key (plist-get data :key))
+             (entry (ht-get synccache key))
+             (version (plist-get entry :version))
+             (updated-object (thread-first (plist-get entry :object)
+                               (plist-put :data data))))
+        (progn
+          (ht-set! synccache key `(:synced nil :type ,type :id ,id :version ,version :object ,updated-object))
+          (zotero-cache-serialize)
+          updated-object)
+      (message "Uploading...")
+      (let* ((result (pcase resource
+                       ("items" (zotero-create-item data :type type :id id))
+                       ("collections" (zotero-create-collection data :type type :id id))
+                       ("searches" (zotero-create-search data :type type :id id))))
+             (response (zotero-result-data result))
+             (successful (plist-get response :successful))
+             (success (plist-get response :success))
+             (unchanged (plist-get response :unchanged))
+             (failed (plist-get response :failed)))
+        (cond
+         ((not (eq successful :json-empty))
+          (let* ((object (plist-get successful :0))
+                 (key (plist-get object :key))
+                 (version (plist-get object :version)))
+            (ht-set! synccache key `(:synced t :type ,type :id ,id :version ,version :object ,object))
+            (message "Uploading...done.")
+            (zotero-cache-serialize)
+            object))
+         ;; Do not update the version of Zotero objects in the
+         ;; unchanged object.
+         ((not (eq unchanged :json-empty))
+          (let* ((key (plist-get unchanged :0))
+                 (object (ht-get synccache key)))
+            (ht-set! synccache key (plist-put object :synced t))
+            (message "Uploading...unchanged.")
+            (zotero-cache-serialize)
+            object))
+         ((not (eq failed :json-empty))
+          (let ((code (zotero-lib-plist-get* failed :0 :code))
+                (message (zotero-lib-plist-get* failed :0 :message)))
+            (message "Uploading...failed.")
+            (error "Error code %d: %s" code message)))
+         ;; This should not happen
+         (t nil))))))
 
 (provide 'zotero-cache)
 

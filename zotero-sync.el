@@ -64,8 +64,10 @@
 
 (defun zotero-sync--get-locally-updated (cache resource type id)
   "Return locally updated keys."
-  (let* ((table (zotero-cache-synccache resource type id t))
-         (modified (ht-reject (lambda (key value) (plist-get value :synced)) table)))
+  (let* ((table (ht-get* cache "synccache" resource))
+         (modified (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
+                                                       (equal (plist-get value :id) id)
+                                                       (not (plist-get value :synced)))) table)))
     (ht-keys modified)))
 
 (defun zotero-sync--get-locally-deleted (cache resource type id)
@@ -375,7 +377,7 @@ Keyword CACHE is the hash table containing the cache."
                                  (let ((key (plist-get object :key))
                                        (type (zotero-lib-plist-get* object :library :type))
                                        (id (number-to-string (zotero-lib-plist-get* object :library :id))))
-                                   (ht-set! table key `(:type ,type :id ,id :synced t :version ,version :object ,object)))))
+                                   (ht-set! table key `(:synced t :type ,type :id ,id :version ,version :object ,object)))))
                       ;; Do not update the version of Zotero objects in the
                       ;; unchanged object.
                       (unless (eq unchanged :json-empty)
@@ -616,7 +618,7 @@ Keyword CACHE is the hash table containing the cache."
          (result (zotero-item-template itemtype))
          (object (zotero-result-data result)))
     (ht-set! table itemtype `(:last-sync ,(current-time) :object ,object))
-    cache))
+    object))
 
 (defun zotero-sync--attachment-template (cache linkmode)
   "Store the attachment template for LINKMODE.
@@ -626,7 +628,7 @@ Keyword CACHE is the hash table containing the cache."
          (result (zotero-attachment-template linkmode))
          (object (zotero-result-data result)))
     (ht-set! table linkmode `(:last-sync ,(current-time) :object ,object))
-    cache))
+    object))
 
 (defun zotero-sync--templates (cache)
   "Sync the item and attachment templates.

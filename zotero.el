@@ -1133,7 +1133,7 @@ library you want to access, e.g. the \"user ID\" or \"group ID\".
 API-KEY is the Zotero API key."
   (let ((write-token (zotero--write-token))
         (json (zotero-json-encode-object object)))
-    (zotero-request "POST" "items"
+    (zotero-request "POST" "items" nil
                     :type type
                     :id id
                     :api-key api-key
@@ -1160,7 +1160,7 @@ library you want to access, e.g. the \"user ID\" or \"group ID\".
 API-KEY is the Zotero API key."
   (let* ((write-token (zotero--write-token))
          (json (zotero-json-encode-object objects)))
-    (zotero-request "POST" "items"
+    (zotero-request "POST" "items" nil
                     :type type
                     :id id
                     :api-key api-key
@@ -1252,7 +1252,7 @@ for the group libraries. ID is the ID of the personal or group
 library you want to access, e.g. the \"user ID\" or \"group ID\".
 API-KEY is the Zotero API key."
   (let ((json (zotero-json-encode-object objects)))
-    (zotero-request "POST" "items"
+    (zotero-request "POST" "items" nil
                     :type type
                     :id id
                     :api-key api-key
@@ -1312,7 +1312,7 @@ API-KEY is the Zotero API key."
   (cond
    ((<= (length keys) 50)
     (let ((value (s-join "," keys)))
-      (zotero-request "DELETE" "items"
+      (zotero-request "DELETE" "items" nil
                       :type type
                       :id id
                       :api-key api-key
@@ -1335,7 +1335,7 @@ library you want to access, e.g. the \"user ID\" or \"group ID\".
 API-KEY is the Zotero API key."
   (let ((write-token (zotero--write-token))
         (json (zotero-json-encode-object object)))
-    (zotero-request "POST" "collections"
+    (zotero-request "POST" "collections" nil
                     :type type
                     :id id
                     :api-key api-key
@@ -1386,7 +1386,7 @@ for the group libraries. ID is the ID of the personal or group
 library you want to access, e.g. the \"user ID\" or \"group ID\".
 API-KEY is the Zotero API key."
   (let ((json (zotero-json-encode-object objects)))
-    (zotero-request "POST" "collections"
+    (zotero-request "POST" "collections" nil
                     :type type
                     :id id
                     :api-key api-key

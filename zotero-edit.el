@@ -34,13 +34,16 @@
 (defvar zotero-edit-doi-regexp "10\.[[:digit:]]\\{4,9\\}/[0-9A-Za-z()./:;_-]+"
   "A regular expression probably matching a modern Crossref DOI.")
 
-(defvar zotero-edit-text-buffer-action '((display-buffer-reuse-window display-buffer-in-side-window) (side . bottom) (window-height . 0.5)(preserve-size . (nil . t))))
+(defvar zotero-edit-text-buffer-action '((display-buffer-reuse-window display-buffer-in-side-window)
+                                         (side . bottom)
+                                         (window-height . 0.5)
+                                         (preserve-size . (nil . t))))
 
+(defvar-local zotero-edit-resource nil)
 (defvar-local zotero-edit-type nil)
 (defvar-local zotero-edit-id nil)
 (defvar-local zotero-edit-data nil)
 (defvar-local zotero-edit-data-copy nil)
-(defvar-local zotero-edit-locale nil)
 (defvar-local zotero-edit-widget nil)
 
 (defconst zotero-edit-usage-message "Type
@@ -109,8 +112,13 @@ All currently available key bindings:
 (eval-when-compile
   (require 'wid-edit))
 
-(cl-defun zotero-edit-item (&key type id data locale)
-  "Create a new item buffer."
+(defun zotero-edit-item (data type id)
+  "Create an item edit buffer with DATA.
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
     (with-current-buffer buffer
       (zotero-edit-mode)
@@ -125,11 +133,11 @@ All currently available key bindings:
                (template (pcase itemtype
                            ("attachment" (zotero-cache-attachment-template linkmode))
                            (_ (zotero-cache-item-template itemtype)))))
-          (setq zotero-edit-type type
+          (setq zotero-edit-resource "items"
+                zotero-edit-type type
                 zotero-edit-id id
                 zotero-edit-data data
-                zotero-edit-data-copy (copy-tree data)
-                zotero-edit-locale locale)
+                zotero-edit-data-copy (copy-tree data))
           ;; Key
           (when-let ((value (plist-get data :key))
                      (fieldname "Key"))
@@ -150,7 +158,7 @@ All currently available key bindings:
                      ((and :itemType field)
                       (let* ((fieldname "Item Type")
                              (value (plist-get data key))
-                             (choices (seq-map (lambda (elt) `(item :value ,elt :tag ,(zotero-cache-itemtype-locale elt locale))) itemtypes)))
+                             (choices (seq-map (lambda (elt) `(item :value ,elt :tag ,(zotero-cache-itemtype-locale elt))) itemtypes)))
                         (widget-create 'menu-choice
                                        :format (concat fieldname ": %[%v%]")
                                        :notify (lambda (widget &rest ignore)
@@ -158,7 +166,7 @@ All currently available key bindings:
                                                         (new-itemtype (widget-value widget))
                                                         (new-itemfields (zotero-cache-itemtypefields new-itemtype)))
                                                    (when-let ((missing-fields (seq-difference itemfields new-itemfields))
-                                                              (localized-fields (seq-map (lambda (elt) (zotero-cache-itemfield-locale elt locale)) missing-fields))
+                                                              (localized-fields (seq-map (lambda (elt) (zotero-cache-itemfield-locale elt)) missing-fields))
                                                               (fields ""))
                                                      (while localized-fields
                                                        (setf fields (concat fields "- " (pop localized-fields) "\n")))
@@ -169,7 +177,7 @@ All currently available key bindings:
                                                                 (data (apply #'zotero-lib-plist-delete data props-to-delete))
                                                                 (template (zotero-cache-item-template new-itemtype))
                                                                 (merged (zotero-cache-merge-plist template data)))
-                                                           (zotero-edit-item :type type :id id :data merged :locale locale))
+                                                           (zotero-edit-item merged type id))
                                                        (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field current-itemtype))
                                                        (widget-value-set widget current-itemtype)
                                                        (widget-setup)))))
@@ -178,7 +186,7 @@ All currently available key bindings:
                                        :args choices)))
                      ;; Title
                      ((and :title field)
-                      (let ((fieldname (zotero-cache-itemfield-locale key locale))
+                      (let ((fieldname (zotero-cache-itemfield-locale key))
                             (value (or (plist-get data key) "")))
                         (widget-insert (concat fieldname ": "))
                         (widget-create 'editable-field
@@ -198,7 +206,7 @@ All currently available key bindings:
                                               value))
                              (primary (car creatortypes))
                              (choices (seq-map (lambda (elt)
-                                                 `(item :format "%t" :value ,elt :tag ,(zotero-cache-creatortype-locale elt locale)))
+                                                 `(item :format "%t" :value ,elt :tag ,(zotero-cache-creatortype-locale elt)))
                                                creatortypes)))
                         (widget-insert (concat fieldname "\n"))
                         (widget-create 'editable-list
@@ -215,7 +223,7 @@ All currently available key bindings:
                                           :size 10
                                           :format "%[%v%]"
                                           :button-prefix "▾"
-                                          :void (item :format "%t" :value ,primary :tag ,(zotero-cache-creatortype-locale primary locale))
+                                          :void (item :format "%t" :value ,primary :tag ,(zotero-cache-creatortype-locale primary))
                                           :args ,choices)
                                          (editable-field
                                           :size 10
@@ -225,7 +233,7 @@ All currently available key bindings:
                                           :format " %v ")))))
                      ;; Abstract
                      ((and :abstractNote field)
-                      (let* ((fieldname (zotero-cache-itemfield-locale key locale))
+                      (let* ((fieldname (zotero-cache-itemfield-locale key))
                              (value (or (plist-get data key) "")))
                         (widget-insert (concat fieldname ":\n"))
                         (widget-create 'text
@@ -281,7 +289,7 @@ All currently available key bindings:
                              (fieldname "Collections")
                              (value (plist-get data key))
                              (values (seq-into value 'list))
-                             (table (zotero-cache-synccache "collections" type id))
+                             (table (zotero-cache-synccache "collections" nil type id))
                              (choices (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table)))
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
@@ -314,7 +322,7 @@ All currently available key bindings:
                                        '(editable-field ""))))
                      ;; Rest
                      ((and _ field)
-                      (let* ((fieldname (or (zotero-cache-itemfield-locale key locale) (capitalize (zotero-lib-keyword->string key))))
+                      (let* ((fieldname (or (zotero-cache-itemfield-locale key) (capitalize (zotero-lib-keyword->string key))))
                              (value (or (plist-get data key) "")))
                         (widget-insert (concat fieldname ": "))
                         (widget-create 'editable-field
@@ -347,7 +355,7 @@ All currently available key bindings:
                                          (message "Saving...done.")
                                          (with-current-buffer zotero-browser-items-buffer-name
                                            (zotero-browser-revert))
-                                         (zotero-edit-item :type type :id id :data (plist-get object :data) :locale locale))
+                                         (zotero-edit-item (plist-get object :data) type id))
                                      (message "Saving...failed.")))
                          "Save")
           (widget-insert " ")
@@ -355,25 +363,30 @@ All currently available key bindings:
           (widget-create 'push-button
 		         :notify (lambda (&rest ignore)
                                    (message "Item reset.")
-                                   (zotero-edit-item :type type :id id :data data :locale locale))
+                                   (zotero-edit-item data type id))
 		         "Reset")
           (use-local-map widget-keymap)
           (widget-setup))))
     buffer))
 
-(cl-defun zotero-edit-collection (&key type id data locale)
-  "Create a new collection."
+(defun zotero-edit-collection (data type id)
+  "Create an collection edit buffer with DATA.
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
     (with-current-buffer buffer
       (zotero-edit-mode)
       (erase-buffer)
       ;; (remove-overlays)
-      (let* ((template (zotero-collection-template)))
-        (setq zotero-edit-type type
+      (let ((template (zotero-collection-template)))
+        (setq zotero-edit-resource "collections"
+              zotero-edit-type type
               zotero-edit-id id
               zotero-edit-data data
-              zotero-edit-data-copy (copy-tree data)
-              zotero-edit-locale locale)
+              zotero-edit-data-copy (copy-tree data))
         ;; Key
         (when-let ((value (plist-get data :key))
                    (fieldname "Key"))
@@ -401,7 +414,7 @@ All currently available key bindings:
                    ((and :parentCollection field)
                     (let* ((fieldname "Parent Collection" )
                            (value (plist-get data key))
-                           (table (zotero-cache-synccache "collections" type id))
+                           (table (zotero-cache-synccache "collections" nil type id))
                            (collections (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table))
                            (choices (cons `(item :format "%t" :value :json-false :tag "None") collections)))
                       (widget-create 'menu-choice
@@ -436,31 +449,59 @@ All currently available key bindings:
                                        (message "Saving...done.")
                                        (with-current-buffer zotero-browser-collections-buffer-name
                                          (zotero-browser-revert))
-                                       (zotero-edit-collection :type type :id id :data (plist-get object :data) :locale locale))
+                                       (zotero-edit-collection (plist-get object :data) type id))
                                    (message "Saving...failed.")))
                        "Save")
         (widget-insert " ")
         ;; Reset button
         (widget-create 'push-button
 		       :notify (lambda (&rest ignore)
-                                 (zotero-edit-collection :type type :id id :data data))
+                                 (zotero-edit-collection data type id))
 		       "Reset")
         (use-local-map widget-keymap)
         (widget-setup)))
     buffer))
 
-(cl-defun zotero-edit-create-item (&key type id itemtype locale)
-  "Create a new item of ITEMTYPE."
-  (let ((template (zotero-cache-item-template itemtype)))
-    (zotero-edit-item :type type :id id :data template :locale locale)))
+(defun zotero-edit-create-item (itemtype type id collection)
+  "Create an empty item edit buffer of ITEMTYPE.
 
-(cl-defun zotero-edit-create-collection (&key type id)
-  "Create a new collection."
-  (let ((template (zotero-collection-template)))
-    (zotero-edit-collection :type type :id id :data template)))
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
+  (let* ((template (zotero-cache-item-template itemtype))
+         (data (if collection (plist-put template :collections (vector collection)) template)))
+    (zotero-edit-item template type id)))
 
-(cl-defun zotero-edit-create-attachment (&key type id parent linkmode content-type charset filename md5 mtime accessdate locale)
-  "Create a new attachment of LINKTYPE."
+(defun zotero-edit-create-collection (type id)
+  "Create an empty collection edit buffer.
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
+  (zotero-edit-collection (zotero-collection-template) type id))
+
+(cl-defun zotero-edit-create-attachment (linkmode type id &optional parent &key content-type charset filename md5 mtime accessdate)
+  "Create an empty attachment edit buffer of LINKMODE.
+
+LINKMODE is one of:
+  - \"imported_file\"
+  - \"imported_url\"
+  - \"linked_file\"
+  - \"linked_url\"
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID.
+
+Optional argument PARENT is the key of the parent item.
+
+Keyword arguments CONTENT-TYPE, CHARSET FILENAME, FILESIZE, MD5,
+and MTIME are attributes of the file and can be obtained by
+`zotero-file-attributes', except for the charset that cannot be
+determined without external tools."
   (let* ((template (zotero-cache-attachment-template linkmode))
          (new-template (copy-tree template)))
     (when parent (plist-put new-template :parentItem parent))
@@ -472,38 +513,44 @@ All currently available key bindings:
     (when md5 (plist-put new-template :md5 md5))
     (when mtime (plist-put new-template :mtime mtime))
     (when accessdate (plist-put new-template :accessDate accessdate))
-    (zotero-edit-item :type type :id id :data new-template :locale locale)))
+    (zotero-edit-item new-template type id)))
 
-(cl-defun zotero-edit-create-note (&key type id parent itemtype locale)
-  "Create a new note."
+(defun zotero-edit-create-note (type id &optional parent)
+  "Create an empty note edit buffer.
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID.
+
+Optional argument PARENT is the key of the parent item."
   (let* ((template (zotero-cache-item-template "note"))
          (new-template (copy-tree template)))
     (when parent (plist-put new-template :parentItem parent))
-    (zotero-edit-item :type type :id id :data new-template :locale locale)))
+    (zotero-edit-item new-template type id)))
 
 (defun zotero-edit-reset ()
   "Reset current item."
   (interactive)
-  (let ((type zotero-edit-type)
-        (id zotero-edit-id)
-        (data zotero-edit-data)
-        (locale zotero-edit-locale))
-    (message "Item reset.")
-    (zotero-edit-item :type type :id id :data data :locale locale)))
+  (pcase zotero-edit-resource
+    ("items" (zotero-edit-item zotero-edit-data zotero-edit-type zotero-edit-id))
+    ("collections" (zotero-edit-collection zotero-edit-data zotero-edit-type zotero-edit-id))))
 
-;; FIXME
 (defun zotero-edit-save ()
   "Save current item."
+  (message "Saving item...")
   (interactive)
-  (let ((type zotero-edit-type)
+  (let ((resource zotero-edit-resource)
+        (type zotero-edit-type)
         (id zotero-edit-id)
-        (data zotero-edit-data-copy)
-        (locale zotero-edit-locale))
-    (if-let ((key (plist-get data :key)))
-        (zotero-cache-save data))
-    (when-let ((object (zotero-cache-sync-object data :type type :id id)))
-      (message "Item saved.")
-      (zotero-edit-item :type type :id id :data (plist-get object :data) :locale locale))))
+        (data zotero-edit-data-copy))
+    (if-let ((object (zotero-cache-save data resource type id)))
+        (progn
+          (message "Saving item...done")
+          (pcase zotero-edit-resource
+            ("items" (zotero-edit-item (plist-get object :data) type id))
+            ("collections" (zotero-edit-collection (plist-get object :data) type id))))
+      (message "Saving item...failed"))))
 
 (define-minor-mode zotero-edit-text-mode
   "Minor mode for Zotero Edit buffers.
@@ -512,6 +559,11 @@ All currently available key bindings:
 
 \\{zotero-edit-text-mode-map}"
   nil "ZotEdit" nil)
+
+(defun zotero-edit-ensure-edit-buffer ()
+  "Check if the current buffer is a text edit buffer."
+  (unless (local-variable-p 'zotero-edit-widget)
+    (user-error "Current buffer is not a Zotero editing buffer")))
 
 (defun zotero-edit-text (&optional pos buffer-name)
   "Edit the text at point.
@@ -539,17 +591,10 @@ name of the sub-editing buffer."
       (setq zotero-edit-widget widget)
       (message (substitute-command-keys zotero-edit-usage-message)))))
 
-(defun zotero-edit-text-buffer-p (&optional buffer)
-  "Non-nil when current buffer is a source editing buffer.
-  If BUFFER is non-nil, test it instead."
-  (let ((buffer (or buffer (current-buffer))))
-    (and (buffer-live-p buffer)
-         (local-variable-p 'zotero-edit-widget))))
-
 (defun zotero-edit-text-save ()
   "Save source buffer with current state sub-editing buffer."
   (interactive)
-  (unless (zotero-edit-text-buffer-p) (error "Not in a sub-editing buffer"))
+  (zotero-edit-ensure-edit-buffer)
   (let* ((edit-buffer (current-buffer))
          (widget zotero-edit-widget)
          (src-buffer (widget-field-buffer widget))
@@ -564,7 +609,7 @@ name of the sub-editing buffer."
 (defun zotero-edit-text-abort ()
   "Abort editing text and return to the source buffer."
   (interactive)
-  (unless (zotero-edit-text-buffer-p) (error "Not in an editing buffer"))
+  (zotero-edit-ensure-edit-buffer)
   (let* ((edit-buffer (current-buffer))
          (edit-window (get-buffer-window edit-buffer))
          (widget zotero-edit-widget)
@@ -580,7 +625,6 @@ name of the sub-editing buffer."
 (defun zotero-edit-text-exit ()
   "Kill current sub-editing buffer and return to source buffer."
   (interactive)
-  (unless (zotero-edit-text-buffer-p) (error "Not in an editing buffer"))
   (let* ((edit-buffer (current-buffer))
          (edit-window (get-buffer-window edit-buffer))
          (widget zotero-edit-widget)
