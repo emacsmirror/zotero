@@ -702,77 +702,6 @@ The first is the primary creator type."
   "Return t if CREATORTYPE is valid for ITEMTYPE."
   (member creatortype (zotero-cache-itemtypecreatortypes itemtype)))
 
-(defun zotero-cache-save (data resource type id)
-  "Save DATA to cache.
-If DATA contains a prop `:key', it already exists in cache and is
-updated, else it is uploaded and a new entry is created. Return
-the object if successful, or nil.
-
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
-  (let ((table (zotero-cache-synccache resource type id))
-        (key (plist-get data :key)))
-    (if key
-        (let* ((entry (ht-get table key))
-               (version (plist-get entry :version))
-               (object (plist-get entry :object))
-               (updated-object (plist-put object :data data)))
-          (ht-set! table key `(:synced nil :version ,version :object ,updated-object))
-          updated-object)
-      (message "Uploading...")
-      (if-let* ((object (zotero-cache-upload data  :resource resource type id))
-                (key (plist-get object :key))
-                (version (plist-get object :version)))
-          (progn
-            (message "Uploading...done.")
-            (ht-set! table key `(:synced t :version ,version :object ,object))
-            (zotero-cache-serialize)
-            object)
-        (message "Uploading...failed.")
-        nil))))
-
-(cl-defun zotero-cache-upload (object resource type id)
-  "Upload OBJECT.
-Return the object if syncing was successful, or nil.
-
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
-  (let* ((table (zotero-cache-synccache resource type id t))
-         (token (zotero-auth-token))
-         (api-key (zotero-auth-api-key token))
-         (status (pcase resource
-                   ("items" (zotero-create-item object :type type :id id :api-key api-key))
-                   ("collections" (zotero-create-collection))
-                   ("searches" (zotero-create-search object :type type :id id :api-key api-key))))
-         (successful (plist-get status :successful))
-         (success (plist-get status :success))
-         (unchanged (plist-get status :unchanged))
-         (failed (plist-get status :failed)))
-    (cond
-     ((not (eq successful :json-empty))
-      (let* ((object (plist-get successful :0))
-             (key (plist-get object :key))
-             (version (plist-get object :version)))
-        (ht-set! table key `(:synced t :version ,version :object ,object))
-        object))
-     ;; Do not update the version of Zotero objects in the
-     ;; unchanged object.
-     ((not (eq unchanged :json-empty))
-      (let* ((key (plist-get unchanged :0))
-             (object (ht-get table key)))
-        (ht-set! table key (plist-put object :synced t))
-        object))
-     ((not (eq failed :json-empty))
-      (let ((code (zotero-lib-plist-get* failed :0 :code))
-            (message (zotero-lib-plist-get* failed :0 :message)))
-        (error "Error code %d: %s" code message)))
-     ;; This should not happen
-     (t nil))))
-
 (defun zotero-cache-sort-by (field direction table)
   "Sort TABLE and return an ordered list of the keys.
 
@@ -880,7 +809,7 @@ of the personal or group library you want to access, e.g. the
   (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
          (updated-data (zotero-lib-plist-delete data :deleted)))
-    (zotero-cache-save updated-data "trash-items" type id)))
+    (zotero-cache-save updated-data "items" type id)))
 
 (defun zotero-cache-save (data resource type id)
   "Save DATA to cache.
@@ -888,60 +817,66 @@ If DATA contains a prop `:key', it already exists in cache and is
 updated, else it is uploaded and a new entry is created. Return
 the object if successful, or nil.
 
-RESOURCE is one of:
-  - \"collections\": collections in the library
-  - \"items\": all items in the library, excluding trashed items
-  - \"searches\": all saved searches in the library
-
-Argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
-ID."
-  (let ((synccache (ht-get* zotero-cache "synccache" resource)))
+Keyword argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. Keyword argument ID is the ID
+of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\"."
+  (let ((table (ht-get* zotero-cache "synccache" resource)))
     (if-let ((key (plist-get data :key))
-             (entry (ht-get synccache key))
+             (entry (ht-get table key))
              (version (plist-get entry :version))
-             (updated-object (thread-first (plist-get entry :object)
-                               (plist-put :data data))))
+             (object (plist-get entry :object))
+             (updated-object (plist-put object :data data)))
         (progn
-          (ht-set! synccache key `(:synced nil :type ,type :id ,id :version ,version :object ,updated-object))
+          (ht-set! table key `(:synced nil :version ,version :object ,updated-object))
           (zotero-cache-serialize)
           updated-object)
-      (message "Uploading...")
-      (let* ((result (pcase resource
-                       ("items" (zotero-create-item data :type type :id id))
-                       ("collections" (zotero-create-collection data :type type :id id))
-                       ("searches" (zotero-create-search data :type type :id id))))
-             (response (zotero-result-data result))
-             (successful (plist-get response :successful))
-             (success (plist-get response :success))
-             (unchanged (plist-get response :unchanged))
-             (failed (plist-get response :failed)))
-        (cond
-         ((not (eq successful :json-empty))
-          (let* ((object (plist-get successful :0))
-                 (key (plist-get object :key))
-                 (version (plist-get object :version)))
-            (ht-set! synccache key `(:synced t :type ,type :id ,id :version ,version :object ,object))
-            (message "Uploading...done.")
-            (zotero-cache-serialize)
-            object))
-         ;; Do not update the version of Zotero objects in the
-         ;; unchanged object.
-         ((not (eq unchanged :json-empty))
-          (let* ((key (plist-get unchanged :0))
-                 (object (ht-get synccache key)))
-            (ht-set! synccache key (plist-put object :synced t))
-            (message "Uploading...unchanged.")
-            (zotero-cache-serialize)
-            object))
-         ((not (eq failed :json-empty))
-          (let ((code (zotero-lib-plist-get* failed :0 :code))
-                (message (zotero-lib-plist-get* failed :0 :message)))
-            (message "Uploading...failed.")
-            (error "Error code %d: %s" code message)))
-         ;; This should not happen
-         (t nil))))))
+      (if-let ((object (zotero-cache-upload data resource type id))) object nil))))
+
+(defun zotero-cache-upload (object resource type id)
+  "Upload OBJECT.
+Return the object if syncing was successful, or nil.
+
+Keyword argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. Keyword argument ID is the ID
+of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\"."
+  (message "Uploading...")
+  (let* ((table (ht-get* zotero-cache "synccache" resource))
+         (result (pcase resource
+                   ("items" (zotero-create-item object :type type :id id))
+                   ("collections" (zotero-create-collection object :type type :id id))
+                   ("searches" (zotero-create-search object :type type :id id))))
+         (status (zotero-result-data result))
+         (successful (plist-get status :successful))
+         (success (plist-get status :success))
+         (unchanged (plist-get status :unchanged))
+         (failed (plist-get status :failed)))
+    (cond
+     ((not (eq successful :json-empty))
+      (let* ((object (plist-get successful :0))
+             (key (plist-get object :key))
+             (version (plist-get object :version)))
+        (ht-set! table key `(:synced t :type ,type :id ,id :version ,version :object ,object))
+        (zotero-cache-serialize)
+        (message "Uploading...done.")
+        object))
+     ;; Do not update the version of Zotero objects in the
+     ;; unchanged object.
+     ((not (eq unchanged :json-empty))
+      (let* ((key (plist-get unchanged :0))
+             (object (ht-get table key)))
+        (ht-set! table key (plist-put object :synced t))
+        (zotero-cache-serialize)
+        (message "Uploading...unchanged.")
+        object))
+     ((not (eq failed :json-empty))
+      (let ((code (zotero-lib-plist-get* failed :0 :code))
+            (message (zotero-lib-plist-get* failed :0 :message)))
+        (message "Uploading...failed.")
+        (user-error "Error code %d: %s" code message)))
+     ;; This should not happen
+     (t nil))))
 
 (provide 'zotero-cache)
 
