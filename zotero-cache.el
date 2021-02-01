@@ -828,7 +828,7 @@ of the personal or group library you want to access, e.g. the
              (object (plist-get entry :object))
              (updated-object (plist-put object :data data)))
         (progn
-          (ht-set! table key `(:synced nil :version ,version :object ,updated-object))
+          (ht-set! table key `(:synced nil :version ,version :type ,type :id ,id :object ,updated-object))
           (zotero-cache-serialize)
           updated-object)
       (if-let ((object (zotero-cache-upload data resource type id))) object nil))))
@@ -857,7 +857,7 @@ of the personal or group library you want to access, e.g. the
       (let* ((object (plist-get successful :0))
              (key (plist-get object :key))
              (version (plist-get object :version)))
-        (ht-set! table key `(:synced t :type ,type :id ,id :version ,version :object ,object))
+        (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object))
         (zotero-cache-serialize)
         (message "Uploading...done.")
         object))

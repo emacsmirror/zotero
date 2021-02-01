@@ -377,7 +377,7 @@ Keyword CACHE is the hash table containing the cache."
                                  (let ((key (plist-get object :key))
                                        (type (zotero-lib-plist-get* object :library :type))
                                        (id (number-to-string (zotero-lib-plist-get* object :library :id))))
-                                   (ht-set! table key `(:synced t :type ,type :id ,id :version ,version :object ,object)))))
+                                   (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))))
                       ;; Do not update the version of Zotero objects in the
                       ;; unchanged object.
                       (unless (eq unchanged :json-empty)
@@ -471,20 +471,20 @@ VERSION is the \"Last-Modified-Version\"."
         ;; if object doesn't exist locally:
         ;; create local object with version = Last-Modified-Version and set synced = true
         ((pred null)
-         (ht-set! table key `(:type ,type :id ,id :synced t :version ,version :object ,object)))
+         (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
         ;; if object hasn't been modified locally (synced == true):
         ;; overwrite with synced = true and version = Last-Modified-Version
         ((guard (eq (plist-get value :synced) t))
-         (ht-set! table key `(:type ,type :id ,id :synced t :version ,version :object ,object)))
+         (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
         ;; if object hasn't changed:
         ;; set synced = true and version = Last-Modified-Version
         ((guard (equal (plist-get value :object) object))
-         (ht-set! table key `(:type ,type :id ,id :synced t :version ,version :object ,object)))
+         (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
         ;; if changes can be automatically merged:
         ;; apply changes from each side and set synced = true and version = Last-Modified-Version
         ((guard (zotero-lib-mergable-plist-p (plist-get value :object) object))
          (let ((merged (zotero-lib-merge-plist (plist-get value :object) object)))
-           (ht-set! table key `(:type ,type :id ,id :synced t :version ,version :object ,merged))))
+           (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,merged))))
         ;; else:
         ;; prompt user to choose a side or merge conflicts
         ;; TODO: global variable to set default action: 'ask 'keep-local 'keep-remote 'manual
@@ -512,7 +512,7 @@ VERSION is the \"Last-Modified-Version\"."
                   ;; if user chooses remote copy:
                   ;; overwrite with synced = true and version = Last-Modified-Version
                   (?r
-                   (ht-set! table key `(:type ,type :id ,id :synced t :version ,version :object ,object)))
+                   (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
                   (?q
                    (throw 'sync 'quit)))))
              ;; if user chooses local copy:
@@ -523,12 +523,12 @@ VERSION is the \"Last-Modified-Version\"."
              ;; if user chooses remote copy:
              ;; overwrite with synced = true and version = Last-Modified-Version
              (?r
-              (ht-set! table key `(:type ,type :id ,id :synced t :version ,version :object ,object)))
+              (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
              (?L
               (ht-set! table key `(:type ,type :id ,id :synced nil :object ,(plist-get value :object)))
               (setq default ?l))
              (?R
-              (ht-set! table key `(:type ,type :id ,id :synced t :version ,version :object ,object))
+              (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object))
               (setq default ?r))
              (?q
               (throw 'sync 'quit))))))))
@@ -566,7 +566,7 @@ Return the updated table when success or nil when failed."
               (let* ((object (plist-get value :object))
                      (type (zotero-lib-plist-get* object :library :type))
                      (id (number-to-string (zotero-lib-plist-get* object :library :id))))
-                (ht-set! table key `(:synced t :version ,version :object ,object))))
+                (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object))))
              (?D
               (ht-remove! table key)
               (setq default ?d))
@@ -574,7 +574,7 @@ Return the updated table when success or nil when failed."
               (let* ((object (plist-get value :object))
                      (type (zotero-lib-plist-get* object :library :type))
                      (id (number-to-string (zotero-lib-plist-get* object :library :id))))
-                (ht-set! table key `(:synced t :version ,version :object ,object)))
+                (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
               (setq default ?k))
              (?q
               (throw 'sync 'quit))))))))
