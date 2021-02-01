@@ -176,7 +176,7 @@ ID."
                                                                 (data (plist-put zotero-edit-data-copy field new-itemtype))
                                                                 (data (apply #'zotero-lib-plist-delete data props-to-delete))
                                                                 (template (zotero-cache-item-template new-itemtype))
-                                                                (merged (zotero-cache-merge-plist template data)))
+                                                                (merged (zotero-lib-merge-plist template data)))
                                                            (zotero-edit-item merged type id))
                                                        (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field current-itemtype))
                                                        (widget-value-set widget current-itemtype)
