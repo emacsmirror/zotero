@@ -107,6 +107,15 @@ All currently available key bindings:
   ;; Turn on buttonizing of URLs and e-mail addresses
   (goto-address-mode 1))
 
+;;;###autoload
+(define-minor-mode zotero-edit-text-mode
+  "Minor mode for Zotero Edit buffers.
+
+All currently available key bindings:
+
+\\{zotero-edit-text-mode-map}"
+  nil "ZotEdit" nil)
+
 ;;;; Commands
 
 (eval-when-compile
@@ -551,14 +560,6 @@ Optional argument PARENT is the key of the parent item."
             ("items" (zotero-edit-item (plist-get object :data) type id))
             ("collections" (zotero-edit-collection (plist-get object :data) type id))))
       (message "Saving item...failed"))))
-
-(define-minor-mode zotero-edit-text-mode
-  "Minor mode for Zotero Edit buffers.
-
-All currently available key bindings:
-
-\\{zotero-edit-text-mode-map}"
-  nil "ZotEdit" nil)
 
 (defun zotero-edit-ensure-edit-buffer ()
   "Check if the current buffer is a text edit buffer."
