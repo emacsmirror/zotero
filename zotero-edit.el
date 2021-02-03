@@ -131,7 +131,9 @@ ID."
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
     (with-current-buffer buffer
       (zotero-edit-mode)
-      (erase-buffer)
+      (let ((inhibit-read-only t))
+        (erase-buffer))
+      (remove-overlays)
       (save-excursion
         (let* ((schema (zotero-cache-schema))
                (itemtype (plist-get data :itemType))
@@ -208,10 +210,21 @@ ID."
                      ((and :creators field)
                       (let* ((fieldname "Creators")
                              (value (plist-get data key))
+                             (single-textfield (seq-map (lambda (elt)
+                                                          (let ((name (plist-get elt :name)))
+                                                            (if (or (not name) (string-empty-p name)) nil t)))
+                                                        value))
                              (values (seq-map (lambda (elt)
-                                                (list (plist-get elt :creatorType)
-                                                      (plist-get elt :firstName)
-                                                      (plist-get elt :lastName)))
+                                                (let ((type (plist-get elt :creatorType))
+                                                      (first (plist-get elt :firstName))
+                                                      (last (plist-get elt :lastName))
+                                                      (name (plist-get elt :name)))
+                                                  (list
+                                                   type
+                                                   (or first "")
+                                                   (or last "")
+                                                   (or name "")
+                                                   (if name t nil))))
                                               value))
                              (primary (car creatortypes))
                              (choices (seq-map (lambda (elt)
@@ -222,7 +235,12 @@ ID."
                                        :entry-format "%i %d %v\n"
                                        :notify (lambda (widget &rest ignore)
                                                  (let* ((creators-list (seq-map (lambda (elt)
-                                                                                  (list :creatorType (first elt) :firstName (second elt) :lastName (third elt))) (widget-value widget)))
+                                                                                  (if (string-empty-p (fourth elt))
+                                                                                      (list :creatorType (first elt)
+                                                                                            :firstName (second elt)
+                                                                                            :lastName (third elt))
+                                                                                    (list :creatorType (first elt)
+                                                                                          :name (fourth elt)))) (widget-value widget)))
                                                         (creators-vector (seq-into creators-list 'vector)))
                                                    (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field creators-vector))))
                                        :value values
@@ -230,16 +248,23 @@ ID."
                                          :format "%v"
                                          (menu-choice
                                           :size 10
-                                          :format "%[%v%]"
+                                          :format "Type: %[%v%]\n"
                                           :button-prefix "▾"
                                           :void (item :format "%t" :value ,primary :tag ,(zotero-cache-creatortype-locale primary))
                                           :args ,choices)
                                          (editable-field
                                           :size 10
-                                          :format " %v ")
+                                          :format "First name: %v\n")
                                          (editable-field
                                           :size 10
-                                          :format " %v ")))))
+                                          :format "Last name: %v\n")
+                                         (editable-field
+                                          :size 20
+                                          :format "Full name: %v")
+                                         (radio-button-choice
+                                          :notify (lambda (widget &rest ignore)
+                                                    (message "You selected %s"
+                                                             (widget-value widget))))))))
                      ;; Abstract
                      ((and :abstractNote field)
                       (let* ((fieldname (zotero-cache-itemfield-locale key))
