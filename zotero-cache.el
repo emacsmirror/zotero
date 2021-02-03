@@ -630,7 +630,7 @@ not (yet) implemented in the Zotero API."
          (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
     (if (or (null template) (> seconds-since-last-sync zotero-cache-expire))
         (with-demoted-errors "Error downloading template: %S"
-          (zotero-sync--attachment-template cache zotero-linkmode))
+          (zotero-sync--attachment-template zotero-cache linkmode))
       (plist-get template :object))))
 
 (defun zotero-cache-schema ()
