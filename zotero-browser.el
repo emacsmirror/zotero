@@ -232,34 +232,102 @@
   :group 'zotero-browser
   :type 'integer)
 
-(defcustom zotero-browser-collection-keys '(:name)
-  "Keys to show in the collections browser"
-  :group 'zotero-browser
-  :type '(repeat (choice
-                  (const :tag "Key" :key)
-                  (const :tag "Version" :version)
-                  (const :tag "Name" :name))))
-
-(defcustom zotero-browser-item-keys '(itemtype title creators)
+(defcustom zotero-browser-library-keys '(icon " " :name)
   "Keys to show in the items browser"
   :group 'zotero-browser
   :type
   '(repeat (choice
-            (const :tag "Key" key)
-            (const :tag "Version" version)
-            (const :tag "Item Type" itemtype)
-            (const :tag "Title" title)
-            (const :tag "Creators" creators)
-            (const :tag "Date" date)
-            (const :tag "Year" year)
-            (const :tag "Publisher" publisher)
-            (const :tag "Publication Title" publication-title)
-            (const :tag "Date Added" date-added)
-            (const :tag "Date Modified" date-modified)
-            (const :tag "Extra" extra)
-            (const :tag "Note" note)
-            (const :tag "Attachments" attachments)
-            (const :tag "Notes" notes))))
+            (const :tag "Icon" icon)
+            (string :tag "Spacing character(s)")
+            (const :tag "Newline" "\n")
+            (const :tag "Tab" "\t")
+            (const :tag "Space" " ")
+            (const :tag "ID" :id)
+            (const :tag "Version" :version)
+            (const :tag "Read permission" :library)
+            (const :tag "Write permission" :write)
+            (const :tag "Last Synced" :last-sync)
+            (const :tag "Name" :name)
+            (const :tag "Group Type" :group-type)
+            (const :tag "Description" :description)
+            (const :tag "URL" :url)
+            (const :tag "Library Reading" :libraryEditing)
+            (const :tag "Library Editing" :libraryReading)
+            (const :tag "File Editing" :fileEditing))))
+
+(defcustom zotero-browser-collection-keys '(:name)
+  "Keys to show in the collections browser"
+  :group 'zotero-browser
+  :type '(repeat (choice
+                  (const :tag "Icon" icon)
+                  (string :tag "Spacing character(s)")
+                  (const :tag "Newline" "\n")
+                  (const :tag "Tab" "\t")
+                  (const :tag "Space" " ")
+                  (const :tag "Key" :key)
+                  (const :tag "Version" :version)
+                  (const :tag "Name" :name))))
+
+(defcustom zotero-browser-attachment-keys '(icon " " :title)
+  "Keys to show in the items browser"
+  :group 'zotero-browser
+  :type
+  '(repeat (choice
+            (const :tag "Icon" icon)
+            (string :tag "Spacing character(s)")
+            (const :tag "Period" ".")
+            (const :tag "Newline" "\n")
+            (const :tag "Tab" "\t")
+            (const :tag "Space" " ")
+            (const :tag "Key" :key)
+            (const :tag "Version" :version)
+            (const :tag "Item Type" :itemtype)
+            (const :tag "Link Mode" :linkMode)
+            (const :tag "Title" :title)
+            (const :tag "Access Date" :accessDate)
+            (const :tag "Content Type" :contentType)
+            (const :tag "Charset" :charset))))
+
+(defcustom zotero-browser-note-keys '(icon " " :note)
+  "Keys to show in the items browser"
+  :group 'zotero-browser
+  :type
+  '(repeat (choice
+            (const :tag "Icon" icon)
+            (string :tag "Spacing character(s)")
+            (const :tag "Period" ".")
+            (const :tag "Newline" "\n")
+            (const :tag "Tab" "\t")
+            (const :tag "Space" " ")
+            (const :tag "Key" :key)
+            (const :tag "Version" :version)
+            (const :tag "Item Type" :itemtype)
+            (const :tag "Note" :note))))
+
+(defcustom zotero-browser-item-keys '(icon " " :creators "." " " :title "." " " :year)
+  "Keys to show in the items browser"
+  :group 'zotero-browser
+  :type
+  '(repeat (choice
+            (const :tag "Icon" icon)
+            (string :tag "Spacing character(s)")
+            (const :tag "Period" ".")
+            (const :tag "Space" " ")
+            (const :tag "Newline" "\n")
+            (const :tag "Tab" "\t")
+            (const :tag "Key" :key)
+            (const :tag "Version" :version)
+            (const :tag "Item Type" :itemtype)
+            (const :tag "Title" :title)
+            (const :tag "Creators" :creators)
+            (const :tag "Date" :date)
+            (const :tag "Year" :year)
+            (const :tag "Publisher" :publisher)
+            (const :tag "Publication Title" :publicationTitle)
+            (const :tag "Date Added" :dateAdded)
+            (const :tag "Date Modified" :dateModified)
+            (const :tag "Extra" :extra)
+            (const :tag "Note" :note))))
 
 (defcustom zotero-browser-preferred-application 'mailcap
   "Preferred application to open files."
@@ -584,24 +652,44 @@ application is found, Emacs simply visits the file."
 
 (defun zotero-browser--library-pp (key)
   "Pretty print library KEY."
-  (let* ((table (zotero-cache-library))
-         (value (ht-get table key))
-         (id (plist-get value :id))
-         (type (plist-get value :type))
-         (name (pcase type
-                 ("group"
-                  (let* ((group (zotero-cache-group id))
-                         (name (zotero-lib-plist-get* group :object :data :name)))
-                    name))
-                 ("user" "User library")))
-         (icon "treesource-library.png")
-         (dir (file-name-as-directory "img"))
-         (filename (expand-file-name (concat dir icon) zotero-directory)))
-    (when (file-readable-p filename)
-      (let ((image (create-image filename 'png)))
-        (insert-image image)
-        (insert " ")))
-    (insert name)))
+  (let* ((library (zotero-cache-library nil key))
+         (type (plist-get library :type))
+         (id (plist-get library :id))
+         ;; Set icon height (in pixels) to 1 characters
+         (height (window-font-height)))
+    (dolist (key zotero-browser-library-keys)
+      (pcase key
+        ((and (pred stringp) str) (insert str))
+        ('icon
+         (let* ((icon (pcase type
+                        ("user" "treesource-library.png")
+                        ("group" "treesource-groups.png")))
+                (dir (file-name-as-directory "img"))
+                (file (expand-file-name (concat dir icon) zotero-directory)))
+           (when (and file (file-readable-p file))
+             (let ((image (create-image file 'png nil :height (window-font-height))))
+               (insert-image image type)))))
+        (:name
+         (let ((value (pcase type
+                        ("user" "User library")
+                        ("group" (let ((group (zotero-cache-group id)))
+                                   (zotero-lib-plist-get* group :object :data key))))))
+           (insert value)))
+        (:version
+         (when-let ((value (plist-get library key)))
+           (insert (number-to-string value))))
+        ((or :library :write))
+        (:last-sync
+         (when-let ((value (plist-get library key)))
+           (insert (format-time-string "%c" value))))
+        ((or :group-type :description :url :libraryEditing :libraryReading :fileEditing)
+         (when (equal type "group")
+           (let* ((group (zotero-cache-group id))
+                  (value (zotero-lib-plist-get* group :object :data key)))
+             (insert value))))
+        ((pred keywordp)
+         (when-let ((value (plist-get library key)))
+           (insert value)))))))
 
 (defun zotero-browser--collection-pp (key)
   "Pretty print collection KEY."
@@ -610,10 +698,21 @@ application is found, Emacs simply visits the file."
          (level (zotero-browser--level key table))
          (indentation (+ zotero-browser-padding level))
          (prefix (make-string indentation ?\s))
-         (values (seq-map (lambda (key) (zotero-lib-plist-get* entry :object :data key)) zotero-browser-collection-keys))
-         (text (string-join values " ")))
-    (add-text-properties 0 (length text) `(line-prefix ,prefix wrap-prefix ,prefix) text)
-    (insert text)))
+         (beg (point)))
+    (dolist (key zotero-browser-collection-keys)
+      (pcase key
+        ((and (pred stringp) str) (insert str))
+        ('icon
+         (let* ((icon "treesource-collection.png")
+                (dir (file-name-as-directory "img"))
+                (file (expand-file-name (concat dir icon) zotero-directory)))
+           (when (and file (file-readable-p file))
+             (let ((image (create-image file 'png nil :height (window-font-height))))
+               (insert-image image "collection")))))
+        ((pred keywordp)
+         (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
+           (insert value)))))
+    (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))
 
 (defun zotero-browser--item-pp (key)
   "Pretty print item KEY."
@@ -622,110 +721,88 @@ application is found, Emacs simply visits the file."
          (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
          (level (zotero-browser--level key table))
          (indentation (+ zotero-browser-padding level))
-         (prefix (make-string indentation ?\s)))
-    (let ((beg (point)))
-      (pcase itemtype
-        ("attachment"
-         (let* ((linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
-                (file (zotero-browser--attachment-icon linkmode)))
-           (when (file-readable-p file)
-             (let ((image (create-image file 'png)))
-               (insert-image image itemtype)
-               (insert " "))))
-         (when-let ((title (zotero-lib-plist-get* entry :object :data :title)))
-           (insert title)))
-        ("note"
-         (let* ((itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-                (file (zotero-browser--itemtype-icon itemtype)))
-           (when file
-             (let ((image (create-image file 'png)))
-               (insert-image image itemtype)
-               (insert " "))))
-         (when-let ((note (zotero-lib-plist-get* entry :object :data :note))
-                    (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
-                    (match (string-match "^.+$" text)) ; Match first non-empty line
-                    (first-line (match-string-no-properties 0 text)))
-           (insert first-line)))
-        (_
-         (dolist (key zotero-browser-item-keys)
-           (pcase key
-             ('key
-              (when-let ((key (zotero-lib-plist-get* entry :object :data :key)))
-                (insert key)
-                (insert " ")))
-             ('version
-              (when-let ((version (number-to-string (zotero-lib-plist-get* entry :object :data :version))))
-                (insert version)
-                (insert " ")))
-             ('itemtype
-              (let* ((itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-                     (file (zotero-browser--itemtype-icon itemtype)))
-                (when file
-                  (let ((image (create-image file 'png)))
-                    (insert-image image itemtype)
-                    (insert " ")))))
-             ('title
-              (when-let ((title (zotero-lib-plist-get* entry :object :data :title)))
-                (insert title)
-                (insert " ")))
-             ('creators
-              (when-let ((creators (zotero-lib-plist-get* entry :object :data :creators))
-                         (names (cond
-                                 ((seq-some (lambda (elt) (plist-get elt :lastName)) creators)
-                                  (seq-map (lambda (elt) (plist-get elt :lastName)) creators))
-                                 ((seq-some (lambda (elt) (plist-get elt :name)) creators)
-                                  (seq-map (lambda (elt) (plist-get elt :name)) creators)))))
-                (pcase (length names)
-                  (1 (insert (seq-elt names 0)))
-                  (2 (insert (concat (seq-elt names 0)
-                                     " and "
-                                     (seq-elt names 1))))
-                  ((pred (< 2))
-                   (let* ((selection (seq-take names 1)))
-                     (insert (concat (string-join selection ", ")
-                                     " et al.")))))
-                (insert " ")))
-             ('date
-              (when-let ((date (zotero-lib-plist-get* entry :object :data :date)))
-                (insert date)
-                (insert " ")))
-             ('year
-              (when-let ((date (zotero-lib-plist-get* entry :object :data :date))
-                         (match (string-match "[[:digit:]]\\{4\\}" date))
-                         (year (match-string 0 date)))
-                (insert year)
-                (insert " ")))
-             ('publisher
-              (when-let ((publisher (zotero-lib-plist-get* entry :object :data :publisher)))
-                (insert publisher)
-                (insert " ")))
-             ('publication-title
-              (when-let ((publication-title (zotero-lib-plist-get* entry :object :data :publicationTitle)))
-                (insert publication-title)
-                (insert " ")))
-             ('date-added
-              (when-let ((date-added (zotero-lib-plist-get* entry :object :data :dateAdded)))
-                (insert date-added)
-                (insert " ")))
-             ('date-modified
-              (when-let ((date-modified (zotero-lib-plist-get* entry :object :data :dateModified)))
-                (insert date-modified)
-                (insert " ")))
-             ('extra
-              (when-let ((extra (zotero-lib-plist-get* entry :object :data :extra)))
-                (insert extra)
-                (insert " ")))
-             ('attachments
-              (when (zotero-cache-has-attachments-p entry table)
-                (let* ((icon "attach.png")
-                       (dir (file-name-as-directory "img"))
-                       (file (expand-file-name (concat dir icon) zotero-directory)))
-                  (when (file-readable-p file)
-                    (let ((image (create-image file 'png)))
-                      (insert-image image "attachments")
-                      (insert " "))))))
-             ('notes)))))
-      (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix)))))
+         (prefix (make-string indentation ?\s))
+         (beg (point)))
+    (pcase itemtype
+      ("attachment"
+       (dolist (key zotero-browser-attachment-keys)
+         (pcase key
+           ((pred stringp) (unless (save-excursion (backward-char) (looking-at-p (regexp-quote key))) (insert key)))
+           ('icon
+            (let* ((linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
+                   (file (zotero-browser--attachment-icon linkmode)))
+              (when (and file (file-readable-p file))
+                (let ((image (create-image file 'png nil :height (window-font-height))))
+                  (insert-image image itemtype)))))
+           (:version
+            (when-let ((value (plist-get library key)))
+              (insert (number-to-string value))))
+           ((pred keywordp)
+            (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
+              (insert value))))))
+      ("note"
+       (dolist (key zotero-browser-note-keys)
+         (pcase key
+           ((pred stringp) (unless (save-excursion (backward-char) (looking-at-p (regexp-quote key))) (insert key)))
+           ('icon
+            (let* ((itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+                   (file (zotero-browser--itemtype-icon itemtype)))
+              (when file
+                (let ((image (create-image file 'png nil :height (window-font-height))))
+                  (insert-image image itemtype)))))
+           (:note
+            (when-let ((note (zotero-lib-plist-get* entry :object :data :note))
+                       (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
+                       (match (string-match "^.+$" text)) ; Match first non-empty line
+                       (first-line (match-string-no-properties 0 text)))
+              (insert first-line)))
+           (:version
+            (when-let ((value (plist-get library key)))
+              (insert (number-to-string value))))
+           ((pred keywordp)
+            (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
+              (insert value))))))
+      (_
+       (dolist (key zotero-browser-item-keys)
+         (pcase key
+           ((pred stringp) (unless (save-excursion (backward-char) (looking-at-p (regexp-quote key))) (insert key)))
+           ('icon
+            (let* ((itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+                   (file (zotero-browser--itemtype-icon itemtype)))
+              (when file
+                (let ((image (create-image file 'png nil :height (window-font-height))))
+                  (insert-image image itemtype)))))
+           (:creators
+            (when-let ((creators (zotero-lib-plist-get* entry :object :data :creators))
+                       (names (when (seq-some (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators)
+                                (seq-map (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators))))
+              (pcase (length names)
+                (1 (insert (seq-elt names 0)))
+                (2 (insert (concat (seq-elt names 0)
+                                   " and "
+                                   (seq-elt names 1))))
+                ((pred (< 2))
+                 (let* ((selection (seq-take names 1)))
+                   (insert (concat (string-join selection ", ")
+                                   " et al.")))))))
+           (:version
+            (when-let ((value (plist-get library key)))
+              (insert (number-to-string value))))
+           (:year
+            (when-let ((date (zotero-lib-plist-get* entry :object :data :date))
+                       (match (string-match "[[:digit:]]\\{4\\}" date))
+                       (year (match-string 0 date)))
+              (insert year)))
+           (:note
+            (when-let ((note (zotero-lib-plist-get* entry :object :data :note))
+                       (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
+                       (match (string-match "^.+$" text)) ; Match first non-empty line
+                       (first-line (match-string-no-properties 0 text)))
+              (insert first-line)))
+           ((pred keywordp)
+            (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
+              (insert value)))))))
+    (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))
 
 ;;;; Commands
 
