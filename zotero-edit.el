@@ -45,6 +45,7 @@
 (defvar-local zotero-edit-data nil)
 (defvar-local zotero-edit-data-copy nil)
 (defvar-local zotero-edit-widget nil)
+(defvar-local zotero-edit-creators-widget nil)
 
 (defconst zotero-edit-usage-message "Type
 \\[zotero-edit-text-exit] to finish, \\[zotero-edit-text-save] to
@@ -120,6 +121,104 @@ All currently available key bindings:
 
 (eval-when-compile
   (require 'wid-edit))
+
+(defun zotero-edit--apply-field-mode (widget &rest ignore)
+  "Apply the appropriate field mode of WIDGET."
+  ;; This function is called after initializing the widgets, and every time the
+  ;; `creator-edit-creator-widget' is notified. This is necessary to deactivate
+  ;; the appropriate fields in a newly inserted widget. As an undesirable side
+  ;; effect, this function is called every time the field mode is toggled, which
+  ;; would interfere with changing values by `zotero-edit--toggle-notify'. If
+  ;; the conditions below do not apply, the field mode is toggled and the widget
+  ;; should not be initialized.
+  (let ((groups (widget-get widget :children)))
+    (dolist (group groups)
+      (let* ((siblings (widget-get group :children))
+             (field-mode (seq-find (lambda (sibling) (eq (widget-type sibling) 'toggle)) siblings))
+             (single-field-p (widget-value field-mode))
+             (namefields (seq-filter (lambda (sibling) (eq (widget-type sibling) 'editable-field)) siblings))
+             (first-name (first namefields))
+             (last-name (second namefields))
+             (full-name (third namefields)))
+        (cond
+         ;; Initialize the field mode if all namefields are empty
+         ((and (string-empty-p (widget-value first-name))
+               (string-empty-p (widget-value last-name))
+               (string-empty-p (widget-value full-name)))
+          (if single-field-p
+              (progn
+                ;; Activate only the full-name widget
+                (widget-apply first-name :deactivate)
+                (widget-apply last-name :deactivate)
+                (widget-apply full-name :activate))
+            ;; Activate only the full-name widget
+            (widget-apply first-name :activate)
+            (widget-apply last-name :activate)
+            (widget-apply full-name :deactivate)))
+         ;; Single-field mode and first-name and last-name widgets are active
+         ((and single-field-p
+               (string-empty-p (widget-value first-name))
+               (string-empty-p (widget-value last-name)))
+          ;; Activate only the full-name widget
+          (widget-apply first-name :deactivate)
+          (widget-apply last-name :deactivate)
+          (widget-apply full-name :activate))
+         ;; Dual-field mode and full-name widget is active
+         ((and (not single-field-p) (string-empty-p (widget-value full-name)))
+          ;; Activate only the full-name widget
+          (widget-apply first-name :activate)
+          (widget-apply last-name :activate)
+          (widget-apply full-name :deactivate)))))))
+
+(defun zotero-edit--toggle-notify (widget &rest ignore)
+  "Toggle the field mode of WIDGET between single and dual.
+If switched to single-field mode, the first and last name are
+joined. If switched to dual-mode, the first name is set to all
+but the last word of the full name, and the last name is set to
+the last word."
+  (let* ((single-field-p (widget-value widget))
+         (parent (widget-get widget :parent))
+         (siblings (widget-get parent :children))
+         (namefields (seq-filter (lambda (sibling) (eq (widget-type sibling) 'editable-field)) siblings))
+         (first-name (first namefields))
+         (last-name (second namefields))
+         (full-name (third namefields)))
+    ;; If switched to single-field mode
+    (if single-field-p
+        ;; Join the first and last name
+        (let* ((first (widget-value first-name))
+               (last (widget-value last-name))
+               (value (cond
+                       ((string-empty-p first) last)
+                       ((string-empty-p last) first)
+                       (t (s-join " " (list first last))))))
+          ;; Make the full-name widget active
+          (widget-apply full-name :activate)
+          ;; And set the value to the full name
+          (widget-value-set full-name value)
+          ;; Erase the first and last name
+          (widget-value-set first-name "")
+          (widget-value-set last-name "")
+          ;; Make the widgets inactive
+          (widget-apply first-name :deactivate)
+          (widget-apply last-name :deactivate))
+      ;; Else if switched to dual-field mode
+      ;; Split the full name to a first and last name
+      (let* ((words (s-split-words (widget-value full-name)))
+             (first (or (s-join " " (butlast words)) ""))
+             (last (or (car (last words)) "")))
+        ;; Make the first-name and last-name widgets active
+        (widget-apply first-name :activate)
+        (widget-apply last-name :activate)
+        ;; Set the value of the first name to all but last word
+        (widget-value-set first-name first)
+        ;; And set the value of the last name to the last word
+        (widget-value-set last-name last)
+        ;; Erase the full name
+        (widget-value-set full-name "")
+        ;; Make the widget inactive
+        (widget-apply full-name :deactivate)))
+    (widget-setup)))
 
 (defun zotero-edit-item (data type id)
   "Create an item edit buffer with DATA.
@@ -210,10 +309,6 @@ ID."
                      ((and :creators field)
                       (let* ((fieldname "Creators")
                              (value (plist-get data key))
-                             (single-textfield (seq-map (lambda (elt)
-                                                          (let ((name (plist-get elt :name)))
-                                                            (if (or (not name) (string-empty-p name)) nil t)))
-                                                        value))
                              (values (seq-map (lambda (elt)
                                                 (let ((type (plist-get elt :creatorType))
                                                       (first (plist-get elt :firstName))
@@ -224,6 +319,7 @@ ID."
                                                    (or first "")
                                                    (or last "")
                                                    (or name "")
+                                                   ;; nil means dual textfield, t single textfield
                                                    (if name t nil))))
                                               value))
                              (primary (car creatortypes))
@@ -231,40 +327,45 @@ ID."
                                                  `(item :format "%t" :value ,elt :tag ,(zotero-cache-creatortype-locale elt)))
                                                creatortypes)))
                         (widget-insert (concat fieldname "\n"))
-                        (widget-create 'editable-list
-                                       :entry-format "%i %d %v\n"
-                                       :notify (lambda (widget &rest ignore)
-                                                 (let* ((creators-list (seq-map (lambda (elt)
-                                                                                  (if (string-empty-p (fourth elt))
-                                                                                      (list :creatorType (first elt)
-                                                                                            :firstName (second elt)
-                                                                                            :lastName (third elt))
-                                                                                    (list :creatorType (first elt)
-                                                                                          :name (fourth elt)))) (widget-value widget)))
-                                                        (creators-vector (seq-into creators-list 'vector)))
-                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field creators-vector))))
-                                       :value values
-                                       `(group
-                                         :format "%v"
-                                         (menu-choice
-                                          :size 10
-                                          :format "Type: %[%v%]\n"
-                                          :button-prefix "▾"
-                                          :void (item :format "%t" :value ,primary :tag ,(zotero-cache-creatortype-locale primary))
-                                          :args ,choices)
-                                         (editable-field
-                                          :size 10
-                                          :format "First name: %v\n")
-                                         (editable-field
-                                          :size 10
-                                          :format "Last name: %v\n")
-                                         (editable-field
-                                          :size 20
-                                          :format "Full name: %v")
-                                         (radio-button-choice
-                                          :notify (lambda (widget &rest ignore)
-                                                    (message "You selected %s"
-                                                             (widget-value widget))))))))
+                        (setq zotero-edit-creators-widget
+                              (widget-create 'editable-list
+                                             :entry-format "%i %d %v\n"
+                                             :notify (lambda (widget &rest ignore)
+                                                       (zotero-edit--apply-field-mode widget)
+                                                       (let* ((creators-list (seq-map (lambda (elt)
+                                                                                        (if (string-empty-p (fourth elt))
+                                                                                            (list :creatorType (first elt)
+                                                                                                  :firstName (second elt)
+                                                                                                  :lastName (third elt))
+                                                                                          (list :creatorType (first elt)
+                                                                                                :name (fourth elt)))) (widget-value widget)))
+                                                              (creators-vector (seq-into creators-list 'vector)))
+                                                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field creators-vector))))
+
+                                             :value values
+                                             `(group
+                                               :format "%v"
+                                               (menu-choice
+                                                :size 10
+                                                :format "Type: %[%v%]\n"
+                                                :button-prefix "▾"
+                                                :void (item :format "%t" :value ,primary :tag ,(zotero-cache-creatortype-locale primary))
+                                                :args ,choices)
+                                               (editable-field
+                                                :size 10
+                                                :format "First name: %v\n")
+                                               (editable-field
+                                                :size 10
+                                                :format "Last name: %v\n")
+                                               (editable-field
+                                                :size 20
+                                                :format "Full name: %v\n")
+                                               (toggle
+                                                :format "Switch to %[%v%]\n"
+                                                :on "Dual field"
+                                                :off "Single field"
+                                                :notify zotero-edit--toggle-notify))))
+                        (zotero-edit--apply-field-mode zotero-edit-creators-widget)))
                      ;; Abstract
                      ((and :abstractNote field)
                       (let* ((fieldname (zotero-cache-itemfield-locale key))
