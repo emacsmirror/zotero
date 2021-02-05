@@ -145,7 +145,8 @@ All currently available key bindings:
              (first-name (or (s-join " " (butlast words)) ""))
              (last-name (or (car (last words)) "")))
         (widget-value-set list (list first-name last-name))))
-    (widget-setup)))
+    (widget-setup)
+    (widget-apply parent :notify parent)))
 
 (defun zotero-edit-item (data type id)
   "Create an item edit buffer with DATA.
