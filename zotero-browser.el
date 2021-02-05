@@ -1436,7 +1436,47 @@ client."
     (zotero-download-file key filename dir t :type type :id id)))
 
 ;; TODO: finish this function
-(defun zotero-browser-recognize-attachment ()
+(defun zotero-browser-import-attachment ()
+  "Create a new attachment with the current entry as parent.
+With a `C-u' prefix, create a new top level attachment."
+  (interactive)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (ewoc zotero-browser-ewoc)
+         (template (copy-tree (zotero-cache-attachment-template "imported_file")))
+         (file (expand-file-name (read-file-name "Select file: " nil nil t)))
+         (attributes (zotero-file-attributes filefile))
+         (filename (file-name-nondirectory file))
+         (filesize (plist-get attributes :filesize))
+         (content-type (plist-get attributes :content-type))
+         (md5 (plist-get attributes :md5))
+         (mtime (plist-get attributes :mtime))
+         (accessdate (plist-get attributes :accessdate))
+         ;; REVIEW: charset cannot be determined without external tools
+         (data (thread-first template
+                 (plist-put :parentItem parent)
+                 (plist-put :title filename)
+                 (plist-put :accessDate accessdate)
+                 (plist-put :contentType content-type)
+                 (plist-put :filename filename)
+                 ;; md5 and mtime can be edited directly in
+                 ;; personal libraries for WebDAV-based file
+                 ;; syncing. They should not be edited directly
+                 ;; when using Zotero File Storage, which provides
+                 ;; an atomic method for setting the properties
+                 ;; along with the corresponding file.
+                 (plist-put :md5 nil)
+                 (plist-put :mtime nil))))
+    (when-let ((object (zotero-cache-save data "items" type id))
+               (key (plist-get object :key)))
+      (unless (zotero-upload-attachment key file nil :type type :id id)
+        (error "Failed to associate attachment with item %s" key))
+      (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))
+
+;; TODO: finish this function
+(defun zotero-browser--recognize-attachment ()
   "Recognize content of the current entry."
   (interactive)
   (zotero-browser-ensure-items-mode)
