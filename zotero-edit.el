@@ -26,6 +26,7 @@
 (require 'zotero-lib)
 (require 'zotero-cache)
 (require 'zotero-sync)
+(require 's)
 (require 'seq)
 (require 'widget)
 
