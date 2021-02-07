@@ -847,7 +847,7 @@ of the personal or group library you want to access, e.g. the
                    ("items" (zotero-create-item object :type type :id id))
                    ("collections" (zotero-create-collection object :type type :id id))
                    ("searches" (zotero-create-search object :type type :id id))))
-         (status (zotero-result-data result))
+         (status (zotero-response-data result))
          (successful (plist-get status :successful))
          (success (plist-get status :success))
          (unchanged (plist-get status :unchanged))

@@ -198,22 +198,6 @@ The number should be an integer between 1 and 100."
 
 (cl-defstruct (zotero-response (:constructor zotero-response-create)
                                (:copier nil))
-  "Message response of Zotero requests."
-  (status-code nil
-               :read-only nil
-               :documentation "Status code of the response.")
-  (headers nil
-           :read-only nil
-           :documentation "An alist of extra headers. The CAR of
-           each cons cell is the field name and the CDR is the
-           field value. HEADERS has the form:
-((\"Content-Type\" . \"application/x-www-form-urlencoded\"))")
-  (data nil
-        :read-only nil
-        :documentation "Data returned in the response."))
-
-(cl-defstruct (zotero-result (:constructor zotero-result-create)
-                             (:copier nil))
   "Relevant result of Zotero requests."
   (status-code nil
                :read-only nil
@@ -497,24 +481,24 @@ and passed as optional argument RESULT."
              (progn
                (setf (zotero-request-params request) params)
                (zotero--dispatch request result))
-           (zotero-result-create :status-code status-code
-                                 :headers (zotero-response-headers response)
-                                 :version (zotero--last-modified-version response)
-                                 :etag (zotero--etag response)
-                                 :data new-result))))
+           (zotero-response-create :status-code status-code
+                                   :headers (zotero-response-headers response)
+                                   :version (zotero--last-modified-version response)
+                                   :etag (zotero--etag response)
+                                   :data new-result))))
       ;; No Content
       (204
-       (zotero-result-create :status-code status-code
-                             :version (zotero--last-modified-version response)
-                             :data (zotero-response-data response)))
+       (zotero-response-create :status-code status-code
+                               :version (zotero--last-modified-version response)
+                               :data (zotero-response-data response)))
       ;; REVIEW: The function `url-http-parse-headers' already has support for
       ;; caching, and a 304 status code is never returned but implicitly redirected
       ;; to a cached version. So this case probably could be removed.
       ;; Not Modified
       (304
-       (zotero-result-create :status-code status-code
-                             :version (zotero--last-modified-version response)
-                             :data (zotero-response-data response)))
+       (zotero-response-create :status-code status-code
+                               :version (zotero--last-modified-version response)
+                               :data (zotero-response-data response)))
       ;; Bad request
       (400
        (user-error (zotero-request-data response)))
@@ -1037,11 +1021,11 @@ API-KEY is the Zotero API key.
 See also URL
 `https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_download_the_existing_file'."
   (let* ((result (zotero-file key :type type :id id :api-key api-key))
-         (contents (zotero-result-data result))
+         (contents (zotero-response-data result))
          (coding-system-for-write 'binary)
          (filename (or file
                        (let* ((result (zotero-items key :type type :id id :api-key api-key))
-                              (item (zotero-result-data result)))
+                              (item (zotero-response-data result)))
                          (zotero-lib-plist-get* item :data :filename))))
          (full-filename (expand-file-name filename dir)))
     (write-region contents nil full-filename nil nil nil confirm)
@@ -1049,7 +1033,7 @@ See also URL
     ;; the attachment item's md5 value. If it doesn't, offer to
     ;; download the attachment item again.
     (let* ((attributes (zotero-file-attributes full-filename))
-           (etag (zotero-result-etag result)))
+           (etag (zotero-response-etag result)))
       (if (equal etag (plist-get attributes :md5))
           full-filename
         (if (y-or-n-p (format "MD5 value doesn't match the response header. Retry? "))
@@ -1756,8 +1740,8 @@ Return t if success, or nil if failed."
          (md5 (plist-get attributes :md5))
          (mtime (plist-get attributes :mtime))
          (result (zotero-authorize-upload key filename filesize md5 mtime hash :type type :id id :api-key api-key))
-         (status-code (zotero-result-status-code result))
-         (data (zotero-result-data result)))
+         (status-code (zotero-response-status-code result))
+         (data (zotero-response-data result)))
     ;; A status-code 200 means the upload was authorized or the file already
     ;; exists.
     (if (eq status-code 200)
@@ -1774,14 +1758,14 @@ Return t if success, or nil if failed."
                  (suffix (plist-get data :suffix))
                  (uploadkey (plist-get data :uploadKey))
                  (result (zotero-upload-file file url content-type prefix suffix))
-                 (status-code (zotero-result-status-code result)))
+                 (status-code (zotero-response-status-code result)))
             ;; A status-code 201 means the file was successfully uploaded.
             (if (eq status-code 201)
                 (progn
                   (message "Upload file...done")
                   (message "Register upload...")
                   (let* ((result (zotero-register-upload key uploadkey hash :type type :id id :api-key api-key))
-                         (status-code (zotero-result-status-code result)))
+                         (status-code (zotero-response-status-code result)))
                     ;; A status-code 204 means the file was successfully registered.
                     (if (eq status-code 204)
                         (progn

@@ -101,8 +101,8 @@ of the personal or group library you want to access, e.g. the
                (param-value (s-join "," (seq-map #'zotero-lib-keyword->string partition)))
                (result (zotero-request "GET" resource nil :type type :id id :api-key api-key :params `(("includeTrashed" 1)
                                                                                                        (,param-key ,param-value))))
-               (remote-version (zotero-result-version result))
-               (remote-data (zotero-result-data result)))
+               (remote-version (zotero-response-version result))
+               (remote-data (zotero-response-data result)))
           (message "Retrieving %d-%d of %d updated %s...done" (1+ number) (+ number (length partition)) (length keys) resource)
           (setq number (+ number (length partition)))
           (setq version remote-version)
@@ -118,7 +118,7 @@ sufficient access and offer to remove a local library or reset
 local changes. Argument CACHE is the current cache, e.g. (a copy
 of) `zotero-cache'."
   (let* ((result (zotero-key api-key))
-         (data (zotero-result-data result))
+         (data (zotero-response-data result))
          (user-access (zotero-lib-plist-get* data :access :user))
          (user-access (thread-first user-access
                         (plist-put :type "user")
@@ -222,7 +222,7 @@ Zotero API key."
   ;; First, retrieve a plist of the user's groups with the group as keyword and
   ;; the version as value.
   (let* ((result (zotero-request "GET" "groups" nil :type "user" :id id :api-key api-key :params '(("format" "versions"))))
-         (remote-groups (zotero-result-data result))
+         (remote-groups (zotero-response-data result))
          (libraries (ht-get cache "libraries"))
          (groups (ht-get cache "groups")))
     (cl-loop for id being the hash-keys of groups
@@ -256,7 +256,7 @@ Zotero API key."
                    (message "Metadata of group %s already up to date." id)
                  ;; FIXME: metadata cannot be retrieved from read-only groups
                  (let* ((result (zotero-group id :api-key api-key))
-                        (data (zotero-result-data result)))
+                        (data (zotero-response-data result)))
                    (ht-set! groups id `(:version ,remote-version :object ,data))))))
     cache))
 
@@ -275,9 +275,9 @@ Zotero API key."
              (let* ((result (zotero-request "GET" resource nil :type type :id id :api-key api-key :params `(("since" ,(or storage-version 0))
                                                                                                             ("format" "versions")
                                                                                                             ("includeTrashed" 1))))
-                    (remote-version (zotero-result-version result))
+                    (remote-version (zotero-response-version result))
                     ;; Returns a plist of the form (:key version :key version ...)
-                    (data (zotero-result-data result))
+                    (data (zotero-response-data result))
                     ;; Collect only the keys
                     (keys (cl-loop for key in data by #'cddr collect key)))
                (when remote-version
@@ -308,11 +308,11 @@ Zotero API key."
          (storage-version (plist-get library :storage-version))
          (version (plist-get library :version))
          (result (zotero-request "GET" "deleted" nil :type type :id id :api-key api-key :params `(("since" ,(or storage-version 0)))))
-         (remote-version (zotero-result-version result))
+         (remote-version (zotero-response-version result))
          ;; Returns a plist of the form (:collections ["12345678" "ABCDEFGH"
          ;; ...] :items ["87654321" "HGFEDCBA" ...] :searches [] :tags ["tag 1"
          ;; "tag 2" ...] :settings [])
-         (deletions (zotero-result-data result)))
+         (deletions (zotero-response-data result)))
     (when (and remote-version
                (not (eq remote-version version)))
       (throw 'sync 'concurrent-update))
@@ -351,9 +351,9 @@ Keyword CACHE is the hash table containing the cache."
                                      ("searches" "searchKey")))
                         (json (apply #'zotero-json-encode-object partition))
                         (result (zotero-request "POST" resource nil :type type :id id :api-key api-key :headers `(("Content-Type" . "application/json")) :data json))
-                        (status-code (zotero-result-status-code result))
-                        (remote-version (zotero-result-version result))
-                        (data (zotero-result-data result))
+                        (status-code (zotero-response-status-code result))
+                        (remote-version (zotero-response-version result))
+                        (data (zotero-response-data result))
                         (successful (plist-get data :successful))
                         (success (plist-get data :success))
                         (unchanged (plist-get data :unchanged))
@@ -428,8 +428,8 @@ Keyword CACHE is the hash table containing the cache."
                                      ("searches" "searchKey")))
                         (json (apply #'zotero-json-encode-object partition))
                         (result (zotero-request "DELETE" resource nil :type type :id id :api-key api-key :headers `(("Content-Type" . "application/json")) :data json))
-                        (status-code (zotero-result-status-code result))
-                        (remote-version (zotero-result-version result)))
+                        (status-code (zotero-response-status-code result))
+                        (remote-version (zotero-response-version result)))
                    (pcase status-code
                      (204
                       ;; On a 204 response, store the returned
@@ -603,8 +603,8 @@ repository of the schema."
          (result (condition-case nil
                      (zotero-request "GET" "schema" nil :headers `(("If-None-Match" . ,etag)))
                    (file-missing (zotero-request "GET" "schema"))))
-         (data (zotero-result-data result))
-         (etag (zotero-result-etag result)))
+         (data (zotero-response-data result))
+         (etag (zotero-response-etag result)))
     (ht-set! cache "schema" data)
     (plist-put (ht-get cache "schema") :etag etag)
     (plist-put (ht-get cache "schema") :last-sync (current-time))
@@ -616,7 +616,7 @@ repository of the schema."
 Keyword CACHE is the hash table containing the cache."
   (let* ((table (ht-get* cache "templates" "items"))
          (result (zotero-item-template itemtype))
-         (object (zotero-result-data result)))
+         (object (zotero-response-data result)))
     (ht-set! table itemtype `(:last-sync ,(current-time) :object ,object))
     object))
 
@@ -626,7 +626,7 @@ Keyword CACHE is the hash table containing the cache."
 Keyword CACHE is the hash table containing the cache."
   (let* ((table (ht-get* cache "templates" "attachments"))
          (result (zotero-attachment-template linkmode))
-         (object (zotero-result-data result)))
+         (object (zotero-response-data result)))
     (ht-set! table linkmode `(:last-sync ,(current-time) :object ,object))
     object))
 
