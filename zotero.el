@@ -446,7 +446,7 @@ Return a `zotero-response' structure."
       (set-buffer-multibyte t) ; Necessary to handle non-ASCII characters
       (funcall #'zotero-handle-response))))
 
-(defun zotero--dispatch (request &optional result)
+(defun zotero-dispatch (request &optional result)
   "Return the response of REQUEST to the Zotero API.
 
 This is a recursive function that dispatches REQUEST to
@@ -473,14 +473,14 @@ and passed as optional argument RESULT."
       ;; OK
       (200
        ;; If the response is paginated, it will contain a "Links" header with
-       ;; link relations. Then, `zotero--dispatch' is called again with a
+       ;; link relations. Then, `zotero-dispatch' is called again with a
        ;; request to the next url and the concatenated data.
        (let ((new-result (zotero--data response result)))
          (if-let ((next-url (zotero--next-url response))
                   (params (zotero--parse-query-string (url-path-and-query (url-generic-parse-url next-url)))))
              (progn
                (setf (zotero-request-params request) params)
-               (zotero--dispatch request result))
+               (zotero-dispatch request result))
            (zotero-response-create :status-code status-code
                                    :headers (zotero-response-headers response)
                                    :version (zotero--last-modified-version response)
@@ -512,7 +512,7 @@ and passed as optional argument RESULT."
                          (api-key (zotero-auth-api-key token))
                          (headers (zotero-request-headers request)))
                 (setf (alist-get "Zotero-API-Key" headers nil nil #'equal) api-key)
-                (zotero--dispatch request))
+                (zotero-dispatch request))
             (user-error "Invalid API key")))
          ("Forbidden"
           ;; Offer to review the privileges
@@ -522,7 +522,7 @@ and passed as optional argument RESULT."
                      (url (concat "https://www.zotero.org/settings/keys/edit/" api-key)))
                 (browse-url url)
                 (read-string "Press enter when you have changed the privileges:")
-                (zotero--dispatch request))
+                (zotero-dispatch request))
             (user-error "Insufficient privileges")))
          (message
           (user-error "403 %s" message))))
@@ -556,7 +556,7 @@ and passed as optional argument RESULT."
          (message "429 Too Many Requests: trying again after %d
          seconds as specified in the \"Retry-After\" header." seconds)
          (sleep-for seconds)
-         (zotero--dispatch request)))
+         (zotero-dispatch request)))
       (500
        (user-error "500 Internal Server Error"))
       (503
@@ -567,7 +567,7 @@ and passed as optional argument RESULT."
              (message "503 Service Unavailable: trying again after %d
          seconds as specified in the \"Retry-After\" header." seconds)
              (sleep-for seconds)
-             (zotero--dispatch request))
+             (zotero-dispatch request))
          (user-error "503 Service Unavailable"))))))
 
 (cl-defun zotero--url (resource &optional key &key type id host)
@@ -820,11 +820,11 @@ sessions."
                          `(("User-Agent" . ,zotero-user-agent)
                            ("Zotero-API-Version" . ,api-version))
                          (unless no-auth `(("Zotero-API-Key" . ,api-key))))))
-    (zotero--dispatch (zotero-request-create :method method
-                                             :url url
-                                             :headers headers
-                                             :params params
-                                             :data data))))
+    (zotero-dispatch (zotero-request-create :method method
+                                            :url url
+                                            :headers headers
+                                            :params params
+                                            :data data))))
 
 ;;;;; Read API functions
 
