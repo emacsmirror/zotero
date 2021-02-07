@@ -189,7 +189,6 @@ looking up item metadata: Library of Congress and WorldCat for
 ISBNs, CrossRef for DOIs, and NCBI PubMed for PubMed IDs."
   (let* ((json (zotero-recognize--pdftojson file))
          (response (zotero-recognize--submit json))
-         (status-code (zotero-response-status-code response))
          (data (zotero-response-data response)))
     data))
 
