@@ -123,8 +123,10 @@ content or results of searches are not logged."
          (url-request-method "POST")
          (url-request-data json)
          (url-request-extra-headers `(("Content-Type" . "application/json"))))
-    (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
-      (funcall #'zotero-handle-response))))
+    (zotero--dispatch (zotero-request-create :method url-request-method
+                                             :url url
+                                             :headers url-request-extra-headers
+                                             :data url-request-data))))
 
 (defun zotero-recognize-install-pdftools ()
   "Install the PDF tools modified by Zotero.
