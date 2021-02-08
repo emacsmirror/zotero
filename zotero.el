@@ -361,7 +361,8 @@ This will return an alist
 (defun zotero--content-type (response)
   "Return the value of the \"Content-Type\" headers in RESPONSE."
   (when-let ((headers (zotero-response-headers response))
-             (value (cdr (assoc "Content-Type" headers))))
+             (value (or (cdr (assoc "Content-Type" headers))
+                        (cdr (assoc "content-type" headers)))))
     value))
 
 (defun zotero--etag (response)
