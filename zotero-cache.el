@@ -136,9 +136,8 @@ If optional argument NO-CONFIRM is non-nil, don't ask for confirmation."
 
 (defun zotero-cache--year (string)
   "Return year in STRING, or nil."
-  (let* ((regexp "[[:digit:]]\\{4\\}")
-         (match (string-match regexp string)))
-    (when match (match-string 0 string))))
+  (when-let ((match (s-match "[[:digit:]]\\{4\\}" string)))
+    (car match)))
 
 (defun zotero-cache--some (pred table)
   "Return non-nil if PRED is satisfied for at least one element of TABLE.
