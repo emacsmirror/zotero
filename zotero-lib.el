@@ -28,6 +28,51 @@
 (require 'seq)
 
 ;;;; Variables
+(defconst zotero-lib-arxiv-regexp (rx
+                                   string-start
+                                   (zero-or-one "arXiv") ; Optional arXiv identifier
+                                   (zero-or-one ?:)
+                                   (zero-or-one space)
+                                   (group
+                                    (or
+                                     ;; Identifier scheme since 1 April 2007
+                                     (and
+                                      (repeat 4 digit) ; two-digit year and month number
+                                      ?.
+                                      (repeat 4 5 digit) ; zero-padded sequence number of 4- or 5-digits
+                                      (zero-or-one (and ?v (one-or-more digit)))) ; a literal v followed by a version number of 1 or more digits
+                                     (and
+                                      (one-or-more (any lower ?-)) ; archive
+                                      (zero-or-one (and ?. (repeat 2 upper))) ; optional two-letter subject class
+                                      ?/
+                                      (repeat 7 digit) ; two-digit year and month number, and three-digit sequence number
+                                      (zero-or-one (and ?v (one-or-more digit)))))) ; a literal v followed by a version number of 1 or more digits
+                                   string-end)
+  "A regular expression probably matching the arXiv identifier
+  format. A leading \"arXiv\" identifier is allowed. See URL
+  `https://arxiv.org/help/arxiv_identifier'")
+
+(defconst zotero-lib-doi-regexp
+  (rx string-start
+      (zero-or-one (or "https://doi.org/" ; Optional actionable link
+                       "https://dx.doi.org/" ; Earlier syntax, still supported but no longer preferred
+                       (and "doi" ; Optional DOI identifier
+                            (zero-or-one ?:)
+                            (zero-or-one space))))
+      (group
+       (or
+        (and
+         "10."
+         (repeat 4 9 digit)
+         ?/
+         (one-or-more (any print)))
+        (and
+         "10.002/"
+         (one-or-more (not space)))))
+      string-end)
+  "A regular expression probably matching a modern Crossref DOI.
+See URL `https://www.doi.org/doi_handbook/2_Numbering.html' and URL
+`https://www.crossref.org/blog/dois-and-matching-regular-expressions/'.")
 
 (defconst zotero-lib-isbn10-regexp (rx
                                     string-start
@@ -209,6 +254,26 @@ digit is checked using a checksum algorithm."
                        (10 "0")
                        (_ (number-to-string result)))))
          (when (equal check last) isbn))))))
+
+(defun zotero-lib-validate-arxiv (string)
+  "Check if STRING is a valid arXiv identifier.
+Return the arXiv identifier if it is valid, else return nil.
+
+The scheme used by arXiv was changed in April 2007. Argument STRING can be in either the old scheme (from 1999 to March 2007) or the new scheme (since 1 April 2007). A leading \"arXiv\" identifier is allowed.
+
+The format is validated by a regexp."
+  (when-let ((match (cadr (s-match zotero-lib-arxiv-regexp (s-trim string)))))
+    match))
+
+(defun zotero-lib-validate-doi (string)
+  "Check if STRING is a valid Crossref DOI.
+Return the DOI if it is valid, else return nil.
+
+A leading \"doi\" identifier or a link (for example, https://doi.org/10.1000/182) is allowed.
+
+The format is validated by a regexp."
+  (when-let ((match (cadr (s-match zotero-lib-doi-regexp (s-trim string)))))
+    match))
 
 (provide 'zotero-lib)
 
