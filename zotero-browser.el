@@ -167,9 +167,10 @@
     "--"
     ["Edit" zotero-browser-edit :help "Edit current entry"]
     ["Create" zotero-browser-create :help "Create a new item"]
-    ["Create note" zotero-browser-create-note :help "Create a new note."]
+    ["Create note" zotero-browser-create-note :help "Create a new note"]
     ["Create attachment" zotero-browser-create-attachment :help "Create a new attachment"]
     ["Update attachment" zotero-browser-update-attachment :help "Update current attachment"]
+    ["Add by identifier" zotero-browser-add-by-identifier :help "Add a new item by ISBN, DOI, PMID, or arXiv ID"]
     "--"
     ["Delete" zotero-browser-delete :help "Delete current entry or entries in active region"]
     ["Restore" zotero-browser-restore :help "Restore current entry or entries in active region"]
@@ -1265,6 +1266,25 @@ With a `C-u' prefix, create a new top level note."
                   ((null node) nil)
                   (t (ewoc-data node)))))
     (pop-to-buffer (zotero-edit-create-note type id parent) zotero-browser-edit-buffer-action)))
+
+(defun zotero-browser-add-by-identifier (string)
+  (interactive "sEnter a ISBN, DOI, PMID, or arXiv ID: ")
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (string (s-trim string))
+         (data (cond
+                ((setq identifier (zotero-lib-validate-isbn string))
+                 (zotero-openlibrary identifier))
+                ((setq identifier (zotero-lib-validate-doi string))
+                 (zotero-crossref identifier))
+                ((setq identifier (zotero-lib-validate-pmid string) )
+                 (zotero-pmid identifier))
+                ((setq identifier (zotero-lib-validate-arxiv string) )
+                 (zotero-arxiv identifier))
+                (t (user-error "Identifier \"%s\" is not a valid arXiv id, DOI, or ISBN." string)))))
+    (if data
+        (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)
+      (user-error "No metadata found for identifier \"%s\"." identifier))))
 
 (defun zotero-browser-create-attachment (&optional arg)
   "Create a new attachment with the current entry as parent.
