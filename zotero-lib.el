@@ -117,6 +117,16 @@ See URL `https://www.doi.org/doi_handbook/2_Numbering.html' and URL
   format. A leading \"ISBN\" identifier is allowed, and ISBN
   parts can optionally be separated by hyphens or spaces.")
 
+(defconst zotero-lib-pmid-regexp
+  (rx string-start
+      (zero-or-one (and "PMID" ; Optional PMID identifier
+                        (zero-or-one ?:)
+                        (zero-or-one space)))
+      (group
+       (repeat 7 8 digit))
+      string-end)
+  "A regular expression probably matching a PubMed ID.")
+
 ;;;; Helper functions
 
 (defun zotero-lib-keyword->string (keyword)
@@ -273,6 +283,16 @@ A leading \"doi\" identifier or a link (for example, https://doi.org/10.1000/182
 
 The format is validated by a regexp."
   (when-let ((match (cadr (s-match zotero-lib-doi-regexp string))))
+    match))
+
+(defun zotero-lib-validate-pmid (string)
+  "Check if STRING is a valid PubMed ID (PMID).
+Return the PMID if it is valid, else return nil.
+
+A leading \"PMID\" identifier is allowed.
+
+The format is validated by a regexp."
+  (when-let ((match (cadr (s-match zotero-lib-pmid-regexp string))))
     match))
 
 (provide 'zotero-lib)
