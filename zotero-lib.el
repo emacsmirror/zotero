@@ -158,8 +158,8 @@ digit is checked using a checksum algorithm."
   ;; you’re working with an ISBN-10 or ISBN-13) are used to provide some level
   ;; of assurance that the ISBN digits haven’t been accidentally transposed or
   ;; otherwise entered incorrectly.
-  (when-let ((match (or (cadr (s-match zotero-lib-isbn13-regexp string))
-                        (cadr (s-match zotero-lib-isbn10-regexp string))))
+  (when-let ((match (or (cadr (s-match zotero-lib-isbn13-regexp (s-trim string)))
+                        (cadr (s-match zotero-lib-isbn10-regexp (s-trim string)))))
              (isbn (s-replace-all '((" " . "") ("-" . "")) match))
              ;; The elisp regexps don't provide lookaheads, so the total length
              ;; of the isbn has to be checked
