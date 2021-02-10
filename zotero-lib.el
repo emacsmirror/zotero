@@ -22,6 +22,11 @@
 
 ;;; Code:
 
+;;;; Requirements
+
+(require 's)
+(require 'seq)
+
 ;;;; Variables
 
 (defconst zotero-lib-isbn10-regexp (rx
