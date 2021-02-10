@@ -25,6 +25,7 @@
 ;;;; Variables
 
 (defconst zotero-lib-isbn10-regexp (rx
+                                    string-start
                                     (zero-or-one "ISBN") ; Optional ISBN/ISBN-10/ISBN-13 identifier
                                     (zero-or-one (and "-1" (any "03")))
                                     (zero-or-one ?:)
@@ -37,12 +38,14 @@
                                       (zero-or-one (any space ?-))
                                       (one-or-more digit)
                                       (zero-or-one (any space ?-))
-                                      (or digit ?X)))) ; Check digit
+                                      (or digit ?X))) ; Check digit
+                                    string-end)
   "A regular expression probably matching the ISBN-10 format. A leading
   \"ISBN\" identifier is allowed, and ISBN parts can optionally
   be separated by hyphens or spaces.")
 
 (defconst zotero-lib-isbn13-regexp (rx
+                                    string-start
                                     (zero-or-one "ISBN") ; Optional ISBN/ISBN-10/ISBN-13 identifier
                                     (zero-or-one (and "-1" (any "03")))
                                     (zero-or-one ?:)
@@ -57,7 +60,8 @@
                                       (zero-or-one (any space ?-))
                                       (one-or-more digit)
                                       (zero-or-one (any space ?-))
-                                      digit))) ; Check digit
+                                      digit))  ; Check digit
+                                    string-end)
   "A regular expression probably matching the ISBN-13 format. The
   ISBN can be in either the older ISBN-10 or the current ISBN-13
   format. A leading \"ISBN\" identifier is allowed, and ISBN
