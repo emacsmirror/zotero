@@ -50,8 +50,8 @@ Return plist that could be saved to the library by passing it to
         (setq result (plist-put result :url (plist-get item :info_url)))
         (let ((details (plist-get item :details)))
           (setq result (plist-put result :title (plist-get details :title)))
-          (let ((title (plist-get result :title))
-                (subtitle (plist-get details :subtitle)))
+          (when-let ((title (plist-get result :title))
+                     (subtitle (plist-get details :subtitle)))
             ;; Don't duplicate subtitle if it already exists in title
             (unless (s-contains-p subtitle title t)
               (setq result (plist-put result :title (concat title ": " subtitle)))))
