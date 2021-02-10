@@ -32,9 +32,6 @@
 
 ;;;; Variables
 
-(defvar zotero-edit-doi-regexp "10\.[[:digit:]]\\{4,9\\}/[0-9A-Za-z()./:;_-]+"
-  "A regular expression probably matching a modern Crossref DOI.")
-
 (defvar zotero-edit-text-buffer-action '((display-buffer-reuse-window display-buffer-in-side-window)
                                          (side . bottom)
                                          (window-height . 0.5)
