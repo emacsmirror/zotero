@@ -208,8 +208,8 @@ digit is checked using a checksum algorithm."
   ;; you’re working with an ISBN-10 or ISBN-13) are used to provide some level
   ;; of assurance that the ISBN digits haven’t been accidentally transposed or
   ;; otherwise entered incorrectly.
-  (when-let ((match (or (cadr (s-match zotero-lib-isbn13-regexp (s-trim string)))
-                        (cadr (s-match zotero-lib-isbn10-regexp (s-trim string)))))
+  (when-let ((match (or (cadr (s-match zotero-lib-isbn13-regexp string))
+                        (cadr (s-match zotero-lib-isbn10-regexp string))))
              (isbn (s-replace-all '((" " . "") ("-" . "")) match))
              ;; The elisp regexps don't provide lookaheads, so the total length
              ;; of the isbn has to be checked
@@ -262,7 +262,7 @@ Return the arXiv identifier if it is valid, else return nil.
 The scheme used by arXiv was changed in April 2007. Argument STRING can be in either the old scheme (from 1999 to March 2007) or the new scheme (since 1 April 2007). A leading \"arXiv\" identifier is allowed.
 
 The format is validated by a regexp."
-  (when-let ((match (cadr (s-match zotero-lib-arxiv-regexp (s-trim string)))))
+  (when-let ((match (cadr (s-match zotero-lib-arxiv-regexp string))))
     match))
 
 (defun zotero-lib-validate-doi (string)
@@ -272,7 +272,7 @@ Return the DOI if it is valid, else return nil.
 A leading \"doi\" identifier or a link (for example, https://doi.org/10.1000/182) is allowed.
 
 The format is validated by a regexp."
-  (when-let ((match (cadr (s-match zotero-lib-doi-regexp (s-trim string)))))
+  (when-let ((match (cadr (s-match zotero-lib-doi-regexp string))))
     match))
 
 (provide 'zotero-lib)
