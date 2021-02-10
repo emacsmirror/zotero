@@ -221,8 +221,8 @@ digit is checked using a checksum algorithm."
   (when-let ((match (or (cadr (s-match zotero-lib-isbn13-regexp string))
                         (cadr (s-match zotero-lib-isbn10-regexp string))))
              (isbn (s-replace-all '((" " . "") ("-" . "")) match))
-             ;; The elisp regexps don't provide lookaheads, so the total length
-             ;; of the isbn has to be checked
+             ;; The elisp regexps don't provide lookaheads to limit the string
+             ;; length, so the total length of the isbn has to be checked here
              (_ (or (and (eq (length isbn) 10)
                          (s-matches-p zotero-lib-isbn10-regexp isbn))
                     (and (eq (length isbn) 13)
