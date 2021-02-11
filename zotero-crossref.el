@@ -84,7 +84,6 @@ Return plist that could be saved to the library by passing it to
           ;; Journal article
           ("journal-article"
            (setq result (copy-tree (zotero-cache-item-template "journalArticle")))
-           (setq result (plist-put result :itemType "journalArticle"))
            (when-let ((seq (plist-get item :container-title))
                       (_ (> (length seq) 0)))
              (setq result (plist-put result :publicationTitle (elt seq 0))))
@@ -110,7 +109,6 @@ Return plist that could be saved to the library by passing it to
              (setq result (plist-put result :ISBN (elt seq 0)))))
           ;; Book secion
           ((or "book-chapter" "book-part" "book-section" "reference-entry")
-           (setq result (plist-put result :itemType "bookSection"))
            (setq result (copy-tree (zotero-cache-item-template "bookSection")))
            (setq result (plist-put result :publisher (plist-get item :publisher)))
            (setq result (plist-put result :place (plist-get item :publisher-location)))
@@ -126,14 +124,12 @@ Return plist that could be saved to the library by passing it to
              (setq result (plist-put result :ISBN (elt seq 0)))))
           ;; Report
           ((or "dataset" "posted-content" "report" "report-series" "standard")
-           (setq result (plist-put result :itemType "report"))
            (setq result (copy-tree (zotero-cache-item-template "report")))
            (setq result (plist-put result :publisher (plist-get item :institution)))
            (setq result (plist-put result :place (plist-get item :publisher-location)))
            (setq result (plist-put result :seriesTitle (elt (plist-get item :container-title) 0))))
           ;; Conference paper
           ("proceedings-article"
-           (setq result (plist-put result :itemType "conferencePaper"))
            (setq result (copy-tree (zotero-cache-item-template "conferencePaper")))
            (setq result (plist-put result :proceedingsTitle (plist-get item :container-title)))
            (setq result (plist-put result :publisher (plist-get item :publisher)))
@@ -145,7 +141,6 @@ Return plist that could be saved to the library by passing it to
              (setq result (plist-put result :ISBN (elt seq 0)))))
           ;; Thesis
           ("dissertation"
-           (setq result (plist-put result :itemType "thesis"))
            (setq result (copy-tree (zotero-cache-item-template "thesis")))
            (setq result (plist-put result :publisher (plist-get item :university)))
            (setq result (plist-put result :place (plist-get item :publisher-location))))
