@@ -33,6 +33,7 @@
 (defconst zotero-arxiv-url "http://export.arxiv.org/api/query")
 
 (defun zotero-arxiv--parse-creators (authors)
+  "Parse the creators."
   (let (result)
     (dolist (author authors)
       (let-alist author

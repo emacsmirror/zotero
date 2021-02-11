@@ -56,6 +56,7 @@
 		                 "translator"))
 
 (defun zotero-crossref--parse-creators (item)
+  "Parse the creators."
   (let (result)
     (dolist (key '(:author :editor :chair :translator))
       (when-let ((creators (plist-get item key))

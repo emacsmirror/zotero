@@ -33,6 +33,7 @@
 (defconst zotero-openlibrary-url "https://openlibrary.org/api/books")
 
 (defun zotero-openlibrary--parse-creators (authors)
+  "Parse the creators."
   (let (result)
     (seq-doseq (author authors)
       (push `(:creatorType "author" :name ,(plist-get author :name)) result))
