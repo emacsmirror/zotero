@@ -163,14 +163,40 @@ operates on the first few pages of text using extraction
 algorithms and known metadata from CrossRef. The Zotero lookup
 service doesn't require a Zotero account, and data about the
 content or results of searches are not logged."
-  (let* ((url (concat zotero-recognize-base-url "/recognize"))
-         (url-request-method "POST")
-         (url-request-data json)
-         (url-request-extra-headers `(("Content-Type" . "application/json"))))
-    (zotero-dispatch (zotero-request-create :method url-request-method
+  (let ((url (concat zotero-recognize-base-url "/recognize"))
+        (headers `(("Content-Type" . "application/json"))))
+    (zotero-dispatch (zotero-request-create :method "POST"
                                             :url url
-                                            :headers url-request-extra-headers
-                                            :data url-request-data))))
+                                            :headers headers
+                                            :data json))))
+
+(defun zotero-recognize (file)
+  "Return metadata recognized from PDF FILE.
+
+The metadata can be used to create a parent item for the PDF
+attachment, by looking up item metadata when supplied with a
+standard identifier. Zotero uses the following databases for
+looking up item metadata: Library of Congress and WorldCat for
+ISBNs, CrossRef for DOIs, and NCBI PubMed for PubMed IDs."
+  (let* ((json (zotero-recognize--pdftojson file))
+         (response (zotero-recognize--submit json))
+         (data (zotero-response-data response)))
+    data))
+
+;; TODO: needs testing
+(defun zotero-recognize-report (metadata-pdf metadata-item &optional description)
+  "Report incorrectly recognized metadata.
+METADATA-PDF is the (incorrectly) recognized metadata as returned
+by `zotero-recognize'. METADATA-ITEM is the attachment
+item metadata. Optional argument DESCRIPTION is a
+string for the report."
+  (let ((url (concat zotero-recognize-base-url "/report"))
+        (headers `(("Content-Type" . "application/json")))
+        (data (zotero-json-encode-object `(,description ,zotero-api-version ,metadata-pdf ,metadata-item))))
+    (zotero-dispatch (zotero-request-create :method "POST"
+                                            :url url
+                                            :headers headers
+                                            :data data))))
 
 (defun zotero-recognize-install-pdftools ()
   "Install the PDF tools modified by Zotero.
@@ -224,35 +250,6 @@ available at URL `https://github.com/zotero/cross-poppler'."
           (customize-save-variable 'zotero-recognize-pdfdata (concat (file-name-as-directory zotero-recognize-pdftools-dir) "poppler-data/"))
           (delete-file filename))
       (error "Executable tar not found"))))
-
-(defun zotero-recognize (file)
-  "Return metadata recognized from PDF FILE.
-
-The metadata can be used to create a parent item for the PDF
-attachment, by looking up item metadata when supplied with a
-standard identifier. Zotero uses the following databases for
-looking up item metadata: Library of Congress and WorldCat for
-ISBNs, CrossRef for DOIs, and NCBI PubMed for PubMed IDs."
-  (let* ((json (zotero-recognize--pdftojson file))
-         (response (zotero-recognize--submit json))
-         (data (zotero-response-data response)))
-    data))
-
-;; TODO: needs testing
-(defun zotero-recognize-report (metadata-pdf metadata-item &optional description)
-  "Report incorrectly recognized metadata.
-METADATA-PDF is the (incorrectly) recognized metadata as returned
-by `zotero-recognize'. METADATA-ITEM is the attachment
-item metadata. Optional argument DESCRIPTION is a
-string for the report."
-  (let* ((url (concat zotero-recognize-base-url "/report"))
-         (data (zotero-json-encode-object `(,description ,zotero-api-version ,metadata-pdf ,metadata-item)))
-         (url-request-method "POST")
-         (url-request-data data)
-         (url-request-extra-headers `(("Content-Type" . "application/json"))))
-    (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
-      (set-buffer-multibyte t) ; Necessary to handle non-ASCII characters
-      (funcall #'zotero-handle-response))))
 
 (provide 'zotero-recognize)
 
