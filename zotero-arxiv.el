@@ -60,13 +60,13 @@ Return plist that could be saved to the library by passing it to
                 (arxiv:doi (xml-node-attributes .feed.entry.arxiv:doi))) ; A url for the resolved DOI to an external resource if present.
             (setq result (copy-tree (zotero-cache-item-template "journalArticle")))
             (when title (setq result (plist-put result :title title)))
+            (when authors (setq result (plist-put result :creators (zotero-arxiv--parse-creators authors))))
+            (when summary (setq result (plist-put result :abstractNote (s-trim summary))))
             (when updated
               (let* ((time (iso8601-parse updated))
                      (timestamp (encode-time time))
                      (time-string (format-time-string "%Y-%m-%d" timestamp)))
                 (setq result (plist-put result :date time-string))))
-            (when summary (setq result (plist-put result :abstractNote (s-trim summary))))
-            (when authors (setq result (plist-put result :creators (zotero-arxiv--parse-creators authors))))
             (dolist (link links)
               (let-alist (xml-node-attributes link)
                 (when (equal .rel "alternate")

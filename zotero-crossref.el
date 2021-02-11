@@ -93,9 +93,6 @@ Return plist that could be saved to the library by passing it to
              (setq result (plist-put result :journalAbbrevation (elt seq 0))))
            (setq result (plist-put result :volume (plist-get item :volume)))
            (setq result (plist-put result :issue (plist-get item :issue)))
-           (when-let ((seq (plist-get item :ISBN))
-                      (_ (> (length seq) 0)))
-             (setq result (plist-put result :ISBN (elt seq 0))))
            (when-let ((seq (plist-get item :ISSN))
                       (_ (> (length seq) 0)))
              (setq result (plist-put result :ISSN (elt seq 0)))))
@@ -151,12 +148,20 @@ Return plist that could be saved to the library by passing it to
           ((or "component" "journal" "journal-issue" "journal-volume" "other" "proceedings"
                "proceedings-series" "peer-review")
            (throw 'available nil)))
-        (when-let ((abstract (plist-get item :abstract)))
-          (setq result (plist-put result :abstractNote (plist-get item :abstract))))
-
+        (when-let ((seq (plist-get item :title))
+                   (_ (> (length seq) 0)))
+          (setq result (plist-put result :title (elt seq 0))))
+        (when-let ((subtitle (plist-get item :subtitle))
+                   (title (plist-get result :title))
+                   (_ (> (length subtitle) 0)))
+          ;; Don't duplicate subtitle if it already exists in title
+          (unless (s-contains-p (elt subtitle 0) title t)
+            (setq result (plist-put result :title (concat title ": " (elt subtitle 0))))))
         (setq result (plist-put result :creators (zotero-crossref--parse-creators item)))
-
+        (when-let ((abstract (plist-get item :abstract)))
+          (setq result (plist-put result :abstractNote abstract)))
         ;; Contains the earliest of: published-online, published-print, content-created
+        (setq result (plist-put result :pages (plist-get item :page)))
         (when-let ((issued (plist-get item :issued))
                    (date-parts (plist-get issued :date-parts))
                    (date (elt date-parts 0))
@@ -171,8 +176,6 @@ Return plist that could be saved to the library by passing it to
                  (setq result (plist-put result :date (concat month "/" year)))))
             (1 (let ((year (number-to-string (elt date 0))))
                  (setq result (plist-put result :date year))))))
-
-        (setq result (plist-put result :pages (plist-get item :page)))
         (if-let ((doi (plist-get item :DOI))
                  (_ (plist-member result :DOI)))
             (setq result (plist-put result :DOI doi))
@@ -185,16 +188,7 @@ Return plist that could be saved to the library by passing it to
         (when-let ((seq (plist-get item :link))
                    (_ (> (length seq) 0))
                    (url (plist-get (elt seq 0) :URL)))
-          (setq result (plist-put result :url url)))
-        (when-let ((seq (plist-get item :title))
-                   (_ (> (length seq) 0)))
-          (setq result (plist-put result :title (elt seq 0))))
-        (when-let ((subtitle (plist-get item :subtitle))
-                   (title (plist-get result :title))
-                   (_ (> (length subtitle) 0)))
-          ;; Don't duplicate subtitle if it already exists in title
-          (unless (s-contains-p (elt subtitle 0) title t)
-            (setq result (plist-put result :title (concat title ": " (elt subtitle 0)))))))
+          (setq result (plist-put result :url url))))
       result)))
 
 (defun zotero-crossref--request (id)
