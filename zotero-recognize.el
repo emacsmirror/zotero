@@ -111,6 +111,50 @@ Return JSON with metadata, layout and rich text of FILE."
             (error "Executable %s cannot output to json" zotero-recognize-pdftotext))))
     (error "Executable %s not found" zotero-recognize-pdftotext)))
 
+(defun zotero-recognize--parse-creators (authors)
+  "Parse the creators."
+  (let (result)
+    (seq-doseq (author authors)
+      (push `(:creatorType "author" :firstName ,(plist-get author :firstName) :lastName ,(plist-get author :lastName)) result))
+    (seq-into (nreverse result) 'vector)))
+
+(defun zotero-recognize-parse-metadata (data)
+  "Parse bibliographic metadata DATA from the Zotero lookup
+service to a Zotero item.
+Return plist that could be saved to the
+library by passing it to `zotero-cache-save' or uploaded by
+passing it to `zotero-create-item'."
+  (let (result)
+    (pcase itemType
+      ("journalArticle"
+       (setq result (copy-tree (zotero-cache-item-template "journalArticle")))
+       (when-let ((issue (plist-get item :issue)))
+         (setq result (plist-put result :issue issue)))
+       (when-let ((issn (plist-get item :ISSN)))
+         (setq result (plist-put result :ISSN issn)))
+       (setq result (plist-put result :publicationTitle (plist-get item :container))))
+      ("bookSection"
+       (setq result (copy-tree (zotero-cache-item-template "bookSection")))
+       (when-let ((container (plist-get item :container)))
+         (setq result (plist-put result :bookTitle container)))
+       (when-let ((publisher (plist-get item :publisher)))
+         (setq result (plist-put result :publisher publisher)))))
+    (setq result (plist-put result :title (plist-get item :title)))
+    (setq result (plist-put result :creators (zotero-recognize--parse-creators (plist-get item :authors))))
+    (when-let ((abstract (plist-get item :abstract)))
+      (setq result (plist-put result :abstractNote (plist-get item :abstract))))
+    (when-let ((year (plist-get item :year)))
+      (setq result (plist-put result :date year)))
+    (when-let ((pages (plist-get item :pages)))
+      (setq result (plist-put result :pages pages)))
+    (when-let ((volume (plist-get item :volume)))
+      (setq result (plist-put result :volume volume)))
+    (when-let ((url (plist-get item :url)))
+      (setq result (plist-put result :url url)))
+    (when-let ((language (plist-get item :language)))
+      (setq result (plist-put result :language language)))
+    result))
+
 (defun zotero-recognize--submit (json)
   "Return metadata recognized from JSON returned by `zotero-recognize--pdftojson'.
 
@@ -209,31 +253,6 @@ string for the report."
     (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
       (set-buffer-multibyte t) ; Necessary to handle non-ASCII characters
       (funcall #'zotero-handle-response))))
-
-(defun zotero-recognize--convert (data)
-  (let ((itemType (pcase (plist-get data :type)
-                    ("book-chapter" "bookSection")
-                    ("journal-article" "journalArticle")))
-        (creators (seq-into (seq-map (lambda (elt) (plist-put elt :creatorType "author")) (plist-get data :authors)) 'vector))
-        (abstractNote (plist-get data :abstract))
-        (year (plist-get data :year))
-        (pages (plist-get data :pages))
-        (volume (plist-get data :volume))
-        (url (plist-get data :url))
-        (language (plist-get data :language))
-        issue
-        issn
-        publicationTitle
-        bookTitle
-        publisher)
-    (pcase itemType
-      ("journalArticle"
-       (setq issue (plist-get data :issue))
-       (setq issn (plist-get data :ISSN))
-       (setq publication-title (plist-get data :container)))
-      ("bookSection"
-       (setq book-title (plist-get data :container))
-       (setq publisher (plist-get data :publisher))))))
 
 (provide 'zotero-recognize)
 
