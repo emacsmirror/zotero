@@ -33,6 +33,7 @@
 (defconst zotero-pmid-url "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi")
 
 (defun zotero-pmid--parse-creators (authors)
+  "Parse the creators."
   (let (result)
     (seq-doseq (author authors)
       (when (equal (plist-get author :authtype) "Author")
