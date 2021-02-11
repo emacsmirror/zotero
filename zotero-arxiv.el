@@ -46,7 +46,7 @@ Return plist that could be saved to the library by passing it to
 `zotero-create-item'."
   (catch 'available
     (let (result)
-      (let-alist zotero-arxiv-dom
+      (let-alist dom
         (when-let ((item .feed.entry))
           (let ((title (xml-node-attributes .feed.entry.title)) ; The title of the article.
                 (arxiv-id (s-chop-prefix "http://arxiv.org/abs/" (xml-node-attributes .feed.entry.id))) ; A url http://arxiv.org/abs/id
