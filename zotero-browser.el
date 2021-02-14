@@ -23,10 +23,13 @@
 
 ;;;; Requirements
 
-(require 'zotero-lib)
+(require 'zotero-arxiv)
 (require 'zotero-cache)
+(require 'zotero-crossref)
 (require 'zotero-edit)
 (require 'zotero-fulltext)
+(require 'zotero-lib)
+(require 'zotero-openlibrary)
 (require 'zotero-recognize)
 (require 'cl-lib)
 (require 'ewoc)
