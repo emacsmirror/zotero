@@ -1308,7 +1308,7 @@ client."
     (pcase linkmode
       ("imported_file"
        (let* ((file (expand-file-name (read-file-name "Select file: " nil nil t)))
-              (attributes (zotero-file-attributes filefile))
+              (attributes (zotero-file-attributes file))
               (filename (file-name-nondirectory file))
               (filesize (plist-get attributes :filesize))
               (content-type (plist-get attributes :content-type))
@@ -1459,7 +1459,7 @@ With a `C-u' prefix, create a new top level attachment."
          (ewoc zotero-browser-ewoc)
          (template (copy-tree (zotero-cache-attachment-template "imported_file")))
          (file (expand-file-name (read-file-name "Select file: " nil nil t)))
-         (attributes (zotero-file-attributes filefile))
+         (attributes (zotero-file-attributes file))
          (filename (file-name-nondirectory file))
          (filesize (plist-get attributes :filesize))
          (content-type (plist-get attributes :content-type))
