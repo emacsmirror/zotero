@@ -149,7 +149,7 @@ Each of the OBJECTS may be:
         (thread-first result
           (nreverse)
           (seq-into 'vector)
-          (json-encode-array ))
+          (json-encode-array))
       (zotero-json--after-write-function))))
 
 (provide 'zotero-json)
