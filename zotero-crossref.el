@@ -91,7 +91,7 @@ Return plist that could be saved to the library by passing it to
            (when-let ((seq (plist-get item :short-container-title))
                       (_ (and (> (length seq) 0)
                               (not (equal (elt seq 0) (plist-get result :publicationTitle))))))
-             (setq result (plist-put result :journalAbbrevation (elt seq 0))))
+             (setq result (plist-put result :journalAbbreviation (elt seq 0))))
            (setq result (plist-put result :volume (plist-get item :volume)))
            (setq result (plist-put result :issue (plist-get item :issue)))
            (when-let ((seq (plist-get item :ISSN))
