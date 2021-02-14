@@ -185,6 +185,7 @@ ID."
             (widget-insert (concat fieldname ": "))
             (widget-insert (format "%d\n" value)))
           (when-let ((value (plist-get data :parentItem))
+                     (_ (not(eq value :json-false)))
                      (fieldname "Parent Item"))
             (widget-insert (concat fieldname ": "))
             (widget-insert (concat value "\n")))

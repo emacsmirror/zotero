@@ -1304,8 +1304,8 @@ client."
          ;; Top-level attachments can be created by excluding the parentItem
          ;; property or setting it to false.
          (parent (cond
-                  ((equal arg '(4)) nil)
-                  ((null node) nil)
+                  ((equal arg '(4)) :json-false)
+                  ((null node) :json-false)
                   (t (ewoc-data node))))
          (linkmode (completing-read "Select a linkmode: " (zotero-attachment-linkmodes) nil t nil nil zotero-browser-default-linkmodes))
          (template (copy-tree (zotero-cache-attachment-template linkmode))))
@@ -1361,7 +1361,7 @@ client."
                     (key (plist-get object :key)))
            (display-buffer (zotero-edit-item (plist-get object :data) type id) zotero-browser-edit-buffer-action))))
       ("linked_url"
-       (if (or (null parent) (eq parent :json-false))
+       (if (eq parent :json-false)
            (user-error "Links to URLs are not allowed as top-level items")
          (pop-to-buffer (zotero-edit-item template type id) zotero-browser-edit-buffer-action))))))
 
