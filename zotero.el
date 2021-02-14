@@ -312,14 +312,15 @@ Keys and values may be strings, numbers or symbols.
 One difference with `url-build-query-string' is that multiple
 values in a field are comma separated instead of added as
 separate fields with the same key."
-  (mapconcat (lambda (field)
-               (let* ((field (mapcar (lambda (elt) (url-hexify-string (format "%s" elt))) field))
-                      (key (car field))
-                      (val (mapconcat #'identity (cdr field) ",")))
-                 (if (string-empty-p val)
-                     key
-                   (concat key "=" val))))
-             query "&"))
+  (when query
+    (mapconcat (lambda (field)
+                 (let* ((field (mapcar (lambda (elt) (url-hexify-string (format "%s" elt))) field))
+                        (key (car field))
+                        (val (mapconcat #'identity (cdr field) ",")))
+                   (if (string-empty-p val)
+                       key
+                     (concat key "=" val))))
+               query "&")))
 
 (defun zotero--parse-query-string (query)
   "Parse a query-string.
@@ -335,14 +336,15 @@ This will return an alist
   (\"key2\" \"val1\" \"val2\")
   (\"key3\")
   (\"key4\"))."
-  (let ((fields (split-string query "&")))
-    (mapcar (lambda (field)
-              (let* ((_ (string-match "\\([^=]+\\)=?\\(.*\\)" field))
-                     (key (match-string 1 field))
-                     (val (match-string 2 field))
-                     (vals (unless (or (string-empty-p val)) (split-string val ","))))
-                (cons key vals)))
-            fields)))
+  (when query
+    (let ((fields (split-string query "&")))
+      (mapcar (lambda (field)
+                (let* ((_ (string-match "\\([^=]+\\)=?\\(.*\\)" field))
+                       (key (match-string 1 field))
+                       (val (match-string 2 field))
+                       (vals (unless (or (string-empty-p val)) (split-string val ","))))
+                  (cons key vals)))
+              fields))))
 
 (defun zotero--data (response result)
   "Concatenate the data in RESPONSE and RESULT."
@@ -439,7 +441,7 @@ Return a `zotero-response' structure."
   "Retrieve REQUEST from Zotero."
   (let* ((path (zotero-request-url request))
          (query (zotero--build-query-string (zotero-request-params request)))
-         (url (concat path "?" query))
+         (url (if query (concat path "?" query) path))
          (url-request-method (zotero-request-method request))
          (url-request-data (zotero-request-data request))
          (url-request-extra-headers (zotero-request-headers request)))
@@ -478,7 +480,7 @@ and passed as optional argument RESULT."
        ;; request to the next url and the concatenated data.
        (let ((new-result (zotero--data response result)))
          (if-let ((next-url (zotero--next-url response))
-                  (params (zotero--parse-query-string (url-path-and-query (url-generic-parse-url next-url)))))
+                  (params (zotero--parse-query-string (cdr (url-path-and-query (url-generic-parse-url next-url))))))
              (progn
                (setf (zotero-request-params request) params)
                (zotero-dispatch request result))
