@@ -301,7 +301,7 @@ Given a QUERY in the form:
 \((key1 val1)
   (key2 val1 val2)
   (key3)
-  (key4 ""))
+  (key4 \"\"))
 
 \(This is the same format as produced by
 `zotero--parse-query-string')
