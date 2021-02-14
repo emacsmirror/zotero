@@ -1491,7 +1491,7 @@ With a `C-u' prefix, create a new top level attachment."
       (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))
 
 ;; TODO: finish this function
-(defun zotero-browser--recognize-attachment ()
+(defun zotero-browser-recognize-attachment ()
   "Recognize content of the current entry."
   (interactive)
   (zotero-browser-ensure-items-mode)
