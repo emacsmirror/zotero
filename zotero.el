@@ -1663,7 +1663,7 @@ See also URL
                     :id id
                     :api-key api-key
                     :headers `(("Content-Type" . "application/x-www-form-urlencoded")
-                               ,(if hash `("If-Match" . ,hash) `(("If-None-Match:" . "*"))))
+                               ,(if hash `("If-Match" . ,hash) `("If-None-Match" . "*")))
                     :data data)))
 
 (defun zotero-upload-file (file url content-type prefix suffix)
@@ -1716,7 +1716,7 @@ See also URL
                     :id id
                     :api-key api-key
                     :headers `(("Content-Type" . "application/x-www-form-urlencoded")
-                               ,(if hash `("If-Match" . ,hash) `(("If-None-Match:" . "*"))))
+                               ,(if hash `("If-Match" . ,hash) `("If-None-Match" . "*")))
                     :data data)))
 
 (cl-defun zotero-upload-attachment (key file &optional hash &key type id api-key)
