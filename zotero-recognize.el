@@ -106,7 +106,7 @@ Return JSON with metadata, layout and rich text of FILE."
               (prog1
                   (with-temp-buffer
                     (insert-file-contents tempfile)
-                    (encode-coding-string (buffer-string) 'utf-8))
+                    (buffer-string))
                 (delete-file tempfile))
             (error "Executable %s cannot output to json" zotero-recognize-pdftotext))))
     (error "Executable %s not found" zotero-recognize-pdftotext)))
