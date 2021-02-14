@@ -90,9 +90,6 @@
 (defvar-local zotero-browser-collection nil
   "Collection of the current buffer.")
 
-(defvar-local zotero-browser-table nil
-  "Table of the current buffer.")
-
 (defvar-local zotero-browser-status nil
   "Visibility status of the current buffer.")
 
@@ -404,7 +401,7 @@ region instead."
     (let ((node (ewoc-locate ewoc)))
       (list (ewoc-data node)))))
 
-(defun zotero-browser--level (key table)
+(defun zotero-browser--level (key)
   "Return the level of KEY."
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
@@ -691,9 +688,8 @@ application is found, Emacs simply visits the file."
 
 (defun zotero-browser--collection-pp (key)
   "Pretty print collection KEY."
-  (let* ((table (zotero-cache-synccache "collections" nil zotero-browser-type zotero-browser-id))
-         (entry (zotero-cache-synccache "collection" key zotero-browser-type zotero-browser-id))
-         (level (zotero-browser--level key table))
+  (let* ((entry (zotero-cache-synccache "collection" key zotero-browser-type zotero-browser-id))
+         (level (zotero-browser--level key))
          (indentation (+ zotero-browser-padding level))
          (prefix (make-string indentation ?\s))
          (beg (point)))
@@ -714,10 +710,9 @@ application is found, Emacs simply visits the file."
 
 (defun zotero-browser--item-pp (key)
   "Pretty print item KEY."
-  (let* ((table (zotero-cache-synccache "items" nil zotero-browser-type zotero-browser-id))
-         (entry (zotero-cache-synccache "item" key zotero-browser-type zotero-browser-id))
+  (let* ((entry (zotero-cache-synccache "item" key zotero-browser-type zotero-browser-id))
          (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-         (level (zotero-browser--level key table))
+         (level (zotero-browser--level key))
          (indentation (+ zotero-browser-padding level))
          (prefix (make-string indentation ?\s))
          (beg (point)))
@@ -1033,7 +1028,7 @@ application is found, Emacs simply visits the file."
         (while
             (let* ((node (ewoc-locate ewoc))
                    (key (ewoc-data node))
-                   (level (zotero-browser--level key table)))
+                   (level (zotero-browser--level key)))
               (when (zotero-browser--has-children-p node)
                 (cond
                  ((and (zotero-browser--expanded-p ewoc node)
@@ -1543,14 +1538,12 @@ With a `C-u' prefix, create a new top level attachment."
   (let ((buffer (get-buffer-create "*Zotero Libraries*")))
     (with-current-buffer buffer
       (zotero-browser-libraries-mode)
-      (let* ((table (zotero-cache-library))
-             (user (zotero-cache-library "user"))
+      (let* ((user (zotero-cache-library "user"))
              (groups (zotero-cache-group))
              (ewoc (ewoc-create #'zotero-browser--library-pp))
              (inhibit-read-only t))
         (erase-buffer)
-        (setq zotero-browser-table table
-              zotero-browser-ewoc ewoc)
+        (setq zotero-browser-ewoc ewoc)
         (thread-last user
           (ht-keys)
           (seq-do (lambda (key) (ewoc-enter-last ewoc key))))
@@ -1612,7 +1605,7 @@ With a `C-u' prefix, create a new top level attachment."
          (key (ewoc-data node)))
     (pcase major-mode
       ('zotero-browser-libraries-mode
-       (let* ((table zotero-browser-table)
+       (let* ((table (zotero-cache-library))
               (type (plist-get (ht-get table key) :type))
               (id (plist-get (ht-get table key) :id)))
          (setq zotero-browser-type type
