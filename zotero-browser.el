@@ -406,6 +406,7 @@ region instead."
 
 (defun zotero-browser--level (key)
   "Return the level of KEY."
+  (zotero-browser-ensure-browser-buffer)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
          (table (pcase major-mode
