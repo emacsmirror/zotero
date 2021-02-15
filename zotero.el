@@ -1690,8 +1690,8 @@ See also URL
                     (buffer-string)))
          (data (concat prefix content suffix))
          (url-request-method "POST")
-         (url-request-data data)
-         (url-request-extra-headers `(("Content-Type" . ,content-type))))
+         (url-request-extra-headers `(("Content-Type" . ,content-type)))
+         (url-request-data data))
     (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
       (funcall #'zotero-handle-response))))
 
