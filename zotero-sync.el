@@ -642,7 +642,7 @@ Keyword CACHE is the hash table containing the cache."
       (zotero-sync--attachment-template cache linkmode))
     cache))
 
-(defun zotero-sync--attachments (cache type id api-key)
+(defun zotero-sync--download-attachments (cache type id api-key)
   "Sync the attachments to storage.
 
 Keyword CACHE is the hash table containing the cache."
@@ -677,6 +677,22 @@ Keyword CACHE is the hash table containing the cache."
                  (with-demoted-errors "Error downloading file: %S"
                    (zotero-download-file key filename dir nil :type type :id id :api-key api-key))))))))
 
+(defun zotero-sync--delete-attachments (cache)
+  "Sync the deleted attachments to storage.
+
+Keyword CACHE is the hash table containing the cache."
+  (let* ((table (ht-get* cache "synccache" "items"))
+         (dir (file-name-as-directory zotero-cache-storage-dir))
+         (stored-keys (directory-files dir nil "[[:alnum:]]\\{6\\}"))
+         (removed-keys (thread-last table
+                         (zotero-cache-filter-data (lambda (elt) (and (equal (plist-get elt :itemType) "attachment")
+                                                                      (or (equal (plist-get elt :linkMode) "imported_file")
+                                                                          (equal (plist-get elt :linkMode) "imported_url")))))
+                         (ht-keys)))
+         (keys (seq-difference stored-keys removed-keys)))
+    (dolist (key keys)
+      (delete-directory (concat dir key) t))))
+
 (defun zotero-sync-attachments (cache api-key)
   "Sync the Zotero library.
 CACHE is the hash table containing the cache. API-KEY is the
@@ -688,8 +704,11 @@ Zotero API key."
              (let ((type (plist-get value :type)))
                (when zotero-cache-enable-storage
                  (message "Syncing attachments to storage for %s %s..." type id)
-                 (zotero-sync--attachments cache type id api-key)
-                 (message "Syncing attachments to storage for %s %s...done" type id))))))
+                 (zotero-sync--download-attachments cache type id api-key)
+                 (message "Syncing attachments to storage for %s %s...done" type id))))
+    (message "Deleting removed attachments from storage...")
+    (zotero-sync--delete-attachments cache)
+    (message "Deleting removed attachments from storage...done")))
 
 (defun zotero-sync--sync (cache id api-key)
   "Sync the Zotero library.
