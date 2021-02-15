@@ -1624,7 +1624,14 @@ With a `C-u' prefix, create a new top level attachment."
                   zotero-browser-resource resource
                   zotero-browser-collection collection
                   zotero-browser-keys keys)
-            (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
+            (dolist (key keys)
+              ;; Create a new node if key is not a child
+              (unless (zotero-cache-parentitem key table)
+                (ewoc-enter-last ewoc key))
+              ;; Then create nodes for the children of key
+              (when-let ((children (ht-keys (zotero-cache-subitems key table))))
+                (dolist (child children)
+                  (ewoc-enter-last ewoc child))))
             (zotero-browser-expand-level zotero-browser-default-item-level)))))
     buffer))
 
