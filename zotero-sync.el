@@ -381,8 +381,8 @@ Keyword CACHE is the hash table containing the cache."
                       ;; Do not update the version of Zotero objects in the
                       ;; unchanged object.
                       (unless (eq unchanged :json-empty)
-                        (cl-loop for (key value) on unchanged do
-                                 (ht-set! table key (plist-put value :synced t))))
+                        (cl-loop for (number key) on unchanged do
+                                 (ht-set! table key (plist-put (ht-get table key) :synced t))))
                       (unless (eq failed :json-empty)
                         (cl-loop for (_ value) on failed by #'cddr do
                                  (let ((code (plist-get value :code))
