@@ -1656,7 +1656,9 @@ on the server, return a plist with the prop `:exists'.
 
 See also URL
 `https://www.zotero.org/support/dev/web_api/v3/file_upload#get_upload_authorization'."
-  (let ((data (url-build-query-string `(("filename" ,filename)
+  (let ((headers `(("Content-Type" . "application/x-www-form-urlencoded")
+                   ,(if hash `("If-Match" . ,hash) `("If-None-Match" . "*"))))
+        (data (url-build-query-string `(("filename" ,filename)
                                         ("filesize" ,filesize)
                                         ("md5" ,md5)
                                         ("mtime" ,mtime)))))
@@ -1664,8 +1666,7 @@ See also URL
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("Content-Type" . "application/x-www-form-urlencoded")
-                               ,(if hash `("If-Match" . ,hash) `("If-None-Match" . "*")))
+                    :headers headers
                     :data data)))
 
 (defun zotero-upload-file (file url content-type prefix suffix)
