@@ -1517,7 +1517,8 @@ With a `C-u' prefix, create a new top level attachment."
 	;; Check whether a given PDF could theoretically be recognized
         (when (and (eq (zotero-browser--level key) 1)
                    (equal content-type "application/pdf"))
-          (let* ((metadata (zotero-recognize file))
+          (let* ((response (zotero-recognize file))
+                 (metadata (zotero-response-data response))
                  (result (cond
                           ((plist-member metadata :arxiv)
                            (zotero-arxiv (plist-get metadata :arxiv)))
