@@ -446,7 +446,6 @@ Return a `zotero-response' structure."
          (url-request-data (zotero-request-data request))
          (url-request-extra-headers (zotero-request-headers request)))
     (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
-      (set-buffer-multibyte t) ; Necessary to handle non-ASCII characters
       (funcall #'zotero-handle-response))))
 
 (defun zotero-dispatch (request &optional result)
