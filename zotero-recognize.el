@@ -155,33 +155,25 @@ passing it to `zotero-create-item'."
       (setq result (plist-put result :language language)))
     result))
 
-(defun zotero-recognize--submit (json)
-  "Return metadata recognized from JSON returned by `zotero-recognize--pdftojson'.
+(defun zotero-recognize (file)
+  "Return metadata recognized from PDF FILE.
 
 PDFs are recognized using an undocumented Zotero web service that
 operates on the first few pages of text using extraction
 algorithms and known metadata from CrossRef. The Zotero lookup
 service doesn't require a Zotero account, and data about the
-content or results of searches are not logged."
-  (let ((url (concat zotero-recognize-base-url "/recognize"))
-        (headers `(("Content-Type" . "application/json"))))
-    (zotero-dispatch (zotero-request-create :method "POST"
-                                            :url url
-                                            :headers headers
-                                            :data json))))
-
-(defun zotero-recognize (file)
-  "Return metadata recognized from PDF FILE.
+content or results of searches are not logged.
 
 The metadata can be used to create a parent item for the PDF
 attachment, by looking up item metadata when supplied with a
-standard identifier. Zotero uses the following databases for
-looking up item metadata: Library of Congress and WorldCat for
-ISBNs, CrossRef for DOIs, and NCBI PubMed for PubMed IDs."
-  (let* ((json (zotero-recognize--pdftojson file))
-         (response (zotero-recognize--submit json))
-         (data (zotero-response-data response)))
-    data))
+standard identifier."
+  (let ((url (concat zotero-recognize-base-url "/recognize"))
+        (headers `(("Content-Type" . "application/json")))
+        (data (zotero-recognize--pdftojson file)))
+    (zotero-dispatch (zotero-request-create :method "POST"
+                                            :url url
+                                            :headers headers
+                                            :data data))))
 
 ;; TODO: needs testing
 (defun zotero-recognize-report (metadata-pdf metadata-item &optional description)
