@@ -169,7 +169,7 @@ attachment, by looking up item metadata when supplied with a
 standard identifier."
   (let ((url (concat zotero-recognize-base-url "/recognize"))
         (headers `(("Content-Type" . "application/json")))
-        (data (zotero-recognize--pdftojson file)))
+        (data (encode-coding-string (zotero-recognize--pdftojson file) 'utf-8)))
     (zotero-dispatch (zotero-request-create :method "POST"
                                             :url url
                                             :headers headers
