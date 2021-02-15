@@ -361,8 +361,8 @@ items in the trash are included."
                                                              (equal (plist-get value :id) id))) table)
                        table)))
        (if include-trashed
-           library
-         (zotero-cache-filter-data (lambda (elt) (not (eq (plist-get elt :deleted) 1))) library))))
+           table
+         (zotero-cache-filter-data (lambda (elt) (not (eq (plist-get elt :deleted) 1))) table))))
     ("items-top"
      (let* ((table (ht-get* zotero-cache "synccache" "items"))
             (library (if (and type id)
@@ -380,8 +380,9 @@ items in the trash are included."
             (library (if (and type id)
                          (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
                                                              (equal (plist-get value :id) id))) table)
-                       table)))
-       (zotero-cache-filter-data (lambda (elt) (eq (plist-get elt :deleted) 1)) library)))
+                       table))
+            (select (zotero-cache-filter-data (lambda (elt) (not (plist-member elt :parentItem))) table)))
+       (zotero-cache-filter-data (lambda (elt) (eq (plist-get elt :deleted) 1)) select)))
     ("item"
      (ht-get* zotero-cache "synccache" "items" key))
     ("item-children"
@@ -409,13 +410,9 @@ items in the trash are included."
                                                              (equal (plist-get value :id) id))) table)
                        table)))
        (if include-trashed
-           (zotero-cache-filter-data (lambda (elt) (and (seq-contains-p (plist-get elt :collections) key)
-                                                        (or (not (plist-member elt :parentItem))
-                                                            (eq (plist-get elt :parentItem) :json-false)))) library)
+           (zotero-cache-filter-data (lambda (elt) (seq-contains-p (plist-get elt :collections) key)) library)
          (zotero-cache-filter-data (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
-                                                      (seq-contains-p (plist-get elt :collections) key)
-                                                      (or (not (plist-member elt :parentItem))
-                                                          (eq (plist-get elt :parentItem) :json-false)))) library))))
+                                                      (seq-contains-p (plist-get elt :collections) key))) library))))
     ("searches"
      (let ((table (ht-get* zotero-cache "synccache" "searches")))
        (if (and type id)
