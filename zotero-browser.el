@@ -87,9 +87,6 @@
 (defvar-local zotero-browser-resource nil
   "Resource of the current buffer.")
 
-(defvar-local zotero-browser-keys nil
-  "Keys of the current buffer.")
-
 (defvar-local zotero-browser-collection nil
   "Collection of the current buffer.")
 
@@ -435,16 +432,11 @@ STRING should contain only one character."
 
 (defun zotero-browser--add (ewoc node table)
   "Add items of TABLE after NODE in EWOC"
-  (let* ((key (ewoc-data node))
-         (idx (seq-position zotero-browser-keys key))
-         (head (seq-subseq zotero-browser-keys 0 (1+ idx)))
-         (tail (seq-subseq zotero-browser-keys (1+ idx)))
-         (keys (pcase major-mode
-                 ('zotero-browser-collections-mode
-                  (zotero-cache-sort-by :name 'asc table))
-                 ('zotero-browser-items-mode
-                  (zotero-cache-sort-by :title 'asc table)))))
-    (setq zotero-browser-keys (seq-concatenate 'list head keys tail))
+  (let ((keys (pcase major-mode
+                ('zotero-browser-collections-mode
+                 (zotero-cache-sort-by :name 'asc table))
+                ('zotero-browser-items-mode
+                 (zotero-cache-sort-by :title 'asc table)))))
     (while keys
       (setq node (ewoc-enter-after ewoc node (pop keys))))))
 
@@ -543,7 +535,6 @@ STRING should contain only one character."
           ;; delete the next entry if it is a child of one of the parents
           (when (member parent parents)
             (ewoc-delete ewoc next-node)
-            (delete next-key zotero-browser-keys)
             (setq key next-key))))))
 
 (defun zotero-browser--itemtype-icon (itemtype)
@@ -1102,7 +1093,6 @@ With a `C-u' prefix, move to top level."
         (if (or (equal itemtype "attachment") (equal itemtype "note"))
             (user-error "Parent item cannot be a note or attachment")
           (setq updated-data (plist-put data :parentItem parent)))))
-    (delete key zotero-browser-keys)
     (ewoc-delete ewoc node)
     (zotero-cache-save updated-data "items" type id)))
 
@@ -1123,7 +1113,6 @@ With a `C-u' prefix, move to top level."
          (name (completing-read "Select collection:" choices nil t))
          (new (cdr (assoc name choices)))
          (old zotero-browser-collection))
-    (delete key zotero-browser-keys)
     (ewoc-delete ewoc node)
     (zotero-cache-substitute-collection key new old type id)))
 
@@ -1145,7 +1134,6 @@ With a `C-u' prefix, move to top level."
          (name (completing-read "Select collection:" choices nil t))
          (collection (cdr (assoc name choices))))
     (when (equal resource "items-top")
-      (delete key zotero-browser-keys)
       (ewoc-delete ewoc node))
     (zotero-cache-add-to-collection key collection type id)))
 
@@ -1162,7 +1150,6 @@ With a `C-u' prefix, move to top level."
          (node (ewoc-locate ewoc))
          (key (ewoc-data node))
          (collection zotero-browser-collection))
-    (delete key zotero-browser-keys)
     (ewoc-delete ewoc node)
     (zotero-cache-remove-from-collection key collection type id)))
 
@@ -1184,7 +1171,6 @@ If region is active, trash entries in active region instead."
          (nodes (zotero-browser--nodes ewoc))
          (keys (zotero-browser--keys ewoc)))
     (dolist (key keys)
-      (delete key zotero-browser-keys)
       (zotero-cache-trash key type id))
     (apply #'ewoc-delete ewoc nodes)))
 
@@ -1205,7 +1191,6 @@ If region is active, restore entries in active region instead."
          (nodes (zotero-browser--nodes ewoc))
          (keys (zotero-browser--keys ewoc)))
     (dolist (key keys)
-      (delete key zotero-browser-keys)
       (zotero-cache-restore key type id))
     (apply #'ewoc-delete ewoc nodes)))
 
@@ -1227,7 +1212,6 @@ If region is active, delete entries in active region instead."
          (nodes (zotero-browser--nodes ewoc))
          (keys (zotero-browser--keys ewoc)))
     (dolist (key keys)
-      (delete key zotero-browser-keys)
       (zotero-cache-delete resource key type id))
     (apply #'ewoc-delete ewoc nodes)))
 
@@ -1599,8 +1583,7 @@ With a `C-u' prefix, create a new top level attachment."
             (setq zotero-browser-ewoc ewoc
                   zotero-browser-type type
                   zotero-browser-resource resource
-                  zotero-browser-id id
-                  zotero-browser-keys keys)
+                  zotero-browser-id id)
             (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
             (dolist (key keys)
               ;; Create a new node if key is not a child
@@ -1630,8 +1613,7 @@ With a `C-u' prefix, create a new top level attachment."
                   zotero-browser-type type
                   zotero-browser-id id
                   zotero-browser-resource resource
-                  zotero-browser-collection collection
-                  zotero-browser-keys keys)
+                  zotero-browser-collection collection)
             (dolist (key keys)
               ;; Create a new node if key is not a child
               (unless (zotero-cache-parentitem key table)
