@@ -541,7 +541,7 @@ and passed as optional argument RESULT."
        client"))
       (413
        (let ((message (zotero-response-data response)))
-         (user-error "413 Request Entity Too Large: %s" message)))
+         (user-error "413 Request Entity Too Large: %s" (zotero-lib-html-to-unicode message))))
       (417
        (user-error "417 Expectation Failed: passing an \"Expect\"
        header is unsupported"))
