@@ -381,7 +381,8 @@ items in the trash are included."
                          (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
                                                              (equal (plist-get value :id) id))) table)
                        table))
-            (select (zotero-cache-filter-data (lambda (elt) (not (plist-member elt :parentItem))) table)))
+            (select (zotero-cache-filter-data (lambda (elt) (or (not (plist-member elt :parentItem))
+                                                                (eq (plist-get elt :parentItem) :json-false))) table)))
        (zotero-cache-filter-data (lambda (elt) (eq (plist-get elt :deleted) 1)) select)))
     ("item"
      (ht-get* zotero-cache "synccache" "items" key))
