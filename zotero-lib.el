@@ -26,6 +26,7 @@
 
 (require 's)
 (require 'seq)
+(require 'xml)
 
 ;;;; Variables
 (defconst zotero-lib-arxiv-regexp (rx
@@ -294,6 +295,17 @@ A leading \"PMID\" identifier is allowed.
 The format is validated by a regexp."
   (when-let ((match (cadr (s-match zotero-lib-pmid-regexp string))))
     match))
+
+(defun zotero-lib-html-to-unicode (string)
+  "Replace HTML entities with unicode in STRING."
+  (with-temp-buffer
+    (save-excursion (insert string))
+    (xml-parse-string)))
+
+(defun zotero-lib-remove-html-tags (string)
+  "Remove all HTML tags from STRING."
+  (let ((regexp "<[[:alnum:][:blank:]/=\"-]*?>"))
+    (replace-regexp-in-string regexp "" string)))
 
 (provide 'zotero-lib)
 
