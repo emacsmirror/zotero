@@ -233,13 +233,19 @@ returned by `zotero-key'."
 
 (defun zotero-cache-parentitem (key table)
   "Return the parent of KEY in TABLE, or nil."
-  (let ((value (ht-get table key)))
-    (zotero-lib-plist-get* value :object :data :parentItem)))
+  (let* ((value (ht-get table key))
+         (parent (zotero-lib-plist-get* value :object :data :parentItem)))
+    (unless (or (null parent)
+                (eq parent :json-false))
+      parent)))
 
 (defun zotero-cache-parentcollection (key table)
   "Return the parent of KEY in TABLE, or nil."
-  (let ((value (ht-get table key)))
-    (zotero-lib-plist-get* value :object :data :parentCollection)))
+  (let* ((value (ht-get table key))
+         (parent (zotero-lib-plist-get* value :object :data :parentCollection)))
+    (unless (or (null parent)
+                (eq parent :json-false))
+      parent)))
 
 (defun zotero-cache-subitems (key table)
   "Return the subcollections of KEY in TABLE."
