@@ -227,7 +227,7 @@
   :group 'zotero-browser
   :type 'integer)
 
-(defcustom zotero-browser-library-keys '(icon " " :name)
+(defcustom zotero-browser-library-keys '(icon :name)
   "Keys to show in the items browser"
   :group 'zotero-browser
   :type
@@ -250,7 +250,7 @@
             (const :tag "Library Editing" :libraryReading)
             (const :tag "File Editing" :fileEditing))))
 
-(defcustom zotero-browser-collection-keys '(:name)
+(defcustom zotero-browser-collection-keys '(icon :name)
   "Keys to show in the collections browser"
   :group 'zotero-browser
   :type '(repeat (choice
@@ -263,7 +263,7 @@
                   (const :tag "Version" :version)
                   (const :tag "Name" :name))))
 
-(defcustom zotero-browser-attachment-keys '(icon " " :title)
+(defcustom zotero-browser-attachment-keys '(icon :title)
   "Keys to show in the items browser"
   :group 'zotero-browser
   :type
@@ -658,7 +658,8 @@ application is found, Emacs simply visits the file."
                 (file (expand-file-name (concat dir icon) zotero-directory)))
            (when (and file (file-readable-p file))
              (let ((image (create-image file 'png nil :height (window-font-height))))
-               (insert-image image type)))))
+               (insert-image image type)
+               (insert " ")))))
         (:name
          (let ((value (pcase type
                         ("user" "User library")
@@ -683,25 +684,58 @@ application is found, Emacs simply visits the file."
 
 (defun zotero-browser--collection-pp (key)
   "Pretty print collection KEY."
-  (let* ((entry (zotero-cache-synccache "collection" key zotero-browser-type zotero-browser-id))
-         (level (zotero-browser--level key))
-         (indentation (+ zotero-browser-padding level))
-         (prefix (make-string indentation ?\s))
-         (beg (point)))
-    (dolist (key zotero-browser-collection-keys)
-      (pcase key
-        ((and (pred stringp) str) (insert str))
-        ('icon
-         (let* ((icon "treesource-collection.png")
+  (pcase key
+    ('unfiled
+     (let* ((level 1)
+            (indentation (+ zotero-browser-padding level))
+            (prefix (make-string indentation ?\s))
+            (beg (point)))
+       (when (memq 'icon zotero-browser-collection-keys)
+         (let* ((icon "treesource-unfiled.png")
                 (dir (file-name-as-directory "img"))
                 (file (expand-file-name (concat dir icon) zotero-directory)))
            (when (and file (file-readable-p file))
              (let ((image (create-image file 'png nil :height (window-font-height))))
-               (insert-image image "collection")))))
-        ((pred keywordp)
-         (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
-           (insert value)))))
-    (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))
+               (insert-image image "unfiled")
+               (insert " ")))))
+       (insert "Unfiled")
+       (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))
+    ('trash
+     (let* ((level 1)
+            (indentation (+ zotero-browser-padding level))
+            (prefix (make-string indentation ?\s))
+            (beg (point)))
+       (when (memq 'icon zotero-browser-collection-keys)
+         (let* ((icon "treesource-trash.png")
+                (dir (file-name-as-directory "img"))
+                (file (expand-file-name (concat dir icon) zotero-directory)))
+           (when (and file (file-readable-p file))
+             (let ((image (create-image file 'png nil :height (window-font-height))))
+               (insert-image image "trash")
+               (insert " ")))))
+       (insert "Trash")
+       (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))
+    (_
+     (let* ((entry (zotero-cache-synccache "collection" key zotero-browser-type zotero-browser-id))
+            (level (zotero-browser--level key))
+            (indentation (+ zotero-browser-padding level))
+            (prefix (make-string indentation ?\s))
+            (beg (point)))
+       (dolist (key zotero-browser-collection-keys)
+         (pcase key
+           ((and (pred stringp) str) (insert str))
+           ('icon
+            (let* ((icon "treesource-collection.png")
+                   (dir (file-name-as-directory "img"))
+                   (file (expand-file-name (concat dir icon) zotero-directory)))
+              (when (and file (file-readable-p file))
+                (let ((image (create-image file 'png nil :height (window-font-height))))
+                  (insert-image image "collection")
+                  (insert " ")))))
+           ((pred keywordp)
+            (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
+              (insert value)))))
+       (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))))
 
 (defun zotero-browser--item-pp (key)
   "Pretty print item KEY."
@@ -721,7 +755,8 @@ application is found, Emacs simply visits the file."
                    (file (zotero-browser--attachment-icon linkmode)))
               (when (and file (file-readable-p file))
                 (let ((image (create-image file 'png nil :height (window-font-height))))
-                  (insert-image image itemtype)))))
+                  (insert-image image itemtype)
+                  (insert " ")))))
            (:version
             (when-let ((value (plist-get library key)))
               (insert (number-to-string value))))
@@ -737,7 +772,8 @@ application is found, Emacs simply visits the file."
                    (file (zotero-browser--itemtype-icon itemtype)))
               (when file
                 (let ((image (create-image file 'png nil :height (window-font-height))))
-                  (insert-image image itemtype)))))
+                  (insert-image image itemtype)
+                  (insert " ")))))
            (:note
             (when-let ((note (zotero-lib-plist-get* entry :object :data :note))
                        (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
@@ -759,7 +795,8 @@ application is found, Emacs simply visits the file."
                    (file (zotero-browser--itemtype-icon itemtype)))
               (when file
                 (let ((image (create-image file 'png nil :height (window-font-height))))
-                  (insert-image image itemtype)))))
+                  (insert-image image itemtype)
+                  (insert " ")))))
            (:creators
             (when-let ((creators (zotero-lib-plist-get* entry :object :data :creators))
                        (names (when (seq-some (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators)
@@ -1590,15 +1627,18 @@ With a `C-u' prefix, create a new top level attachment."
                   zotero-browser-type type
                   zotero-browser-resource resource
                   zotero-browser-id id)
-            (seq-do (lambda (key) (ewoc-enter-last ewoc key)) keys)
             (dolist (key keys)
               ;; Create a new node if key is not a child
-              (unless (zotero-cache-parentcollection key table)
-                (ewoc-enter-last ewoc key))
+              (let ((parent (zotero-cache-parentcollection key table)))
+                (when (or (null parent)
+                          (eq parent :json-false))
+                  (ewoc-enter-last ewoc key)))
               ;; Then create nodes for the children of key
               (when-let ((children (ht-keys (zotero-cache-subcollections key table))))
                 (dolist (child children)
                   (ewoc-enter-last ewoc child))))
+            (ewoc-enter-last ewoc 'unfiled)
+            (ewoc-enter-last ewoc 'trash)
             (zotero-browser-expand-level zotero-browser-default-collection-level)
             (zotero-browser-items "items-top" nil type id)))))
     buffer))
@@ -1651,7 +1691,13 @@ With a `C-u' prefix, create a new top level attachment."
        (let* ((type zotero-browser-type)
               (id zotero-browser-id)
               (table (zotero-cache-synccache "collections" nil type id)))
-         (display-buffer (zotero-browser-items "collection-items" key type id))))
+         (pcase key
+           ('unfiled
+            (display-buffer (zotero-browser-items "items-top" key type id)))
+           ('trash
+            (display-buffer (zotero-browser-items "trash-items" key type id)))
+           ((pred stringp)
+            (display-buffer (zotero-browser-items "collection-items" key type id))))))
       ('zotero-browser-items-mode
        (let* ((type zotero-browser-type)
               (id zotero-browser-id)
