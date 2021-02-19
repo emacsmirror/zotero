@@ -419,7 +419,7 @@ region instead."
                         ('zotero-browser-items-mode
                          (zotero-cache-parentitem key table)))))
           (setq level (1+ level))
-          (unless (or (eq parent :json-false) (null parent))
+          (when parent
             (setq key parent))))
     level))
 
@@ -915,8 +915,7 @@ application is found, Emacs simply visits the file."
              (key (ewoc-data node))
              (parent (zotero-browser--parent key))
              (n 0))
-        (unless (or (null parent)
-                    (eq parent :json-false))
+        (when parent
           (while
               (let* ((node (ewoc-nth ewoc n))
                      (key (ewoc-data node)))
@@ -1324,8 +1323,8 @@ client."
          ;; Top-level attachments can be created by excluding the parentItem
          ;; property or setting it to false.
          (parent (cond
-                  ((equal arg '(4)) :json-false)
-                  ((null node) :json-false)
+                  ((equal arg '(4)) nil)
+                  ((null node) nil)
                   (t (ewoc-data node))))
          (linkmode (completing-read "Select a linkmode: " (zotero-attachment-linkmodes) nil t nil nil zotero-browser-default-linkmodes))
          (template (copy-tree (zotero-cache-attachment-template linkmode))))
@@ -1342,7 +1341,6 @@ client."
               (accessdate (plist-get attributes :accessdate))
               ;; REVIEW: charset cannot be determined without external tools
               (data (thread-first template
-                      (plist-put :parentItem parent)
                       (plist-put :title filename)
                       (plist-put :accessDate accessdate)
                       (plist-put :contentType content-type)
@@ -1354,7 +1352,8 @@ client."
                       ;; an atomic method for setting the properties
                       ;; along with the corresponding file.
                       (plist-put :md5 nil)
-                      (plist-put :mtime nil))))
+                      (plist-put :mtime nil)))
+              (data (if parent (plist-put data :parentItem parent) data)))
          (when-let ((object (zotero-cache-save data "items" type id))
                     (key (plist-get object :key)))
            (unless (zotero-upload-attachment key file nil :type type :id id)
@@ -1374,12 +1373,12 @@ client."
               (content-type (plist-get attributes :content-type))
               (accessdate (plist-get attributes :accessdate))
               (data (thread-first template
-                      (plist-put :parentItem parent)
                       (plist-put :title filename)
                       (plist-put :accessDate accessdate)
                       (plist-put :contentType content-type)
                       ;; (plist-put :charset charset) ; charset cannot be determined without external tools
-                      (plist-put :path file))))
+                      (plist-put :path file)))
+              (data (if parent (plist-put data :parentItem parent) data)))
          (when-let ((object (zotero-cache-save data "items" type id))
                     (key (plist-get object :key)))
            (if node
@@ -1387,9 +1386,9 @@ client."
              (ewoc-enter-last ewoc key))
            (display-buffer (zotero-edit-item (plist-get object :data) type id) zotero-browser-edit-buffer-action))))
       ("linked_url"
-       (if (eq parent :json-false)
-           (user-error "Links to URLs are not allowed as top-level items")
-         (pop-to-buffer (zotero-edit-item template type id) zotero-browser-edit-buffer-action))))))
+       (if parent
+           (pop-to-buffer (zotero-edit-item template type id) zotero-browser-edit-buffer-action)
+         (user-error "Links to URLs are not allowed as top-level items"))))))
 
 (defun zotero-browser-update-attachment ()
   "Update the attachment of the current entry."
@@ -1629,10 +1628,8 @@ With a `C-u' prefix, create a new top level attachment."
                   zotero-browser-id id)
             (dolist (key keys)
               ;; Create a new node if key is not a child
-              (let ((parent (zotero-cache-parentcollection key table)))
-                (when (or (null parent)
-                          (eq parent :json-false))
-                  (ewoc-enter-last ewoc key)))
+              (unless (zotero-cache-parentitem key table)
+                (ewoc-enter-last ewoc key))
               ;; Then create nodes for the children of key
               (when-let ((children (ht-keys (zotero-cache-subcollections key table))))
                 (dolist (child children)
