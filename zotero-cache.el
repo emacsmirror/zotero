@@ -376,7 +376,7 @@ items in the trash are included."
                                                       (or (eq (plist-get elt :collections) [])
                                                           (eq (plist-get elt :collections) :json-empty)))) library))))
     ("trash-items"
-     (let* ((table (ht-get* zotero-cache "synccache" id "items"))
+     (let* ((table (ht-get* zotero-cache "synccache" "items"))
             (library (if (and type id)
                          (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
                                                              (equal (plist-get value :id) id))) table)
@@ -405,7 +405,7 @@ items in the trash are included."
          (zotero-cache-filter-data (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
                                                       (seq-contains-p (plist-get elt :collections) key))) library))))
     ("collection-items-top"
-     (let* ((table (ht-get* zotero-cache "synccache" id "items"))
+     (let* ((table (ht-get* zotero-cache "synccache" "items"))
             (library (if (and type id)
                          (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
                                                              (equal (plist-get value :id) id))) table)
