@@ -239,7 +239,7 @@ returned by `zotero-key'."
       parent)))
 
 (defun zotero-cache-subitems (key table)
-  "Return the subcollections of KEY in TABLE."
+  "Return the subitems of KEY in TABLE."
   (zotero-cache-filter-data (lambda (elt) (equal (plist-get elt :parentItem) key)) table))
 
 (defun zotero-cache-subcollections (key table)
