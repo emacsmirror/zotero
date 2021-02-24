@@ -178,15 +178,6 @@ the sorting order: 'asc for ascending or 'desc for descending."
       ('desc
        (lambda (a b) (funcall pred b a))))))
 
-(defun zotero-cache-filter-library (pred table)
-  "Return a table containing entries in TABLE for which PRED returns non-nil.
-PRED is a function that takes a `:library' element as its first
-argument."
-  (ht-select (lambda (key value)
-               ;; keep the predicate nil-safe
-               (ignore-error wrong-type-argument
-                 (funcall pred (zotero-lib-plist-get* value :object :library)))) table))
-
 (defun zotero-cache-filter-data (pred table)
   "Return a table containing entries in TABLE for which PRED returns non-nil.
 PRED is a function that takes a `:data' element as its first
