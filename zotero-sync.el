@@ -766,12 +766,14 @@ Zotero API key."
 (defun zotero-sync (&optional full-sync retries)
   "Sync the Zotero library.
 
-Optional argument RETRIES is used to count the number of
-retries.
+When optional argument FULL-SYNC is non-nil, or with a `C-u'
+prefix, force a full sync.
+
+Argument RETRIES is used to count the number of retries.
 
 Keyword ID is the ID of the personal library you want to access,
 i.e. the \"user ID\". API-KEY is the Zotero API key."
-  (interactive)
+  (interactive "P")
   (let ((id (zotero-auth-token-userid zotero-auth-token))
         (api-key (zotero-auth-api-key zotero-auth-token)))
     (message "Syncing cache...")
