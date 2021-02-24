@@ -1615,15 +1615,16 @@ The format can be changed by customizing `zotero-browser-filename-keys' and `zot
               (setq result (plist-put result :collections (vector collection))))
             ;; Save the item and place it as a child of the new item
             (when-let ((object (zotero-cache-save result "items" type id))
+                       (data (plist-get object :data))
                        (key (plist-get object :key)))
               (let* ((dir (file-name-directory file))
                      (ext (file-name-extension file t))
-                     (base (zotero-browser--filename-base object))
+                     (base (zotero-browser--filename-base data))
                      (newname (concat dir base ext))
                      (data (thread-first attachment-data
                              (plist-put :parentItem key)
                              (plist-put :title base)
-                             (plist-put :filename newname))))
+                             (plist-put :filename (concat base ext)))))
                 ;; Rename attachment file to match new metadata
                 (rename-file file newname t)
                 (zotero-cache-save data "items" type id)))))))))
