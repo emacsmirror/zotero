@@ -799,15 +799,25 @@ ID."
   (let* ((value (zotero-cache-synccache resource key type id))
          (synccache (ht-get* zotero-cache "synccache" resource))
          (deletions (ht-get* zotero-cache "deletions" resource)))
-    ;; Remove all items from the collection
-    (when (equal resource "collections")
-      (let* ((collection key)
-             (table (zotero-cache-synccache "collection-items" collection type id t)))
-        (ht-each (lambda (key value)
-                   (zotero-cache-remove-from-collection type id key collection))
-                 table)))
+    (pcase resource
+      ("collections"
+       (let* ((children (zotero-cache-subcollections key synccache))
+              (collection key)
+              (table (zotero-cache-synccache "collection-items" collection type id t)))
+         ;; Remove all subcollections from the collection
+         (ht-each (lambda (key value) (zotero-cache-remove-from-collection key collection type id)) children)
+         ;; Remove all items from the collection
+         (ht-each (lambda (key value)
+                    (zotero-cache-remove-from-collection type id key collection))
+                  table)))
+      ("items"
+       ;; Remove all subitems from the item
+       (let ((children (zotero-cache-subitems key synccache))
+             (parent key))
+         (ht-each (lambda (key value) (zotero-cache-remove-from-item key parent type id)) children))))
     (ht-set! deletions key value)
-    (ht-remove! synccache key)))
+    (ht-remove! synccache key)
+    (zotero-cache-serialize)))
 
 (defun zotero-cache-trash (key type id)
   "Move item KEY to trash.
