@@ -413,21 +413,20 @@ Keyword CACHE is the hash table containing the cache."
          (deletions (ht-get cache "deletions")))
     (cl-loop for resource being the hash-keys of deletions
              using (hash-values table) do
-             (when-let ((objects (thread-last table
-                                   (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                                       (equal (plist-get value :id) id))))
-                                   (ht-values)
-                                   (seq-map (lambda (elt) (zotero-lib-plist-get* elt :object :data)))))
-                        (partitions (seq-partition objects 50))
+             (when-let ((keys (thread-last table
+                                (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
+                                                                    (equal (plist-get value :id) id))))
+                                (ht-keys)))
+                        (partitions (seq-partition keys 50))
                         (number 0))
                (dolist (partition partitions)
-                 (message "Uploading %d-%d of %d deleted %s..." (1+ number) (+ number (length partition)) (length objects) resource)
+                 (message "Uploading %d-%d of %d deleted %s..." (1+ number) (+ number (length partition)) (length keys) resource)
                  (let* ((param-key (pcase resource
                                      ("collections" "collectionKey")
                                      ("items" "itemKey")
                                      ("searches" "searchKey")))
-                        (json (apply #'zotero-json-encode-object partition))
-                        (result (zotero-request "DELETE" resource nil :type type :id id :api-key api-key :headers `(("Content-Type" . "application/json")) :data json))
+                        (param-value (s-join "," partition))
+                        (result (zotero-request "DELETE" resource nil :type type :id id :api-key api-key :headers `(("If-Unmodified-Since-Version" . ,(number-to-string version))) :params `((,param-key ,param-value))))
                         (status-code (zotero-response-status-code result))
                         (remote-version (zotero-response-version result)))
                    (pcase status-code
@@ -441,15 +440,13 @@ Keyword CACHE is the hash table containing the cache."
                         (ht-set! libraries id (plist-put library :version remote-version))
                         (setq version remote-version))
                       ;; Remove the keys from the delete log
-                      (let ((keys (seq-map (lambda (elt) (plist-get elt :key)) partition)))
-                        (dolist (key keys)
-                          (ht-remove! table key))))
+                      (seq-do (lambda (key) (ht-remove! table key)) partition))
                      ;; On a 412 Precondition Failed response,
                      ;; return to the beginning of the sync
                      ;; process for that library.
                      (412
                       (throw 'sync 'concurrent-update)))
-                   (message "Uploading %d-%d of %d deleted %s...done" (1+ number) (+ number (length partition)) (length objects) resource)
+                   (message "Uploading %d-%d of %d deleted %s...done" (1+ number) (+ number (length partition)) (length keys) resource)
                    (setq number (+ number (length partition)))))))
     cache))
 
