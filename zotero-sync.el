@@ -72,11 +72,9 @@
 
 (defun zotero-sync--get-locally-deleted (cache resource type id)
   "Return locally deleted keys."
-  (let ((table (ht-get* cache "deletions" resource))
-        (deleted (if (and type id)
-                     (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                         (equal (plist-get value :id) id))) table)
-                   table)))
+  (let* ((table (ht-get* cache "deletions" resource))
+         (deleted (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
+                                                      (equal (plist-get value :id) id))) table)))
     (ht-keys deleted)))
 
 (defun zotero-sync--get-remotely-updated (resource keys type id api-key)
