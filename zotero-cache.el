@@ -772,6 +772,18 @@ ID."
          (updated-collections (cl-substitute new old collection :test #'equal)))
     (zotero-cache-save (plist-put data :collections updated-collections) "items" type id)))
 
+(defun zotero-cache-remove-from-item (key item type id)
+  "Remove item KEY from parent ITEM.
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
+  (let* ((entry (zotero-cache-synccache "item" key type id t))
+         (data (zotero-lib-plist-get* entry :object :data))
+         (updated-data (zotero-lib-plist-delete data :parentItem)))
+    (zotero-cache-save updated-data "items" type id)))
+
 (defun zotero-cache-delete (resource key type id)
   "Delete KEY from cache.
 
