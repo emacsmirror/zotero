@@ -258,7 +258,7 @@ Zotero API key."
                    (ht-set! groups id `(:version ,remote-version :object ,data))))))
     cache))
 
-(defun zotero-sync--remotely-updated (cache type id api-key)
+(defun zotero-sync--remotely-updated (cache type id api-key &optional full-sync)
   "Sync remotely updated data.
 
 Keyword CACHE is the hash table containing the cache. keyword ID is the ID
@@ -268,9 +268,13 @@ Zotero API key."
   (let* ((libraries (ht-get cache "libraries"))
          (library (ht-get libraries id))
          (storage-version (plist-get library :storage-version))
+         (since (cond
+                 (full-sync 0)
+                 (storage-version storage-version)
+                 (t 0)))
          (version (plist-get library :version)))
     (cl-loop for resource in '("collections" "items" "searches") do
-             (let* ((result (zotero-request "GET" resource nil :type type :id id :api-key api-key :params `(("since" ,(or storage-version 0))
+             (let* ((result (zotero-request "GET" resource nil :type type :id id :api-key api-key :params `(("since" ,since)
                                                                                                             ("format" "versions")
                                                                                                             ("includeTrashed" 1))))
                     (remote-version (zotero-response-version result))
@@ -294,7 +298,7 @@ Zotero API key."
                      (setf table updated-table))))))
     cache))
 
-(defun zotero-sync--remotely-deleted (cache type id api-key)
+(defun zotero-sync--remotely-deleted (cache type id api-key &optional full-sync)
   "Sync remotely deleted data.
 
 Keyword CACHE is the hash table containing the cache. keyword ID is the ID
@@ -304,8 +308,12 @@ Zotero API key."
   (let* ((libraries (ht-get cache "libraries"))
          (library (ht-get libraries id))
          (storage-version (plist-get library :storage-version))
+         (since (cond
+                 (full-sync 0)
+                 (storage-version storage-version)
+                 (t 0)))
          (version (plist-get library :version))
-         (result (zotero-request "GET" "deleted" nil :type type :id id :api-key api-key :params `(("since" ,(or storage-version 0)))))
+         (result (zotero-request "GET" "deleted" nil :type type :id id :api-key api-key :params `(("since" ,since))))
          (remote-version (zotero-response-version result))
          ;; Returns a plist of the form (:collections ["12345678" "ABCDEFGH"
          ;; ...] :items ["87654321" "HGFEDCBA" ...] :searches [] :tags ["tag 1"
@@ -705,7 +713,7 @@ Zotero API key."
     (zotero-sync--delete-attachments cache)
     (message "Deleting removed attachments from storage...done")))
 
-(defun zotero-sync--sync (cache id api-key)
+(defun zotero-sync--sync (cache id api-key &optional full-sync)
   "Sync the Zotero library.
 
 Keyword CACHE is the hash table containing the cache. keyword ID is the ID
@@ -729,11 +737,11 @@ Zotero API key."
                      (read-only (zotero-cache-read-only-p value)))
 
                  (message "Syncing remotely updated data for %s %s..." type id)
-                 (zotero-sync--remotely-updated cache type id api-key)
+                 (zotero-sync--remotely-updated cache type id api-key full-sync)
                  (message "Syncing remotely updated data for %s %s...done" type id)
 
                  (message "Syncing remotely deleted data for %s %s..." type id)
-                 (zotero-sync--remotely-deleted cache type id api-key)
+                 (zotero-sync--remotely-deleted cache type id api-key full-sync)
                  (message "Syncing remotely deleted data for %s %s...done" type id)
 
                  (unless read-only
@@ -755,7 +763,7 @@ Zotero API key."
                    (ht-set! libraries id value)))))
     cache))
 
-(defun zotero-sync (&optional retries)
+(defun zotero-sync (&optional full-sync retries)
   "Sync the Zotero library.
 
 Optional argument RETRIES is used to count the number of
@@ -769,7 +777,7 @@ i.e. the \"user ID\". API-KEY is the Zotero API key."
     (message "Syncing cache...")
     (zotero-cache-maybe-initialize-cache)
     (let* ((cache (copy-tree zotero-cache))
-           (result (zotero-sync--sync cache id api-key))
+           (result (zotero-sync--sync cache id api-key full-sync))
            (retries (or retries 0)))
       (pcase result
         ((pred ht?)
@@ -798,7 +806,7 @@ i.e. the \"user ID\". API-KEY is the Zotero API key."
              (if (> total-delay zotero-sync-max-delay)
                  (user-error "Syncing cache failed: concurrent update and maximum of %d seconds delay reached" zotero-sync-max-delay)
                (sleep-for (expt 2 retries))
-               (zotero-sync (1+ retries)))))))
+               (zotero-sync full-sync (1+ retries)))))))
         ('quit
          (message "Syncing cache...quit"))
         (_ ; this should not happen
