@@ -1123,7 +1123,7 @@ API-KEY is the Zotero API key."
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("Content-Type" . "application/json")
+                    :headers `(("Content-Type" . "application/json; charset=utf-8")
                                ("Zotero-Write-Token" . ,write-token))
                     :data json)))
 
@@ -1150,7 +1150,7 @@ API-KEY is the Zotero API key."
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("Content-Type" . "application/json")
+                    :headers `(("Content-Type" . "application/json; charset=utf-8")
                                ("Zotero-Write-Token" . ,write-token))
                     :data json)))
 
@@ -1191,7 +1191,7 @@ API-KEY is the Zotero API key."
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("Content-Type" . "application/json"))
+                    :headers '(("Content-Type" . "application/json; charset=utf-8"))
                     :data json)))
 
 (cl-defun zotero-update-items (objects &key type id api-key)
@@ -1242,7 +1242,7 @@ API-KEY is the Zotero API key."
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("Content-Type" . "application/json"))
+                    :headers '(("Content-Type" . "application/json; charset=utf-8"))
                     :data json)))
 
 
@@ -1325,7 +1325,7 @@ API-KEY is the Zotero API key."
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("Content-Type" . "application/json")
+                    :headers `(("Content-Type" . "application/json; charset=utf-8")
                                ("Zotero-Write-Token" . ,write-token))
                     :data json)))
 
@@ -1348,7 +1348,7 @@ API-KEY is the Zotero API key."
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("Content-Type" . "application/json"))
+                    :headers '(("Content-Type" . "application/json; charset=utf-8"))
                     :data json)))
 
 (cl-defun zotero-update-collections (objects &key type id api-key)
@@ -1376,7 +1376,7 @@ API-KEY is the Zotero API key."
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("Content-Type" . "application/json"))
+                    :headers '(("Content-Type" . "application/json; charset=utf-8"))
                     :data json)))
 
 (cl-defun zotero-delete-collection (key version &key type id api-key)
@@ -1434,7 +1434,7 @@ API-KEY is the Zotero API key."
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("Content-Type" . "application/json")
+                    :headers `(("Content-Type" . "application/json; charset=utf-8")
                                ("Zotero-Write-Token" . ,write-token))
                     :data json)))
 
@@ -1463,7 +1463,7 @@ API-KEY is the Zotero API key."
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("Content-Type" . "application/json"))
+                    :headers '(("Content-Type" . "application/json; charset=utf-8"))
                     :data json)))
 
 (cl-defun zotero-delete-searches (keys version &key type id api-key)
