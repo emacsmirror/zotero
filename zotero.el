@@ -35,6 +35,7 @@
 
 ;;;; Requirements
 
+(require 'cl)
 (require 'json)
 (require 'mailcap)
 (require 's)
@@ -357,45 +358,44 @@ This will return an alist
 (defun zotero--backoff (response)
   "Return the value of the \"Backoff\" headers in RESPONSE."
   (when-let ((headers (zotero-response-headers response))
-             (value (cdr (assoc "Backoff" headers))))
+             (value (cdr (assoc "backoff" headers #'cl-equalp))))
     (string-to-number value)))
 
 (defun zotero--content-type (response)
   "Return the value of the \"Content-Type\" headers in RESPONSE."
   (when-let ((headers (zotero-response-headers response))
-             (value (or (cdr (assoc "Content-Type" headers))
-                        (cdr (assoc "content-type" headers)))))
+             (value (or (cdr (assoc "content-type" headers #'cl-equalp)))))
     value))
 
 (defun zotero--etag (response)
   "Return the value of the \"ETag\" headers in RESPONSE."
   (when-let ((headers (zotero-response-headers response))
-             (value (cdr (assoc "ETag" headers))))
+             (value (cdr (assoc "etag" headers #'cl-equalp))))
     (substring value 1 -1))) ; remove the quotes
 
 (defun zotero--last-modified-version (response)
   "Return the value of the \"Last-Modified-Version\" headers in RESPONSE."
   (when-let ((headers (zotero-response-headers response))
-             (value (cdr (assoc "Last-Modified-Version" headers))))
+             (value (cdr (assoc "last-modified-version" headers #'cl-equalp))))
     (string-to-number value)))
 
 (defun zotero--next-url (response)
   "Return the next pagination link of the \"Link\" headers in RESPONSE."
   (when-let ((header (zotero-response-headers response))
-             (links (cdr (assoc "Links" header)))
-             (next (cdr (assoc "next" (zotero--parse-links links)))))
+             (links (cdr (assoc "links" header #'cl-equalp)))
+             (next (cdr (assoc "next" (zotero--parse-links links) #'cl-equalp))))
     next))
 
 (defun zotero--retry-after (response)
   "Return the value of the \"Retry-After\" headers in RESPONSE."
   (when-let ((headers (zotero-response-headers response))
-             (value (cdr (assoc "Retry-After" headers))))
+             (value (cdr (assoc "retry-after" headers #'cl-equalp))))
     (string-to-number value)))
 
 (defun zotero--total-results (response)
   "Return the value of the \"Total-Results\" headers in RESPONSE."
   (when-let ((headers (zotero-response-headers response))
-             (value (cdr (assoc "Total-Results" headers))))
+             (value (cdr (assoc "total-results" headers #'cl-equalp))))
     (string-to-number value)))
 
 (defun zotero--write-token ()
