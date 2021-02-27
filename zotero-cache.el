@@ -624,7 +624,8 @@ not (yet) implemented in the Zotero API."
   (let* ((template (ht-get* zotero-cache "templates" "items" itemtype))
          (last-sync (plist-get template :last-sync))
          (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
-    (if (or (null template) (> seconds-since-last-sync zotero-cache-expire))
+    (if (or (null template)
+            (and zotero-cache-expire (> seconds-since-last-sync zotero-cache-expire)))
         (with-demoted-errors "Error downloading template: %S"
           (zotero-sync--item-template zotero-cache itemtype))
       (plist-get template :object))))
@@ -638,7 +639,8 @@ not (yet) implemented in the Zotero API."
   (let* ((template (ht-get* zotero-cache "templates" "attachments" linkmode))
          (last-sync (plist-get template :last-sync))
          (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
-    (if (or (null template) (> seconds-since-last-sync zotero-cache-expire))
+    (if (or (null template)
+            (and zotero-cache-expire (> seconds-since-last-sync zotero-cache-expire)))
         (with-demoted-errors "Error downloading template: %S"
           (zotero-sync--attachment-template zotero-cache linkmode))
       (plist-get template :object))))
@@ -651,7 +653,8 @@ without making further requests."
   (let* ((schema (ht-get zotero-cache "schema"))
          (last-sync (plist-get schema :last-sync))
          (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
-    (when (or (null schema) (> seconds-since-last-sync zotero-cache-expire))
+    (when (or (null schema)
+              (and zotero-cache-expire (> seconds-since-last-sync zotero-cache-expire)))
       (zotero-sync--schema zotero-cache))
     schema))
 
