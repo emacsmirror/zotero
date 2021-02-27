@@ -1069,13 +1069,6 @@ application is found, Emacs simply visits the file."
   (interactive "P")
   (zotero-browser-ensure-browser-buffer)
   (let* ((ewoc zotero-browser-ewoc)
-         (type zotero-browser-type)
-         (id zotero-browser-id)
-         (table (pcase major-mode
-                  ('zotero-browser-collections-mode
-                   (zotero-cache-synccache "collections" nil type id))
-                  ('zotero-browser-items-mode
-                   (zotero-cache-synccache "items" nil type id))))
          (num (or num 1))
          (inhibit-read-only t))
     (save-excursion
