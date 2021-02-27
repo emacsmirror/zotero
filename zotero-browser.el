@@ -1304,25 +1304,6 @@ With a `C-u' prefix, create a new top level note."
                   (t (ewoc-data node)))))
     (pop-to-buffer (zotero-edit-create-note type id parent) zotero-browser-edit-buffer-action)))
 
-(defun zotero-browser-add-by-identifier (string)
-  (interactive "sEnter a ISBN, DOI, PMID, or arXiv ID: ")
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (string (s-trim string))
-         (data (cond
-                ((setq identifier (zotero-lib-validate-isbn string))
-                 (zotero-openlibrary identifier))
-                ((setq identifier (zotero-lib-validate-doi string))
-                 (zotero-crossref identifier))
-                ((setq identifier (zotero-lib-validate-pmid string) )
-                 (zotero-pmid identifier))
-                ((setq identifier (zotero-lib-validate-arxiv string) )
-                 (zotero-arxiv identifier))
-                (t (user-error "Identifier \"%s\" is not a valid arXiv id, DOI, or ISBN." string)))))
-    (if data
-        (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)
-      (user-error "No metadata found for identifier \"%s\"." identifier))))
-
 (defun zotero-browser-create-attachment (&optional arg)
   "Create a new attachment with the current entry as parent.
 With a `C-u' prefix, create a new top level attachment.
@@ -1495,45 +1476,24 @@ client."
       (make-directory dir t))
     (zotero-download-file key filename dir t :type type :id id)))
 
-;; TODO: finish this function
-(defun zotero-browser-import-attachment ()
-  "Create a new attachment with the current entry as parent.
-With a `C-u' prefix, create a new top level attachment."
-  (interactive)
-  (zotero-browser-ensure-items-mode)
-  (zotero-browser-ensure-write-access)
+(defun zotero-browser-add-by-identifier (string)
+  (interactive "sEnter a ISBN, DOI, PMID, or arXiv ID: ")
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
-         (ewoc zotero-browser-ewoc)
-         (template (copy-tree (zotero-cache-attachment-template "imported_file")))
-         (file (expand-file-name (read-file-name "Select file: " nil nil t)))
-         (attributes (zotero-file-attributes file))
-         (filename (file-name-nondirectory file))
-         (filesize (plist-get attributes :filesize))
-         (content-type (plist-get attributes :content-type))
-         (md5 (plist-get attributes :md5))
-         (mtime (plist-get attributes :mtime))
-         (accessdate (plist-get attributes :accessdate))
-         ;; REVIEW: charset cannot be determined without external tools
-         (data (thread-first template
-                 (plist-put :parentItem parent)
-                 (plist-put :title filename)
-                 (plist-put :accessDate accessdate)
-                 (plist-put :contentType content-type)
-                 (plist-put :filename filename)
-                 ;; md5 and mtime can be edited directly in
-                 ;; personal libraries for WebDAV-based file
-                 ;; syncing. They should not be edited directly
-                 ;; when using Zotero File Storage, which provides
-                 ;; an atomic method for setting the properties
-                 ;; along with the corresponding file.
-                 (plist-put :md5 nil)
-                 (plist-put :mtime nil))))
-    (when-let ((object (zotero-cache-save data "items" type id))
-               (key (plist-get object :key)))
-      (unless (zotero-upload-attachment key file nil :type type :id id)
-        (error "Failed to associate attachment with item %s" key))
-      (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))
+         (string (s-trim string))
+         (data (cond
+                ((setq identifier (zotero-lib-validate-isbn string))
+                 (zotero-openlibrary identifier))
+                ((setq identifier (zotero-lib-validate-doi string))
+                 (zotero-crossref identifier))
+                ((setq identifier (zotero-lib-validate-pmid string) )
+                 (zotero-pmid identifier))
+                ((setq identifier (zotero-lib-validate-arxiv string) )
+                 (zotero-arxiv identifier))
+                (t (user-error "Identifier \"%s\" is not a valid arXiv id, DOI, or ISBN." string)))))
+    (if data
+        (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)
+      (user-error "No metadata found for identifier \"%s\"." identifier))))
 
 (defun zotero-browser--filename-base (data)
   "Return a base filename to match DATA.
@@ -1603,24 +1563,27 @@ The format can be changed by customizing `zotero-browser-filename-keys' and `zot
             (when (and (string-empty-p (plist-get result :language))
                        (plist-member metadata :language))
               (setq result (plist-put result :language (plist-get metadata :language))))
-	    ;; Put new item in same collections as the attachment
+	    ;; Put the parent item in the same collections as the attachment
             (when collection
               (setq result (plist-put result :collections (vector collection))))
-            ;; Save the item and place it as a child of the new item
+            ;; Save the parent item
             (when-let ((object (zotero-cache-save result "items" type id))
-                       (data (plist-get object :data))
                        (key (plist-get object :key)))
-              (let* ((dir (file-name-directory file))
-                     (ext (file-name-extension file t))
+              ;; Rename the attachment to match new metadata and make it a child
+              (let* ((data (plist-get object :data))
                      (base (zotero-browser--filename-base data))
+                     (dir (file-name-directory file))
+                     (ext (file-name-extension file t))
                      (newname (concat dir base ext))
                      (data (thread-first attachment-data
                              (plist-put :parentItem key)
                              (plist-put :title base)
                              (plist-put :filename (concat base ext)))))
-                ;; Rename attachment file to match new metadata
                 (rename-file file newname t)
-                (zotero-cache-save data "items" type id)))))))))
+                (zotero-cache-save data "items" type id)
+                (ewoc-enter-before ewoc node key)
+                (zotero-browser--prefix (ewoc-location (ewoc-prev ewoc node)) "▾")
+                (ewoc-invalidate ewoc node)))))))))
 
 (defun zotero-browser-set-fulltext ()
   "Set the full-text content of the current entry."
