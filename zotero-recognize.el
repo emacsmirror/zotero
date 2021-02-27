@@ -105,8 +105,8 @@ Return JSON with metadata, layout and rich text of FILE."
           (if (eq status 0)
               (prog1
                   (with-temp-buffer
-                    (insert-file-contents tempfile)
-                    (buffer-string))
+                    (insert-file-contents-literally tempfile)
+                    (encode-coding-string (buffer-string) 'utf-8))
                 (delete-file tempfile))
             (error "Executable %s cannot output to json" zotero-recognize-pdftotext))))
     (error "Executable %s not found" zotero-recognize-pdftotext)))
@@ -169,7 +169,7 @@ attachment, by looking up item metadata when supplied with a
 standard identifier."
   (let ((url (concat zotero-recognize-base-url "/recognize"))
         (headers `(("Content-Type" . "application/json")))
-        (data (encode-coding-string (zotero-recognize--pdftojson file) 'utf-8)))
+        (data (zotero-recognize--pdftojson file)))
     (zotero-dispatch (zotero-request-create :method "POST"
                                             :url url
                                             :headers headers
