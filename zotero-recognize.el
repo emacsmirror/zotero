@@ -184,11 +184,11 @@ item metadata. Optional argument DESCRIPTION is a
 string for the report."
   (let ((url (concat zotero-recognize-base-url "/report"))
         (headers `(("Content-Type" . "application/json")))
-        (data (zotero-json-encode-object `(,description ,zotero-api-version ,metadata-pdf ,metadata-item))))
+        (json (zotero-json-encode-object `(,description ,zotero-api-version ,metadata-pdf ,metadata-item))))
     (zotero-dispatch (zotero-request-create :method "POST"
                                             :url url
                                             :headers headers
-                                            :data data))))
+                                            :data (encode-coding-string json 'utf-8)))))
 
 (defun zotero-recognize-install-pdftools ()
   "Install the PDF tools modified by Zotero.

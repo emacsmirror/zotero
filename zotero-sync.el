@@ -356,7 +356,7 @@ Keyword CACHE is the hash table containing the cache."
                                      ("items" "itemKey")
                                      ("searches" "searchKey")))
                         (json (apply #'zotero-json-encode-object partition))
-                        (result (zotero-request "POST" resource nil :type type :id id :api-key api-key :headers `(("Content-Type" . "application/json")) :data json))
+                        (result (zotero-request "POST" resource nil :type type :id id :api-key api-key :headers `(("Content-Type" . "application/json")) :data (encode-coding-string json 'utf-8)))
                         (status-code (zotero-response-status-code result))
                         (remote-version (zotero-response-version result))
                         (data (zotero-response-data result))

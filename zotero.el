@@ -1122,7 +1122,7 @@ API-KEY is the Zotero API key."
                     :api-key api-key
                     :headers `(("Content-Type" . "application/json; charset=utf-8")
                                ("Zotero-Write-Token" . ,write-token))
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-create-items (objects &key type id api-key)
   "Create multiple items.
@@ -1149,7 +1149,7 @@ API-KEY is the Zotero API key."
                     :api-key api-key
                     :headers `(("Content-Type" . "application/json; charset=utf-8")
                                ("Zotero-Write-Token" . ,write-token))
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-update-item (key object &key type id api-key)
   "Update existing item KEY.
@@ -1189,7 +1189,7 @@ API-KEY is the Zotero API key."
                     :id id
                     :api-key api-key
                     :headers '(("Content-Type" . "application/json; charset=utf-8"))
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-update-items (objects &key type id api-key)
   "Update existing items.
@@ -1240,7 +1240,7 @@ API-KEY is the Zotero API key."
                     :id id
                     :api-key api-key
                     :headers '(("Content-Type" . "application/json; charset=utf-8"))
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 
 (cl-defun zotero-patch-item (key object version &key type id api-key)
@@ -1262,7 +1262,7 @@ API-KEY is the Zotero API key."
                     :id id
                     :api-key api-key
                     :headers `(("If-Unmodified-Since-Version" . ,version))
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-delete-item (key version &key type id api-key)
   "Delete item KEY.
@@ -1324,7 +1324,7 @@ API-KEY is the Zotero API key."
                     :api-key api-key
                     :headers `(("Content-Type" . "application/json; charset=utf-8")
                                ("Zotero-Write-Token" . ,write-token))
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-update-collection (key object &key type id api-key)
   "Update existing collection KEY.
@@ -1346,7 +1346,7 @@ API-KEY is the Zotero API key."
                     :id id
                     :api-key api-key
                     :headers '(("Content-Type" . "application/json; charset=utf-8"))
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-update-collections (objects &key type id api-key)
   "Update existing collections.
@@ -1374,7 +1374,7 @@ API-KEY is the Zotero API key."
                     :id id
                     :api-key api-key
                     :headers '(("Content-Type" . "application/json; charset=utf-8"))
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-delete-collection (key version &key type id api-key)
   "Delete collection KEY.
@@ -1433,7 +1433,7 @@ API-KEY is the Zotero API key."
                     :api-key api-key
                     :headers `(("Content-Type" . "application/json; charset=utf-8")
                                ("Zotero-Write-Token" . ,write-token))
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-update-searches (objects &key type id api-key)
   "Update existing searches in the library.
@@ -1461,7 +1461,7 @@ API-KEY is the Zotero API key."
                     :id id
                     :api-key api-key
                     :headers '(("Content-Type" . "application/json; charset=utf-8"))
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-delete-searches (keys version &key type id api-key)
   "Delete multiple searches.

@@ -189,7 +189,7 @@ API-KEY is the Zotero API key."
                     :type type
                     :id id
                     :api-key api-key
-                    :data json)))
+                    :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-fulltext-index-item (key file &optional content-type &key type id api-key)
   "Create full-text content for item KEY.

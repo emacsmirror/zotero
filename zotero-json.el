@@ -145,14 +145,11 @@ Each of the OBJECTS may be:
         (if (json-plist-p plist)
             (push plist result)
           (error "Object %S doesn't return a property list" object))))
-    ;; json-encode produces multibyte strings, but url-http expects unibyte
-    ;; strings. Therefore we encode multibyte strings in UTF-8.
     (prog1
         (thread-first result
           (nreverse)
           (seq-into 'vector)
-          (json-encode-array)
-          (encode-coding-string 'utf-8))
+          (json-encode-array))
       (zotero-json--after-write-function))))
 
 (provide 'zotero-json)
