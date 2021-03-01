@@ -347,8 +347,9 @@ This will return an alist
 (defun zotero--data (response result)
   "Concatenate the data in RESPONSE and RESULT."
   (let* ((content-type (zotero--content-type response))
-         (data (if (string-match-p "application/json.*" content-type)
-                   (zotero-json-read-object (zotero-response-data response))
+         (data (if (string-prefix-p "application/json" content-type t)
+                   (let ((json (zotero-response-data response)))
+                     (zotero-json-read-object (decode-coding-string json 'utf-8)))
                  (zotero-response-data response))))
     (if result (vconcat result data) data)))
 
