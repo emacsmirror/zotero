@@ -62,9 +62,6 @@
 (defconst zotero-api-version 3
   "API version. Version 3 is currently the default and recommended version.")
 
-(defconst zotero-user-agent (concat "emacs-zotero/" zotero-version " (https://gitlab.com/fvdbeek/emacs-zotero/; mailto:folkertvanderbeek@gmail.com)")
-  "User-Agent header that properly identifies emacs-zotero.")
-
 (defvar zotero-rate-limit nil
   "The time in seconds (since the Unix epoch) that the rate of requests is limited by the \"Backoff\" or \"Retry-After\" header.
 The time is formatted as a \"Lisp timestamp\".")
@@ -444,7 +441,8 @@ Return a `zotero-response' structure."
          (url (if query (concat path "?" query) path))
          (url-request-method (zotero-request-method request))
          (url-request-data (zotero-request-data request))
-         (url-request-extra-headers (zotero-request-headers request)))
+         (url-request-extra-headers (zotero-request-headers request))
+         (url-user-agent 'default))
     (with-current-buffer (url-retrieve-synchronously url nil nil zotero-timeout)
       (funcall #'zotero-handle-response))))
 
@@ -819,8 +817,7 @@ sessions."
                         (_ nil))))
          (api-key (unless no-auth (or api-key (zotero-auth-api-key zotero-auth-token))))
          (headers (nconc headers
-                         `(("User-Agent" . ,zotero-user-agent)
-                           ("Zotero-API-Version" . ,api-version))
+                         `(("Zotero-API-Version" . ,api-version))
                          (unless no-auth `(("Zotero-API-Key" . ,api-key))))))
     (zotero-dispatch (zotero-request-create :method method
                                             :url url
