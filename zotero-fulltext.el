@@ -184,12 +184,19 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, e.g. the \"user ID\" or \"group ID\".
 API-KEY is the Zotero API key."
-  (let ((json (zotero-json-encode-object object)))
+  ;; The data be a JSON object, and is not allowed to be an array of objects.
+  ;; Because an array of objects is the default for Zotero requests, even for
+  ;; single-item requests, all objects are encoded to an array by
+  ;; `zotero-json-encode-object'. The easiest way to prevent a "400 Bad Request"
+  ;; response is to just remove the brackets.
+  (let* ((array (zotero-json-encode-object object))
+         (object (substring json 1 -1))) ; remove the array brackets
     (zotero-request "PUT" "item-fulltext" key
                     :type type
                     :id id
                     :api-key api-key
-                    :data (encode-coding-string json 'utf-8))))
+                    :headers '(("Content-Type" . "application/json"))
+                    :data (encode-coding-string object 'utf-8))))
 
 (cl-defun zotero-fulltext-index-item (key file &optional content-type &key type id api-key)
   "Create full-text content for item KEY.
