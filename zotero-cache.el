@@ -180,6 +180,7 @@ the sorting order: 'asc for ascending or 'desc for descending."
 
 (defun zotero-cache-filter-data (pred table)
   "Return a table containing entries in TABLE for which PRED returns non-nil.
+
 PRED is a function that takes a `:data' element as its first
 argument."
   (ht-select (lambda (key value)
@@ -825,10 +826,10 @@ ID."
 (defun zotero-cache-trash (key type id)
   "Move item KEY to trash.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
          (updated-data (plist-put data :deleted 1)))
@@ -837,10 +838,10 @@ of the personal or group library you want to access, e.g. the
 (defun zotero-cache-restore (key type id)
   "Restore item KEY from trash.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
          (updated-data (zotero-lib-plist-delete data :deleted)))
@@ -852,10 +853,10 @@ If DATA contains a prop `:key', it already exists in cache and is
 updated, else it is uploaded and a new entry is created. Return
 the object if successful, or nil.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
   (let ((table (ht-get* zotero-cache "synccache" resource)))
     (if-let ((key (plist-get data :key))
              (entry (ht-get table key))
@@ -872,10 +873,10 @@ of the personal or group library you want to access, e.g. the
   "Upload OBJECT.
 Return the object if syncing was successful, or nil.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
   (message "Uploading...")
   (let* ((table (ht-get* zotero-cache "synccache" resource))
          (result (pcase resource

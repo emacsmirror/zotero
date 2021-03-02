@@ -61,9 +61,14 @@
 				    "Invalid value: must be a non-negative integer")
 		        widget)))))
 
-
 (defun zotero-sync--get-locally-updated (cache resource type id)
-  "Return locally updated keys."
+  "Return locally updated keys.
+
+Argument CACHE is the hash table containing the cache. RESOURCE
+is one of \"collections\", \"items\", or \"searches\". TYPE is
+\"user\" for your personal library, and \"group\" for the group
+libraries. ID is the ID of the personal or group library you want
+to access, e.g. the \"user ID\" or \"group ID\"."
   (let* ((table (ht-get* cache "synccache" resource))
          (modified (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
                                                        (equal (plist-get value :id) id)
@@ -71,20 +76,26 @@
     (ht-keys modified)))
 
 (defun zotero-sync--get-locally-deleted (cache resource type id)
-  "Return locally deleted keys."
+  "Return locally deleted keys.
+
+Argument CACHE is the hash table containing the cache. RESOURCE
+is one of \"collections\", \"items\", or \"searches\". TYPE is
+\"user\" for your personal library, and \"group\" for the group
+libraries. ID is the ID of the personal or group library you want
+to access, e.g. the \"user ID\" or \"group ID\"."
   (let* ((table (ht-get* cache "deletions" resource))
          (deleted (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
                                                       (equal (plist-get value :id) id))) table)))
     (ht-keys deleted)))
 
 (defun zotero-sync--get-remotely-updated (resource keys type id api-key)
-  "Return remotely updated data.
-Return a plist with the props `:version' and `:data'.
+  "Return remotely updated data of KEYS.
 
-Keyword argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. Keyword argument ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\"."
+RESOURCE is one of \"collections\", \"items\", or \"searches\".
+TYPE is \"user\" for your personal library, and \"group\" for the
+group libraries. ID is the ID of the personal or group library
+you want to access, e.g. the \"user ID\" or \"group ID\". API-KEY
+is the Zotero API key."
   (when keys
     (let ((partitions (seq-partition keys 50))
           (number 0)
@@ -111,10 +122,9 @@ of the personal or group library you want to access, e.g. the
   "Verify that API-KEY has the expected access to the library.
 Return updated cache.
 
-If necessary, show a warning that the user no longer has
-sufficient access and offer to remove a local library or reset
-local changes. Argument CACHE is the current cache, e.g. (a copy
-of) `zotero-cache'."
+Argument CACHE is the hash table containing the cache. ID is the
+ID of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\". API-KEY is the Zotero API key."
   (let* ((result (zotero-key api-key))
          (data (zotero-response-data result))
          (user-access (zotero-lib-plist-get* data :access :user))
@@ -213,10 +223,9 @@ of) `zotero-cache'."
 (defun zotero-sync--metadata (cache id api-key)
   "Sync metadata.
 
-Keyword CACHE is the hash table containing the cache. keyword ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\". Keyword API-KEY is the
-Zotero API key."
+Argument CACHE is the hash table containing the cache. ID is the
+ID of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\". API-KEY is the Zotero API key."
   ;; First, retrieve a plist of the user's groups with the group as keyword and
   ;; the version as value.
   (let* ((result (zotero-request "GET" "groups" nil :type "user" :id id :api-key api-key :params '(("format" "versions"))))
@@ -261,10 +270,14 @@ Zotero API key."
 (defun zotero-sync--remotely-updated (cache type id api-key &optional full-sync)
   "Sync remotely updated data.
 
-Keyword CACHE is the hash table containing the cache. keyword ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\". Keyword API-KEY is the
-Zotero API key."
+Argument CACHE is the hash table containing the cache. TYPE is
+\"user\" for your personal library, and \"group\" for the group
+libraries. ID is the ID of the personal or group library you want
+to access, e.g. the \"user ID\" or \"group ID\". API-KEY is the
+Zotero API key.
+
+When optional argument FULL-SYNC is non-nil a full sync is
+performed."
   (let* ((libraries (ht-get cache "libraries"))
          (library (ht-get libraries id))
          (storage-version (plist-get library :storage-version))
@@ -301,10 +314,14 @@ Zotero API key."
 (defun zotero-sync--remotely-deleted (cache type id api-key &optional full-sync)
   "Sync remotely deleted data.
 
-Keyword CACHE is the hash table containing the cache. keyword ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\". Keyword API-KEY is the
-Zotero API key."
+Argument CACHE is the hash table containing the cache. TYPE is
+\"user\" for your personal library, and \"group\" for the group
+libraries. ID is the ID of the personal or group library you want
+to access, e.g. the \"user ID\" or \"group ID\". API-KEY is the
+Zotero API key.
+
+When optional argument FULL-SYNC is non-nil a full sync is
+performed."
   (let* ((libraries (ht-get cache "libraries"))
          (library (ht-get libraries id))
          (storage-version (plist-get library :storage-version))
@@ -332,7 +349,11 @@ Zotero API key."
 (defun zotero-sync--locally-updated (cache type id api-key)
   "Sync locally modified data.
 
-Keyword CACHE is the hash table containing the cache."
+Argument CACHE is the hash table containing the cache. TYPE is
+\"user\" for your personal library, and \"group\" for the group
+libraries. ID is the ID of the personal or group library you want
+to access, e.g. the \"user ID\" or \"group ID\". API-KEY is the
+Zotero API key."
   (let* ((libraries (ht-get cache "libraries"))
          (library (ht-get libraries id))
          (storage-version (plist-get library :storage-version))
@@ -411,7 +432,11 @@ Keyword CACHE is the hash table containing the cache."
 (defun zotero-sync--locally-deleted (cache type id api-key)
   "Sync locally deleted data.
 
-Keyword CACHE is the hash table containing the cache."
+Argument CACHE is the hash table containing the cache. TYPE is
+\"user\" for your personal library, and \"group\" for the group
+libraries. ID is the ID of the personal or group library you want
+to access, e.g. the \"user ID\" or \"group ID\". API-KEY is the
+Zotero API key."
   (let* ((libraries (ht-get cache "libraries"))
          (library (ht-get libraries id))
          (storage-version (plist-get library :storage-version))
@@ -539,7 +564,9 @@ VERSION is the \"Last-Modified-Version\"."
 
 (defun zotero-sync--process-deletions (table keys version)
   "Delete KEYS from TABLE.
-Return the updated table when success or nil when failed."
+Return the updated table when success or nil when failed.
+
+VERSION is the \"Last-Modified-Version\"."
   (let (default)
     (seq-doseq (key keys)
       (pcase (ht-get table key)
@@ -586,6 +613,8 @@ Return the updated table when success or nil when failed."
 (defun zotero-sync--schema (cache)
   "Store the schema in CACHE.
 
+Argument CACHE is the hash table containing the cache.
+
 The schema is downloaded as a single file from
 \"https://api.zotero.org/schema\". See URL
 `https://github.com/zotero/zotero-schema' for the GitHub
@@ -616,7 +645,7 @@ repository of the schema."
 (defun zotero-sync--item-template (cache itemtype)
   "Store the template for ITEMTYPE.
 
-Keyword CACHE is the hash table containing the cache."
+Argument CACHE is the hash table containing the cache."
   (let* ((table (ht-get* cache "templates" "items"))
          (result (zotero-item-template itemtype))
          (object (zotero-response-data result)))
@@ -626,7 +655,7 @@ Keyword CACHE is the hash table containing the cache."
 (defun zotero-sync--attachment-template (cache linkmode)
   "Store the attachment template for LINKMODE.
 
-Keyword CACHE is the hash table containing the cache."
+Argument CACHE is the hash table containing the cache."
   (let* ((table (ht-get* cache "templates" "attachments"))
          (result (zotero-attachment-template linkmode))
          (object (zotero-response-data result)))
@@ -636,7 +665,7 @@ Keyword CACHE is the hash table containing the cache."
 (defun zotero-sync--templates (cache)
   "Sync the item and attachment templates.
 
-Keyword CACHE is the hash table containing the cache."
+Argument CACHE is the hash table containing the cache."
   (let ((itemtypes (seq-map (lambda (elt) (plist-get elt :itemType)) (zotero-item-types)))
         (linkmodes (zotero-attachment-linkmodes)))
     (dolist (itemtype itemtypes)
@@ -648,7 +677,11 @@ Keyword CACHE is the hash table containing the cache."
 (defun zotero-sync--download-attachments (cache type id api-key)
   "Sync the attachments to storage.
 
-Keyword CACHE is the hash table containing the cache."
+Argument CACHE is the hash table containing the cache. TYPE is
+\"user\" for your personal library, and \"group\" for the group
+libraries. ID is the ID of the personal or group library you want
+to access, e.g. the \"user ID\" or \"group ID\". API-KEY is the
+Zotero API key."
   (let* ((table (ht-get* cache "synccache" "items"))
          (attachments (thread-last table
                         (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
@@ -683,7 +716,8 @@ Keyword CACHE is the hash table containing the cache."
 (defun zotero-sync--delete-attachments (cache)
   "Sync the deleted attachments to storage.
 
-Keyword CACHE is the hash table containing the cache."
+Argument CACHE is the hash table containing the cache. API-KEY is
+the Zotero API key."
   (let* ((table (ht-get* cache "synccache" "items"))
          (dir (file-name-as-directory zotero-cache-storage-dir))
          (stored-keys (directory-files dir nil "[[:alnum:]]\\{6\\}"))
@@ -698,8 +732,9 @@ Keyword CACHE is the hash table containing the cache."
 
 (defun zotero-sync-attachments (cache api-key)
   "Sync the Zotero library.
-CACHE is the hash table containing the cache. API-KEY is the
-Zotero API key."
+
+Argument CACHE is the hash table containing the cache. API-KEY is
+the Zotero API key."
   (let ((libraries (ht-get cache "libraries")))
     ;; Perform the following steps for each library:
     (cl-loop for id being the hash-keys of libraries
@@ -716,10 +751,12 @@ Zotero API key."
 (defun zotero-sync--sync (cache id api-key &optional full-sync)
   "Sync the Zotero library.
 
-Keyword CACHE is the hash table containing the cache. keyword ID is the ID
-of the personal or group library you want to access, e.g. the
-\"user ID\" or \"group ID\". Keyword API-KEY is the
-Zotero API key."
+Argument CACHE is the hash table containing the cache. ID is the
+ID of the personal or group library you want to access, e.g. the
+\"user ID\" or \"group ID\". API-KEY is the Zotero API key.
+
+When optional argument FULL-SYNC is non-nil a full sync is
+performed."
   (catch 'sync
     (message "Verifying key access...")
     (zotero-sync--verify-key cache id api-key)
@@ -769,10 +806,7 @@ Zotero API key."
 When optional argument FULL-SYNC is non-nil, or with a `C-u'
 prefix, force a full sync.
 
-Argument RETRIES is used to count the number of retries.
-
-Keyword ID is the ID of the personal library you want to access,
-i.e. the \"user ID\". API-KEY is the Zotero API key."
+Argument RETRIES is used to count the number of retries."
   (interactive "P")
   (let ((id (zotero-auth-token-userid zotero-auth-token))
         (api-key (zotero-auth-api-key zotero-auth-token)))
