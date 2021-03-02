@@ -218,7 +218,10 @@ not limited to:
 - Office Open XML (DOCX)
 - EPUB
 - LaTeX
-- Org-mode."
+- Org-mode.
+
+Return t if success, or nil if failed."
+  (message "Indexing fulltext content...")
   (let* ((filename (file-name-nondirectory file))
          (path (expand-file-name file))
          (content-type (or content-type (mailcap-file-name-to-mime-type filename)))
@@ -230,8 +233,24 @@ not limited to:
                         (zotero-fulltext--index-pandoc path content-type))
                        (t
                         (user-error "Content-type \"%s\" is not supported" content-type)))))
-    (when object
-      (zotero-fulltext-create-item key object :type type :id id :api-key api-key))))
+    (if object
+        (progn
+          (message "Indexing fulltext content...done")
+          (message "Updating fulltext content...")
+          (let* ((result (zotero-fulltext-create-item key object :type type :id id :api-key api-key))
+                 (status-code (zotero-response-status-code result)))
+            ;; A status-code 204 means the item's full-text content was updated
+            (if (eq status-code 204)
+                (progn
+                  (message "Updating fulltext content...done")
+                  ;; Success: return t
+                  t)
+              (message "Updating fulltext content...failed")
+              ;; Failed: return nil
+              nil)))
+      (message "Indexing fulltext content...failed")
+      ;; Failed: return nil
+      nil)))
 
 (provide 'zotero-fulltext)
 
