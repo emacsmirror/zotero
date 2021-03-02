@@ -88,7 +88,7 @@ to access, e.g. the \"user ID\" or \"group ID\"."
                                                       (equal (plist-get value :id) id))) table)))
     (ht-keys deleted)))
 
-(defun zotero-sync--get-remotely-updated (resource keys type id api-key)
+(defun zotero-sync--get-remotely-updated (keys resource type id api-key)
   "Return remotely updated data of KEYS.
 
 RESOURCE is one of \"collections\", \"items\", or \"searches\".
@@ -300,7 +300,7 @@ performed."
                  (ht-set! libraries id (plist-put library :version remote-version))
                  (setq version remote-version))
                (when keys
-                 (let* ((response (zotero-sync--get-remotely-updated resource keys type id api-key))
+                 (let* ((response (zotero-sync--get-remotely-updated keys resource type id api-key))
                         (remote-version (plist-get response :version))
                         (objects (plist-get response :data))
                         (table (ht-get* cache "synccache" resource)))
