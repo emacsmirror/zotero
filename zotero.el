@@ -117,42 +117,24 @@ locale and cannot be localized."
   :type 'string
   :link '(url-link "https://github.com/citation-style-language/locales"))
 
-(defcustom zotero-sort "dateModified"
-  "The name of the field by which entries are sorted."
-  :group 'zotero
-  :type '(choice (const "dateAdded")
-                 (const "dateModified")
-                 (const "title")
-                 (const "creator")
-                 (const "publisher")
-                 (const "title")
-                 (const "publicationTitle")
-                 (const "journalAbbreviation")
-                 (const "language")
-                 (const "accessDate")
-                 (const "libraryCatalog")
-                 (const "callNumber")
-                 (const "rights")
-                 (const "addedBy")
-                 (const :tag "numItems (tags)" "numItems")))
-
-(defcustom zotero-limit 100
-  "The maximum number of results to return with a single request.
-The number should be an integer between 1 and 100."
-  :group 'zotero
-  :type '(integer :validate
-		  (lambda (widget)
-                    (let ((int (widget-value widget)))
-		      (unless (and (< int 1)
-                                   (> int 100))
-		        (widget-put widget :error
-				    "Invalid value: must be an integer between 1 and 100.")
-		        widget)))))
-
-(defcustom zotero-linkwrap nil
-  "Non-nil means to return URLs and DOIs as links."
-  :group 'zotero
-  :type 'boolean)
+;; (defcustom zotero-sort "dateModified"
+;;   "The name of the field by which entries are sorted."
+;;   :group 'zotero
+;;   :type '(choice (const "dateAdded")
+;;                  (const "dateModified")
+;;                  (const "title")
+;;                  (const "creator")
+;;                  (const "publisher")
+;;                  (const "title")
+;;                  (const "publicationTitle")
+;;                  (const "journalAbbreviation")
+;;                  (const "language")
+;;                  (const "accessDate")
+;;                  (const "libraryCatalog")
+;;                  (const "callNumber")
+;;                  (const "rights")
+;;                  (const "addedBy")
+;;                  (const :tag "numItems (tags)" "numItems")))
 
 ;;;; Structures
 (cl-defstruct (zotero-request (:constructor zotero-request-create)
