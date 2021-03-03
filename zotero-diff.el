@@ -93,19 +93,19 @@ in translations."
             (cl-loop for key in template by #'cddr do
                      (pcase key
                        ;; Itemtype
-                       ((and :itemType field)
+                       (:itemType
                         (let* ((fieldname "Item Type")
                                (value (plist-get data key)))
                           (widget-insert (concat fieldname ": "))
                           (widget-insert (concat value "\n"))))
                        ;; Title
-                       ((and :title field)
+                       (:title
                         (let ((fieldname (zotero-cache-itemfield-locale key locale))
                               (value (or (plist-get data key) "")))
                           (widget-insert (concat fieldname ": "))
                           (widget-insert (concat value "\n"))))
                        ;; Creators
-                       ((and :creators field)
+                       (:creators
                         (let* ((fieldname "Creators")
                                (value (plist-get data key))
                                (creators (seq-map (lambda (elt)
@@ -115,15 +115,15 @@ in translations."
                                                   value)))
                           (widget-insert (concat fieldname "\n"))
                           (dolist (creator creators)
-                            (widget-insert (concat (first creator) ": " (second creator) " " (third creator) "\n")))))
+                            (widget-insert (concat (nth 0 creator) ": " (nth 1 creator) " " (nth 2 creator) "\n")))))
                        ;; Abstract
-                       ((and :abstractNote field)
+                       (:abstractNote
                         (let* ((fieldname (zotero-cache-itemfield-locale key locale))
                                (value (or (plist-get data key) "")))
                           (widget-insert (concat fieldname ":\n"))
                           (widget-insert (concat value "\n"))))
                        ;; Note
-                       ((and :note field)
+                       (:note
                         (let* ((fieldname "Note")
                                (value (or (plist-get data key) "")))
                           (widget-insert (concat fieldname ":\n"))
@@ -140,14 +140,14 @@ in translations."
                           (unless (or (null value) (eq value :json-false))
                             (widget-insert (concat fieldname ": "))
                             (widget-insert (concat (format "%d\n" value))))))
-                       ((and :tags field)
+                       (:tags
                         (let* ((fieldname "Tags")
                                (value (plist-get data key))
                                (values (unless (eq value :json-empty) (seq-into value 'list))))
                           (widget-insert (format "%d %s:\n" (length values) fieldname))
                           (widget-insert (s-join "\n" values))))
                        ;; Collections
-                       ((and :collections field)
+                       (:collections
                         (let* ((key :collections)
                                (fieldname "Collections")
                                (value (plist-get data key))
@@ -155,14 +155,14 @@ in translations."
                           (widget-insert (format "%d %s:\n" (length values) fieldname))
                           (widget-insert (s-join "\n" values))))
                        ;; Relations
-                       ((and :relations field)
+                       (:relations
                         (let* ((fieldname "Related")
                                (value (plist-get data key))
                                (values (unless (eq value :json-empty) (seq-into value 'list))))
                           (widget-insert (format "%d %s:\n" (length values) fieldname))
                           (widget-insert (s-join "\n" values))))
                        ;; Rest
-                       ((and _ field)
+                       (_
                         (let* ((fieldname (or (zotero-cache-itemfield-locale key locale) (capitalize (zotero-lib-keyword->string key))))
                                (value (or (plist-get data key) "")))
                           (widget-insert (concat fieldname ": "))
