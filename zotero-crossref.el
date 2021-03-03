@@ -213,12 +213,10 @@ Argument ID is the Digital Object Identifier (DOI)."
   ;; X-Rate-Limit-Interval: 60s
   (let* ((method "GET")
          (url zotero-crossref-url)
-         (headers `(("User-Agent" . ,zotero-user-agent)))
          (params `(("filter" ,(concat "doi:" id))
                    ("select" ,(s-join "," zotero-crossref-fields)))))
     (zotero-dispatch (zotero-request-create :method method
                                             :url url
-                                            :headers headers
                                             :params params))))
 
 (defun zotero-crossref (id)

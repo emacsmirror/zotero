@@ -83,13 +83,11 @@ Return plist that could be saved to the library by passing it to
 Argument ID is the ISBN-10 or ISBN-13."
   (let* ((method "GET")
          (url zotero-openlibrary-url)
-         (headers `(("User-Agent" . ,zotero-user-agent)))
          (params `(("bibkeys" ,(concat "ISBN:" id))
                    ("format" "json")
                    ("jscmd" "details"))))
     (zotero-dispatch (zotero-request-create :method method
                                             :url url
-                                            :headers headers
                                             :params params))))
 
 (defun zotero-openlibrary (id)

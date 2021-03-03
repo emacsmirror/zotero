@@ -81,11 +81,9 @@ Return plist that could be saved to the library by passing it to
 Argument ID is the Arxiv ID"
   (let* ((method "GET")
          (url zotero-arxiv-url)
-         (headers `(("User-Agent" . ,zotero-user-agent)))
          (params `(("id_list" ,id))))
     (zotero-dispatch (zotero-request-create :method method
                                             :url url
-                                            :headers headers
                                             :params params))))
 
 (defun zotero-arxiv (id)
