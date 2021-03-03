@@ -1230,9 +1230,9 @@ If region is active, trash entries in active region instead."
          (ewoc zotero-browser-ewoc)
          (nodes (zotero-browser--nodes ewoc))
          (keys (zotero-browser--keys ewoc)))
+    (apply #'ewoc-delete ewoc nodes)
     (dolist (key keys)
-      (zotero-cache-trash key type id))
-    (apply #'ewoc-delete ewoc nodes)))
+      (zotero-cache-trash key type id))))
 
 (defun zotero-browser-restore-from-trash ()
   "Restore current entry from trash.
@@ -1250,9 +1250,9 @@ If region is active, restore entries in active region instead."
          (ewoc zotero-browser-ewoc)
          (nodes (zotero-browser--nodes ewoc))
          (keys (zotero-browser--keys ewoc)))
+    (apply #'ewoc-delete ewoc nodes)
     (dolist (key keys)
-      (zotero-cache-restore key type id))
-    (apply #'ewoc-delete ewoc nodes)))
+      (zotero-cache-restore key type id))))
 
 (defun zotero-browser-delete ()
   "Delete current entry.
@@ -1271,9 +1271,14 @@ If region is active, delete entries in active region instead."
          (ewoc zotero-browser-ewoc)
          (nodes (zotero-browser--nodes ewoc))
          (keys (zotero-browser--keys ewoc)))
-    (dolist (key keys)
-      (zotero-cache-delete resource key type id))
-    (apply #'ewoc-delete ewoc nodes)))
+    (dolist (node nodes)
+      (let* ((key (ewoc-data node))
+             (children (zotero-browser--children key)))
+        (zotero-cache-delete resource key type id)
+        (ewoc-delete ewoc node)
+        ;; Refresh expanded children to change indentation
+        (unless (ht-empty? children)
+          (ewoc-map (lambda (node) (ht-contains? children (ewoc-data node))) ewoc))))))
 
 (defun zotero-browser-create ()
   "Create a new collection or item."
@@ -1363,8 +1368,10 @@ client."
                     (key (plist-get object :key)))
            (unless (zotero-upload-attachment key file nil :type type :id id)
              (error "Failed to associate attachment with item %s" key))
-           (if node
-               (ewoc-enter-after ewoc node key)
+           (if parent
+               (progn
+                 (zotero-browser--prefix (ewoc-location node) "▾")
+                 (ewoc-enter-after ewoc node key))
              (ewoc-enter-last ewoc key))
            (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))
       ("imported_url"
@@ -1386,8 +1393,10 @@ client."
               (data (if parent (plist-put data :parentItem parent) data)))
          (when-let ((object (zotero-cache-save data "items" type id))
                     (key (plist-get object :key)))
-           (if node
-               (ewoc-enter-after ewoc node key)
+           (if parent
+               (progn
+                 (zotero-browser--prefix (ewoc-location node) "▾")
+                 (ewoc-enter-after ewoc node key))
              (ewoc-enter-last ewoc key))
            (display-buffer (zotero-edit-item (plist-get object :data) type id) zotero-browser-edit-buffer-action))))
       ("linked_url"
