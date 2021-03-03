@@ -46,6 +46,8 @@ All currently available key bindings:
 ;;;; Functions
 
 (defun zotero-diff (local-data remote-data)
+  "Show LOCAL-DATA and REMOTE-DATA side-by-side.
+Ask which copy should be kept to resolve a sync conflict."
   (let ((local-buffer (zotero-diff-item :data local-data :buffer-name "Local" :locale "en-US"))
         (remote-buffer (zotero-diff-item :data remote-data :buffer-name "Remote" :locale "en-US")))
     (pop-to-buffer local-buffer '((display-buffer-pop-up-frame)))
@@ -60,15 +62,16 @@ All currently available key bindings:
         (delete-frame)))))
 
 (cl-defun zotero-diff-item (&key data buffer-name locale)
-  "Create a new item buffer."
+  "Create a new item buffer with DATA.
+BUFFER-NAME is the name of the buffer. LOCALE is the locale used
+in translations."
   (let ((buffer (get-buffer-create buffer-name)))
     (with-current-buffer buffer
       (zotero-diff-mode)
       (let ((inhibit-read-only t))
         (erase-buffer)
         (save-excursion
-          (let* ((schema (zotero-cache-schema))
-                 (itemtype (plist-get data :itemType))
+          (let* ((itemtype (plist-get data :itemType))
                  (linkmode (plist-get data :linkMode))
                  (template (pcase itemtype
                              ("attachment" (zotero-cache-attachment-template linkmode))
