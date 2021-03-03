@@ -25,8 +25,6 @@
 ;; See the variable `zotero-fulltext-pandoc-mimetypes' for a list of formats
 ;; understood by pandoc.
 
-;; zotero-recognize-install-pdftools
-
 ;;; Code:
 
 ;;;; Requirements
