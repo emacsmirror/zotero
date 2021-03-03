@@ -27,10 +27,6 @@
 ;; This is a GNU Emacs library to interact with the Zotero API (see
 ;; https://www.zotero.org/support/dev/web_api/v3/start)
 
-;; Note
-
-;; Emacs 27 is required by zotero-cache.el because of ISO 8601 time parsing.
-
 ;;; Code:
 
 ;;;; Requirements
