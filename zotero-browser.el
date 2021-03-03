@@ -1628,11 +1628,11 @@ The format can be changed by customizing
          (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
          (filename (zotero-lib-plist-get* entry :object :data :filename)))
     (when (and (equal itemtype "attachment")
-               (equal linkmode "imported_file"))
+               (or (equal linkmode "imported_file")
+                   (equal linkmode "linked_file")))
       (let* ((file (zotero-browser-find-attachment))
              (attributes (zotero-file-attributes file))
              (content-type (plist-get attributes :content-type)))
-        ;; TODO: add full-text content to cache
         (zotero-fulltext-index-item key file content-type :type type :id id)))))
 
 (defun zotero-browser-libraries ()
