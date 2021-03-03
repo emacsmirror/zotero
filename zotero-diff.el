@@ -26,8 +26,12 @@
 
 ;;;; Requirements
 
+(require 'cl-lib)
+(require 'iso8601)
+(require 's)
 (require 'seq)
 (require 'widget)
+(require 'zotero-lib)
 
 ;;;; Mode
 
