@@ -154,7 +154,7 @@ All currently available key bindings:
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   ;; TODO: use schema for internationalisation
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
@@ -433,7 +433,7 @@ ID."
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
     (with-current-buffer buffer
@@ -526,7 +526,7 @@ ID."
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID. COLLECTION is the collection key."
   (let* ((template (zotero-cache-item-template itemtype))
          (data (if collection (plist-put template :collections (vector collection)) template)))
@@ -537,7 +537,7 @@ ID. COLLECTION is the collection key."
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (zotero-edit-collection (zotero-collection-template) type id))
 
@@ -552,7 +552,7 @@ LINKMODE is one of:
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID.
 
 Optional argument PARENT is the key of the parent item.
@@ -579,7 +579,7 @@ cannot be determined without external tools."
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID.
 
 Optional argument PARENT is the key of the parent item."

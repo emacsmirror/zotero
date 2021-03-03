@@ -168,8 +168,8 @@ Argument FILE is the file path to be indexed."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "item-fulltext" key :type type :id id :api-key api-key))
 
 (cl-defun zotero-fulltext-create-item (key object &key type id api-key)
@@ -182,15 +182,15 @@ OBJECT should be a a plist containing three props:
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   ;; The data be a JSON object, and is not allowed to be an array of objects.
   ;; Because an array of objects is the default for Zotero requests, even for
   ;; single-item requests, all objects are encoded to an array by
   ;; `zotero-json-encode-object'. The easiest way to prevent a "400 Bad Request"
   ;; response is to just remove the brackets.
   (let* ((array (zotero-json-encode-object object))
-         (object (substring json 1 -1))) ; remove the array brackets
+         (object (substring array 1 -1))) ; remove the array brackets
     (zotero-request "PUT" "item-fulltext" key
                     :type type
                     :id id
@@ -206,8 +206,8 @@ CONTENT-TYPE is not provided, it will be guessed.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key.
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key.
 
 This is a convenient wrapper around `zotero-fulltext-create-item'
 that is able to index a variety of file formats, including but

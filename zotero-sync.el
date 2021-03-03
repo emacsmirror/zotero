@@ -68,7 +68,7 @@ Argument CACHE is the hash table containing the cache. RESOURCE
 is one of \"collections\", \"items\", or \"searches\". TYPE is
 \"user\" for your personal library, and \"group\" for the group
 libraries. ID is the ID of the personal or group library you want
-to access, e.g. the \"user ID\" or \"group ID\"."
+to access, that is the \"user ID\" or \"group ID\"."
   (let* ((table (ht-get* cache "synccache" resource))
          (modified (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
                                                        (equal (plist-get value :id) id)
@@ -82,7 +82,7 @@ Argument CACHE is the hash table containing the cache. RESOURCE
 is one of \"collections\", \"items\", or \"searches\". TYPE is
 \"user\" for your personal library, and \"group\" for the group
 libraries. ID is the ID of the personal or group library you want
-to access, e.g. the \"user ID\" or \"group ID\"."
+to access, that is the \"user ID\" or \"group ID\"."
   (let* ((table (ht-get* cache "deletions" resource))
          (deleted (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
                                                       (equal (plist-get value :id) id))) table)))
@@ -94,7 +94,7 @@ to access, e.g. the \"user ID\" or \"group ID\"."
 RESOURCE is one of \"collections\", \"items\", or \"searches\".
 TYPE is \"user\" for your personal library, and \"group\" for the
 group libraries. ID is the ID of the personal or group library
-you want to access, e.g. the \"user ID\" or \"group ID\". API-KEY
+you want to access, that is the \"user ID\" or \"group ID\". API-KEY
 is the Zotero API key."
   (when keys
     (let ((partitions (seq-partition keys 50))
@@ -123,7 +123,7 @@ is the Zotero API key."
 Return updated cache.
 
 Argument CACHE is the hash table containing the cache. ID is the
-ID of the personal or group library you want to access, e.g. the
+ID of the personal or group library you want to access, that is the
 \"user ID\" or \"group ID\". API-KEY is the Zotero API key."
   (let* ((result (zotero-key api-key))
          (data (zotero-response-data result))
@@ -224,7 +224,7 @@ ID of the personal or group library you want to access, e.g. the
   "Sync metadata.
 
 Argument CACHE is the hash table containing the cache. ID is the
-ID of the personal or group library you want to access, e.g. the
+ID of the personal or group library you want to access, that is the
 \"user ID\" or \"group ID\". API-KEY is the Zotero API key."
   ;; First, retrieve a plist of the user's groups with the group as keyword and
   ;; the version as value.
@@ -273,7 +273,7 @@ ID of the personal or group library you want to access, e.g. the
 Argument CACHE is the hash table containing the cache. TYPE is
 \"user\" for your personal library, and \"group\" for the group
 libraries. ID is the ID of the personal or group library you want
-to access, e.g. the \"user ID\" or \"group ID\". API-KEY is the
+to access, that is the \"user ID\" or \"group ID\". API-KEY is the
 Zotero API key.
 
 When optional argument FULL-SYNC is non-nil a full sync is
@@ -317,7 +317,7 @@ performed."
 Argument CACHE is the hash table containing the cache. TYPE is
 \"user\" for your personal library, and \"group\" for the group
 libraries. ID is the ID of the personal or group library you want
-to access, e.g. the \"user ID\" or \"group ID\". API-KEY is the
+to access, that is the \"user ID\" or \"group ID\". API-KEY is the
 Zotero API key.
 
 When optional argument FULL-SYNC is non-nil a full sync is
@@ -352,7 +352,7 @@ performed."
 Argument CACHE is the hash table containing the cache. TYPE is
 \"user\" for your personal library, and \"group\" for the group
 libraries. ID is the ID of the personal or group library you want
-to access, e.g. the \"user ID\" or \"group ID\". API-KEY is the
+to access, that is the \"user ID\" or \"group ID\". API-KEY is the
 Zotero API key."
   (let* ((libraries (ht-get cache "libraries"))
          (library (ht-get libraries id))
@@ -435,7 +435,7 @@ Zotero API key."
 Argument CACHE is the hash table containing the cache. TYPE is
 \"user\" for your personal library, and \"group\" for the group
 libraries. ID is the ID of the personal or group library you want
-to access, e.g. the \"user ID\" or \"group ID\". API-KEY is the
+to access, that is the \"user ID\" or \"group ID\". API-KEY is the
 Zotero API key."
   (let* ((libraries (ht-get cache "libraries"))
          (library (ht-get libraries id))
@@ -680,7 +680,7 @@ Argument CACHE is the hash table containing the cache."
 Argument CACHE is the hash table containing the cache. TYPE is
 \"user\" for your personal library, and \"group\" for the group
 libraries. ID is the ID of the personal or group library you want
-to access, e.g. the \"user ID\" or \"group ID\". API-KEY is the
+to access, that is the \"user ID\" or \"group ID\". API-KEY is the
 Zotero API key."
   (let* ((table (ht-get* cache "synccache" "items"))
          (attachments (thread-last table
@@ -752,7 +752,7 @@ the Zotero API key."
   "Sync the Zotero library.
 
 Argument CACHE is the hash table containing the cache. ID is the
-ID of the personal or group library you want to access, e.g. the
+ID of the personal or group library you want to access, that is the
 \"user ID\" or \"group ID\". API-KEY is the Zotero API key.
 
 When optional argument FULL-SYNC is non-nil a full sync is
@@ -822,12 +822,12 @@ Argument RETRIES is used to count the number of retries."
          (setq zotero-cache result)
          (zotero-cache-serialize)
          (message "Writing cache...done"))
-        ;; For each response from the API, check the Last-Modified-Version to see
-        ;; if it has changed since the Last-Modified-Version returned from the
-        ;; first request (e.g., collections?since=). If it has, restart the
-        ;; process of retrieving updated and deleted data, waiting increasing
-        ;; amounts of time between restarts to give the other client the
-        ;; opportunity to finish.
+        ;; For each response from the API, check the Last-Modified-Version to
+        ;; see if it has changed since the Last-Modified-Version returned from
+        ;; the first request (for example "collections?since="). If it has,
+        ;; restart the process of retrieving updated and deleted data, waiting
+        ;; increasing amounts of time between restarts to give the other client
+        ;; the opportunity to finish.
         ('concurrent-update
          (cond
           ((zerop zotero-sync-max-delay)

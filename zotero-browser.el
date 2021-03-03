@@ -1664,7 +1664,7 @@ Optional argument RESOURCE is one of:
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let ((buffer (get-buffer-create zotero-browser-collections-buffer-name)))
     (with-current-buffer buffer
@@ -1704,8 +1704,8 @@ Optional argument RESOURCE is one of:
 
 Argument COLLECTION is the collection. TYPE is \"user\" for your
 personal library, and \"group\" for the group libraries. ID is
-the ID of the personal or group library you want to access, e.g.
-the user ID or group ID."
+the ID of the personal or group library you want to access, that
+is the user ID or group ID."
   (let ((buffer (get-buffer-create zotero-browser-items-buffer-name)))
     (with-current-buffer buffer
       (zotero-browser-items-mode)

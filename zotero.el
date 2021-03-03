@@ -609,10 +609,10 @@ RESOURCE is one of:
 KEY is the item key, collection key, or search key. Which key is
 needed varies by resource. Argument TYPE is \"user\" for your
 personal library, and \"group\" for the group libraries. ID is
-the ID of the personal or group library you want to access, e.g.
-the user ID or group ID. Your personal library ID is available at
-URL `https://www.zotero.org/settings/keys/'. For group libraries,
-the ID can be found by opening the group's page at URL
+the ID of the personal or group library you want to access, that
+is the user ID or group ID. Your personal library ID is available
+at URL `https://www.zotero.org/settings/keys/'. For group
+libraries, the ID can be found by opening the group's page at URL
 `https://www.zotero.org/groups/'. If HOST is non-nil, use that in
 stead of `zotero-base-url'."
   ;; Requests for data in a specific library begin with
@@ -769,7 +769,7 @@ one of:
 KEY is the item key, collection key, or search key. Which key is
 needed varies by resource. Keyword TYPE is \"user\" for your
 personal library, and \"group\" for the group libraries. ID is
-the ID of the personal or group library you want to access, e.g.
+the ID of the personal or group library you want to access, that is
 the user ID or group ID. Your personal library ID is available at
 URL `https://www.zotero.org/settings/keys/'. For group libraries,
 the ID can be found by opening the group's page at URL
@@ -849,8 +849,8 @@ permissions for them.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "groups" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-group (id &key api-key)
@@ -866,8 +866,8 @@ Keyword API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "items" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-top (&key type id api-key)
@@ -875,8 +875,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "items-top" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-publications (&key type id api-key)
@@ -884,8 +884,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "publication-items" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-trash (&key type id api-key)
@@ -893,8 +893,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "trash-items" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-item (key &key type id api-key)
@@ -905,8 +905,8 @@ If KEY is a list of item keys, return the specified items. Up to
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (pcase key
     ((pred stringp)
      (zotero-request "GET" "item" key :type type :id id :api-key api-key))
@@ -919,8 +919,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "item-children" key :type type :id id :api-key api-key))
 
 (cl-defun zotero-collection-items (key &key type id api-key)
@@ -928,8 +928,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "collection-items" key :type type :id id :api-key api-key))
 
 (cl-defun zotero-collection-items-top (key &key type id api-key)
@@ -937,8 +937,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "collection-items-top" key :type type :id id :api-key api-key))
 
 (cl-defun zotero-collections (&key type id api-key)
@@ -946,8 +946,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "collections" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-collections-top (&key type id api-key)
@@ -955,8 +955,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "collections-top" :type type :id id :api-key api-key))
 
 (cl-defun zotero-collection (key &key type id api-key)
@@ -964,8 +964,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "collection" key :type type :id id :api-key api-key))
 
 (cl-defun zotero-subcollections (key &key type id api-key)
@@ -973,8 +973,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "subcollections" key :type type :id id :api-key api-key))
 
 ;; REVIEW: is this function used?
@@ -983,8 +983,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let* ((item (zotero-item key :type type :id id :api-key api-key))
          (data (plist-get item :data)))
     `(:filename ,(plist-get data :filename) :contenttype ,(plist-get data :contentType) :md5 ,(plist-get data :md5) :mtime ,(plist-get data :mtime))))
@@ -994,8 +994,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "file" key :type type :id id :api-key api-key))
 
 (cl-defun zotero-download-file (key &optional file dir confirm &key type id api-key)
@@ -1015,8 +1015,8 @@ before overwriting.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key.
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key.
 
 See also URL
 `https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_download_the_existing_file'."
@@ -1047,8 +1047,8 @@ See also URL
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "tags" :type type :id id :api-key api-key))
 
 (cl-defun zotero-item-tags (key &key type id api-key)
@@ -1056,8 +1056,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "item-tags" key :type type :id id :api-key api-key))
 
 (cl-defun zotero-collection-tags (key &key type id api-key)
@@ -1065,8 +1065,8 @@ API-KEY is the Zotero API key."
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "collection-tags" key :type type :id id :api-key api-key))
 
 (cl-defun zotero-search-items (query &optional fulltext include-trashed &key type id api-key )
@@ -1079,8 +1079,8 @@ non-nil, items in the trash are included.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "items" nil :type type :id id :api-key api-key :params `((q ,query)
                                                                                  (qmode ,(if fulltext "everything" "titleCreatorYear"))
                                                                                  (includeTrashed ,(if include-trashed "1" "0")))))
@@ -1094,8 +1094,8 @@ performed.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "tags" nil :type type :id id :api-key api-key :params `((q ,query)
                                                                                 (qmode ,(if starts-with "startsWith" "contains")))))
 
@@ -1113,8 +1113,8 @@ is processed. All other properties are ignored.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let ((write-token (zotero--write-token))
         (json (zotero-json-encode-object object)))
     (zotero-request "POST" "items" nil
@@ -1140,8 +1140,8 @@ Up to 50 items can be created in a single request.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let* ((write-token (zotero--write-token))
          (json (zotero-json-encode-object objects)))
     (zotero-request "POST" "items" nil
@@ -1169,7 +1169,7 @@ child items are created in the same POST request, the child items
 must appear after the parent item in the array of items.
 
 Items can also include `:dateAdded' and `:dateModified'
-properties containing timestamps in ISO 8601 format (e.g.,
+properties containing timestamps in ISO 8601 format (for example
 “2014-06-10T13:52:43Z”). If `:dateAdded' is included with an
 existing item, it must match the existing `:dateAdded' value or
 else the API will return a \"400 Bad Request\" error. If a new
@@ -1182,8 +1182,8 @@ these properties.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let ((json (zotero-json-encode-object object)))
     (zotero-request "PUT" "item" key
                     :type type
@@ -1214,7 +1214,7 @@ property list returned from the API, these properties will
 already exist and shouldn't be modified.
 
 Items can also include `:dateAdded' and `:dateModified'
-properties containing timestamps in ISO 8601 format (e.g.,
+properties containing timestamps in ISO 8601 format (for example
 “2014-06-10T13:52:43Z”). If `:dateAdded' is included with an
 existing item, it must match the existing `:dateAdded' value or
 else the API will return a \"400 Bad Request\" error. If a new
@@ -1233,8 +1233,8 @@ empty array as appropriate.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let ((json (zotero-json-encode-object objects)))
     (zotero-request "POST" "items" nil
                     :type type
@@ -1255,8 +1255,8 @@ version.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let ((json (zotero-json-encode-object object)))
     (zotero-request "PATCH" "item" key
                     :type type
@@ -1272,8 +1272,8 @@ VERSION is the last known item version.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "DELETE" "item" key
                   :type type
                   :id id
@@ -1290,8 +1290,8 @@ version.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (cl-assert (consp keys))
   (cond
    ((<= (length keys) 50)
@@ -1315,8 +1315,8 @@ template).
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let ((write-token (zotero--write-token))
         (json (zotero-json-encode-object object)))
     (zotero-request "POST" "collections" nil
@@ -1339,8 +1339,8 @@ to the server. When uploading the full property list, only the
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let ((json (zotero-json-encode-object object)))
     (zotero-request "PUT" "collection" key
                     :type type
@@ -1367,8 +1367,8 @@ string or false as the value.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let ((json (zotero-json-encode-object objects)))
     (zotero-request "POST" "collections" nil
                     :type type
@@ -1384,8 +1384,8 @@ VERSION is the collection's current version number.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (zotero-request "DELETE" "collection" key
                   :type type
                   :id id
@@ -1402,8 +1402,8 @@ library version.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (cl-assert (consp keys))
   (cond
    ((<= (length keys) 50)
@@ -1424,8 +1424,8 @@ OBJECT is a plist of the new search.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let ((write-token (zotero--write-token))
         (json (zotero-json-encode-object object)))
     (zotero-request "POST" "searches" nil
@@ -1454,8 +1454,8 @@ string or false as the value.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (let ((json (zotero-json-encode-object objects)))
     (zotero-request "POST" "searches" nil
                     :type type
@@ -1474,8 +1474,8 @@ version.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (cl-assert (consp keys))
   (cond
    ((<= (length keys) 50)
@@ -1499,8 +1499,8 @@ version.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key."
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
   (cl-assert (consp tags))
   (cond
    ((<= (length tags) 50)
@@ -1640,8 +1640,8 @@ when downloading the file).
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key.
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key.
 
 If a status-code 200 is received, the upload was authorized or
 the file already exists.
@@ -1674,8 +1674,8 @@ by `zotero-authorize-upload'.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key.
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key.
 
 If a status-code 201 is received, the file was successfully
 uploaded.
@@ -1702,8 +1702,8 @@ downloading the file).
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key.
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key.
 
 If a status-code 204 is received, the upload was successfully
 registered.
@@ -1730,8 +1730,8 @@ downloading the file).
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
-library you want to access, e.g. the \"user ID\" or \"group ID\".
-API-KEY is the Zotero API key.
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key.
 
 Return t if success, or nil if failed."
   (message "Authorizing upload...")

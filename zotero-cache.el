@@ -283,7 +283,7 @@ request.
 
 Optional argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let ((table (ht-get zotero-cache "libraries")))
     (cond
@@ -324,7 +324,7 @@ RESOURCE is one of:
 
 Optional argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID. KEY is the item key, collection key, or search key. Which key
 is needed varies by resource. If INCLUDE-TRASHED is non-nil,
 items in the trash are included."
@@ -473,7 +473,7 @@ RESOURCE is one of:
 
 Optional argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID. KEY is the item key, collection key, or search key. Which key
 is needed varies by resource. If INCLUDE-TRASHED is non-nil,
 items in the trash are included."
@@ -602,7 +602,7 @@ Search titles and individual creator fields.
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the \"user ID\" or
+or group library you want to access, that is the \"user ID\" or
 \"group ID\". If INCLUDE-TRASHED is non-nil, items in the trash
 are included."
   (let ((table (zotero-cache-synccache "items" nil type id include-trashed)))
@@ -622,8 +622,8 @@ are included."
 (defun zotero-cache-item-template (itemtype)
   "Return the template for ITEMTYPE from CACHE.
 
-The template is cached for a period of time (e.g., one hour)
-without making further requests. Conditional requests are
+The template is cached for a period of time (for example one
+hour) without making further requests. Conditional requests are
 not (yet) implemented in the Zotero API."
   (let* ((template (ht-get* zotero-cache "templates" "items" itemtype))
          (last-sync (plist-get template :last-sync))
@@ -637,8 +637,8 @@ not (yet) implemented in the Zotero API."
 (defun zotero-cache-attachment-template (linkmode)
   "Return the attachment template for LINKMODE from CACHE.
 
-The template is cached for a period of time (e.g., one hour)
-without making further requests. Conditional requests are
+The template is cached for a period of time (for example one
+hour) without making further requests. Conditional requests are
 not (yet) implemented in the Zotero API."
   (let* ((template (ht-get* zotero-cache "templates" "attachments" linkmode))
          (last-sync (plist-get template :last-sync))
@@ -652,7 +652,7 @@ not (yet) implemented in the Zotero API."
 (defun zotero-cache-schema ()
   "Return the schema with item types, fields, and creator types.
 
-The schema is cached for a period of time (e.g., one hour)
+The schema is cached for a period of time (for example one hour)
 without making further requests."
   (let* ((schema (ht-get zotero-cache "schema"))
          (last-sync (plist-get schema :last-sync))
@@ -745,7 +745,7 @@ Return a list of the field values."
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
@@ -758,7 +758,7 @@ ID."
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
@@ -771,7 +771,7 @@ ID."
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
@@ -784,7 +784,7 @@ ID."
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
@@ -801,7 +801,7 @@ RESOURCE is one of:
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let* ((value (zotero-cache-synccache resource key type id t))
          (synccache (zotero-cache-synccache resource nil type id t))
@@ -830,7 +830,7 @@ ID."
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
@@ -842,7 +842,7 @@ ID."
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
@@ -862,7 +862,7 @@ RESOURCE is one of:
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (let ((table (ht-get* zotero-cache "synccache" resource)))
     (if-let ((key (plist-get data :key))
@@ -887,7 +887,7 @@ RESOURCE is one of:
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, e.g. the user ID or group
+or group library you want to access, that is the user ID or group
 ID."
   (message "Uploading...")
   (let* ((table (zotero-cache-synccache resource nil type id t))
