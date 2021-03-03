@@ -50,8 +50,8 @@ Caching is automatically enabled by default."
   :type 'boolean)
 
 (defcustom  zotero-cache-enable-storage t
-  "When t enables caching.
-Caching is automatically enabled by default."
+  "When t enables storage.
+Storage is automatically enabled by default."
   :group 'zotero-cache
   :type 'boolean)
 

@@ -1568,7 +1568,7 @@ types, so this function returns a hard-coded list."
 ;;;; Template Requests
 
 (defun zotero-collection-template ()
-  "Return the template for a new collections.
+  "Return the template for a new collection.
 
 The Zotero API doesn't provide an endpoint to request a template
 for a new collection, so this function returns a hard-coded
