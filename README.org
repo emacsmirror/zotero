@@ -1,0 +1,343 @@
+* Emacs Zotero
+
+  Emacs-zotero is a GNU Emacs interface to the Zotero API.
+
+** Installation
+
+*** Development Version
+
+    To follow or contribute to emacs-zotero development, you can browse or clone the
+    Git repository [[https://gitlab.com/fvdbeek/emacs-zotero][on GitLab]]:
+
+    #+BEGIN_SRC sh
+    git clone https://gitlab.com/fvdbeek/emacs-zotero.git
+    #+END_SRC
+
+    If you clone the repository directly, then make sure that Emacs can find it by
+    adding the following line to your startup file:
+
+    #+BEGIN_SRC emacs-lisp
+    (add-to-list 'load-path "/path/to/emacs-zotero")
+    #+END_SRC
+
+** Usage
+
+   To use emacs-zotero, include the following in your =init.el= or =.emacs= file:
+
+   #+BEGIN_SRC emacs-lisp
+   (require 'zotero)
+   (require 'zotero-browser)
+   #+END_SRC
+
+*** Authentication
+    Accessing non-public libraries requires the use of an Zotero account. An account
+    can be created via the [[https://www.zotero.org/user/register][Zotero website]]. Authentication is not required for read
+    access to public libraries.
+
+    Emacs-zotero uses Oauth 1.0 to authenticate requests. A token can be requested
+    with =zotero-auth-authorize=. The token and user ID will be saved for future
+    sessions, usually to your initialization file. The token will be valid
+    indefinitely, unless it is revoked by the user manually.
+
+*** Read functions
+    The read functions return a record of type =zotero-response=, which contains the slots:
+    - =status-code=: status code of the response
+    - =headers=: an alist of extra headers. The CAR of each cons cell is the field
+      name and the CDR is the field value. Headers has the form: =(("Content-Type"
+      . "application/x-www-form-urlencoded"))=
+    - =version=: current library version, as returned by the ="Last-Modified-Version"=
+      header in the response.
+    - =etag=: attachment item's md5 value, as returned by the ="ETag"= header in the response.
+    - =data=: data returned in the response.
+
+    The data is returned as a property list, converted from JSON. The value
+    =:json-empty= (instead of =nil)= is used for an empty object to differentiate an
+    empty value and an empty object.
+
+**** (zotero-key &optional API-KEY)
+     Return info about the user and group library permissions, based on the API-KEY.
+     Together with =zotero-groups=, this allows all accessible resources to be
+     determined.
+
+**** (zotero-delete-key &optional API-KEY)
+     Delete the API-KEY.
+
+**** (zotero-groups &key TYPE ID API-KEY)
+     Return the Zotero group data to which the current library ID and API-KEY has
+     access.
+
+**** (zotero-group ID &key API-KEY)
+     Return the metadata of the Zotero group.
+
+**** (zotero-items &key TYPE ID API-KEY)
+     Return Zotero library items.
+
+**** (zotero-top &key TYPE ID API-KEY)
+     Return top-level Zotero library items.
+
+**** (zotero-publications &key TYPE ID API-KEY)
+     Return the publications from the "My Publications" collection of a user's
+     library. Only available on user libraries.
+
+**** (zotero-trash &key TYPE ID API-KEY)
+     Return library items from the library's trash.
+
+**** (zotero-item KEY &key TYPE ID API-KEY)
+     Return a specific item.
+
+**** (zotero-children KEY &key TYPE ID API-KEY)
+     Return the child items of a specific item.
+
+**** (zotero-collection-items KEY &key TYPE ID API-KEY)
+     Return items from the specified collection. This includes sub-collection items.
+
+**** (zotero-collection-items-top KEY &key TYPE ID API-KEY)
+     Return top-level items from the specified collection.
+
+**** (zotero-collections &key TYPE ID API-KEY)
+     Return a library's collections. This includes subcollections.
+
+**** (zotero-collections-top &key TYPE ID API-KEY)
+     Return a library's top-level collections.
+
+**** (zotero-collection KEY &key TYPE ID API-KEY)
+     Return a specific collection.
+
+**** (zotero-subcollections KEY &key TYPE ID API-KEY)
+     Return the sub-collections of a specific collection.
+
+**** (zotero-tags &key TYPE ID API-KEY)
+     Return a library's tags.
+
+**** (zotero-item-tags KEY &key TYPE ID API-KEY)
+     Return tags from a specific item.
+
+**** (zotero-collection-tags KEY &key TYPE ID API-KEY)
+     Return tags in a specific collection.
+
+**** (zotero-search-items QUERY &optional FULLTEXT INCLUDE-TRASHED &key TYPE ID API-KEY )
+     Search all items.
+
+**** (zotero-search-tags QUERY &optional STARTS-WITH &key TYPE ID API-KEY)
+     Search all tags.
+
+**** (zotero-attachment-attributes KEY &key TYPE ID API-KEY)
+     Return the attributes of an attachment file.
+
+*** Write functions
+
+**** (zotero-create-item OBJECT &key TYPE ID API-KEY)
+     Create an item.
+
+**** (zotero-create-items OBJECTS &key TYPE ID API-KEY)
+     Create multiple items.
+
+**** (zotero-update-item KEY OBJECT &key TYPE ID API-KEY)
+     Update an existing item.
+
+**** (zotero-update-items OBJECTS &key TYPE ID API-KEY)
+     Update multiple existing items.
+
+**** (zotero-patch-item KEY OBJECT VERSION &key TYPE ID API-KEY)
+     Partially update an existing item.
+
+**** (zotero-delete-item KEY VERSION &key TYPE ID API-KEY)
+     Delete an item.
+
+**** (zotero-delete-items KEYS VERSION &key TYPE ID API-KEY)
+     Delete multiple items.
+
+**** (zotero-create-collection OBJECT &key TYPE ID API-KEY)
+     Create a collection.
+
+**** (zotero-update-collection KEY OBJECT &key TYPE ID API-KEY)
+     Update an existing collection.
+
+**** (zotero-update-collections OBJECTS &key TYPE ID API-KEY)
+     Update multiple existing collections.
+
+**** (zotero-delete-collection KEY VERSION &key TYPE ID API-KEY)
+     Delete a collection.
+
+**** (zotero-delete-collections KEYS VERSION &key TYPE ID API-KEY)
+     Delete multiple collections.
+
+**** (zotero-create-search OBJECT &key TYPE ID API-KEY)
+     Create a saved search.
+
+**** (zotero-update-searches OBJECTS &key TYPE ID API-KEY)
+     Update existing searches.
+
+**** (zotero-delete-searches KEYS VERSION &key TYPE ID API-KEY)
+     Delete multiple searches.
+
+**** (zotero-delete-tags TAGS VERSION &key TYPE ID API-KEY)
+     Delete multiple tags.
+
+*** Item types and fields
+
+**** (zotero-item-types &optional LOCALE)
+     Return all available item types.
+
+**** (zotero-item-fields &optional LOCALE)
+     Return all available item fields.
+
+**** (zotero-item-type-fields ITEM-TYPE &optional LOCALE)
+     Return all valid fields for the specified item type.
+
+**** (zotero-item-type-creator-types ITEM-TYPE &optional LOCALE)
+     Return all valid creator types for the specified item type.
+
+**** (zotero-creator-fields &optional LOCALE)
+     Return all creator fields.
+
+**** (zotero-attachment-linkmodes )
+     Return the attachment linkmode types.
+
+*** Templates
+
+**** (zotero-collection-template )
+     Return a template for a new collection.
+
+**** (zotero-item-template ITEM-TYPE)
+     Return the template for a new item of an item type.
+
+**** (zotero-attachment-template LINKMODE)
+     Return a template for a new attachment item of a linkmode.
+
+*** File uploads
+
+**** (zotero-file-attributes FILE)
+     Get the attributes of a file. The result is a plist with =:filename=, =:filesize=,
+     =:content-type=, =:md5=, =:mtime=, and =:accessdate= props to be passed to
+     =zotero-authorize-upload=.
+
+**** (zotero-upload-attachment KEY FILE &optional HASH &key TYPE ID API-KEY)
+     Authorize, upload and register an attachment to an item. This is a convenient
+     wrapper around =zotero-authorize-upload=, =zotero-upload-file=, and
+     =zotero-register-upload=.
+
+**** (zotero-file KEY &key TYPE ID API-KEY)
+     Return the raw file content of an item.
+
+**** (zotero-download-file KEY &optional FILE DIR CONFIRM &key TYPE ID API-KEY)
+     A convenient wrapper around =zotero-file=. Download an attachment using the
+     optional path and filename. If neither are supplied, the file is written to the
+     current working directory, and =zotero-item= is called to determine the attachment
+     filename.
+
+*** Recognize
+    PDFs are recognized using an undocumented Zotero web service that
+    operates on the first few pages of text using extraction
+    algorithms and known metadata from CrossRef. The Zotero lookup
+    service doesn't require a Zotero account, and data about the
+    content or results of searches are not logged.
+
+    The metadata can be used to create a parent item for the PDF
+    attachment, by looking up item metadata when supplied with a
+    standard identifier.
+
+**** (zotero-recognize-install-pdftools)
+     Install the PDF tools modified by Zotero. The executables are modified to
+     output a preprocessed JSON that contains rich and structured information about
+     the PDF and the text extracted from it, for use with the PDF recognizer.
+
+     This function downloads and extracts the binaries available for macOS, Windows
+     and Linux. You can change the installation directory by setting
+     =zotero-recognize-pdftools-dir= to an appropriate value before calling this
+     function.
+
+     If there are no binaries available for your operating system, you should
+     compile them from source and set the variables =zotero-recognize-pdftotext=,
+     =zotero-recognize-pdfinfo=, and =zotero-recognize-pdfdata= to the corresponding
+     paths. The source is available at https://github.com/zotero/cross-poppler.
+
+**** (zotero-recognize FILE)
+     Return metadata recognized from a PDF.
+
+*** Full-text content
+    Functions to access and create full-text content of Zotero items. To index
+    documents external dependencies are needed. The pdftotext executable is needed
+    for PDFs, the antiword executable for Microsoft Word documents until version
+    2003, and the pandoc executable for pandoc compatible markup formats. See the
+    variable =zotero-fulltext-pandoc-mimetypes= for a list of formats understood by
+    pandoc.
+
+**** (zotero-fulltext-item KEY &key TYPE ID API-KEY)
+     Return fulltext content of an item.
+
+**** (zotero-fulltext-create-item KEY OBJECT &key TYPE ID API-KEY)
+     Create full-text content for an item.
+
+**** (zotero-fulltext-index-item KEY FILE &optional CONTENT-TYPE &key TYPE ID API-KEY)
+     Create full-text content for an item.
+
+     This is a convenient wrapper around =zotero-fulltext-create-item= that is able to
+     index a variety of file formats, including but not limited to:
+     - Portable Document Format (PDF)
+     - OpenDocument (ODT)
+     - Microsoft Word version 2, 6, 7, 97, 2000 and 2003 (DOC)
+     - Office Open XML (DOCX)
+     - EPUB
+     - LaTeX
+     - Org-mode.
+
+*** Syncing
+    The Zotero library is synced to a hash table =zotero-cache=.
+
+**** (zotero-sync &optional FULL-SYNC RETRIES)
+     Sync the Zotero library, templates, schemas and file storage.
+
+** Configuration
+
+*** API requests
+
+**** zotero-timeout
+     Timeout in seconds; default=30
+
+**** zotero-locale
+     Locale used in translations; default="en-US".
+
+*** Caching
+**** zotero-cache-enable-caching
+     Caching is automatically enabled by default.
+
+**** zotero-cache-enable-storage
+     Storage is automatically enabled by default.
+
+**** zotero-cache-file
+     The cache file. By default "zotero-cache" in =user-emacs-directory=.
+
+**** zotero-cache-storage-dir
+     Attachment storage directory. By default "zotero-storage" in =user-emacs-directory=.
+
+**** zotero-cache-expire
+     Number of seconds before the cache expires; default=86400 (one day).
+
+*** Full-text content
+
+**** zotero-fulltext-pdftotext
+     Executable for pdftotext. Needed for fulltext indexing of PDF documents. It is
+     freely available and included by default with many Linux distributions, and is
+     also available for Windows as part of the Xpdf Windows port. Default="pdftotext".
+
+**** zotero-fulltext-pdfinfo
+     Executable for pdfinfo. Needed for fulltext indexing of PDF documents. It is
+     freely available and included by default with many Linux distributions, and is
+     also available for Windows as part of the Xpdf Windows port. Default="pdfinfo".
+
+**** zotero-fulltext-pandoc
+     Executable for pandoc executable. Pandoc is an open-source document converter
+     that supports many formats and is freely available for most operating systems.
+     Default="pandoc".
+
+**** zotero-fulltext-antiword
+     Executable for antiword executable. Antiword is an open source reader for
+     proprietary Microsoft Word documents and is freely available for most operating
+     systems. Default="antiword".
+
+**** zotero-fulltext-max-chars
+     How much text is indexed. Default: 500000 characters.
+
+**** zotero-fulltext-max-pages
+     How much text is indexed. Default: 100 pages.
