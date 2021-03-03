@@ -1248,9 +1248,6 @@ If region is active, restore entries in active region instead."
   (let* ((inhibit-read-only t)
          (type zotero-browser-type)
          (id zotero-browser-id)
-         (resource (pcase major-mode
-                     ('zotero-browser-collections-mode "collections")
-                     ('zotero-browser-items-mode "items")))
          (ewoc zotero-browser-ewoc)
          (nodes (zotero-browser--nodes ewoc))
          (keys (zotero-browser--keys ewoc)))
@@ -1615,8 +1612,8 @@ The format can be changed by customizing
                 (zotero-browser--prefix (ewoc-location (ewoc-prev ewoc node)) "▾")
                 (ewoc-invalidate ewoc node)))))))))
 
-(defun zotero-browser-set-fulltext ()
-  "Set the full-text content of the current entry."
+(defun zotero-browser-index-attachment ()
+  "Index the full-text content of the current entry."
   (interactive)
   (zotero-browser-ensure-items-mode)
   (zotero-browser-ensure-write-access)
