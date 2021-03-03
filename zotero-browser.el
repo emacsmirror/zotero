@@ -1736,9 +1736,9 @@ the user ID or group ID."
   "Display current library or collection."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
-  (let* ((ewoc zotero-browser-ewoc)
-         (node (ewoc-locate ewoc))
-         (key (ewoc-data node)))
+  (when-let ((ewoc zotero-browser-ewoc)
+             (node (ewoc-locate ewoc))
+             (key (ewoc-data node)))
     (pcase major-mode
       ('zotero-browser-libraries-mode
        (let* ((table (zotero-cache-library))
