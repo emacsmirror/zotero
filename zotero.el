@@ -1121,7 +1121,7 @@ for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
   (let* ((write-token (zotero--write-token))
-         (json (zotero-json-encode-object objects)))
+         (json (apply #'zotero-json-encode-object objects)))
     (zotero-request "POST" "items" nil
                     :type type
                     :id id
@@ -1213,7 +1213,7 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (let ((json (zotero-json-encode-object objects)))
+  (let ((json (apply #'zotero-json-encode-object objects)))
     (zotero-request "POST" "items" nil
                     :type type
                     :id id
@@ -1347,7 +1347,7 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (let ((json (zotero-json-encode-object objects)))
+  (let ((json (apply #'zotero-json-encode-object objects)))
     (zotero-request "POST" "collections" nil
                     :type type
                     :id id
@@ -1434,7 +1434,7 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (let ((json (zotero-json-encode-object objects)))
+  (let ((json (apply #'zotero-json-encode-object objects)))
     (zotero-request "POST" "searches" nil
                     :type type
                     :id id
