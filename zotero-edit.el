@@ -30,6 +30,9 @@
 (require 'seq)
 (require 'widget)
 
+(eval-when-compile
+  (require 'wid-edit))
+
 ;;;; Variables
 
 (defvar zotero-edit-text-buffer-action '((display-buffer-reuse-window display-buffer-in-side-window)
@@ -120,7 +123,7 @@ All currently available key bindings:
 (eval-when-compile
   (require 'wid-edit))
 
-(defun zotero-edit--toggle-notify (widget &rest ignore)
+(defun zotero-edit--toggle-notify (widget &rest _ignore)
   (let* ((parent (widget-get widget :parent))
          (siblings (widget-get parent :children))
          (single-field-p (widget-value widget))
@@ -129,15 +132,15 @@ All currently available key bindings:
     ;; If switched to single-field mode
     (if single-field-p
         ;; Join the first and last name
-        (let* ((first-name (first namefields))
-               (last-name (second namefields))
+        (let* ((first-name (nth 0 namefields))
+               (last-name (nth 1 namefields))
                (full-name (cond
                            ((string-empty-p (widget-value first-name)) (widget-value last-name))
                            ((string-empty-p (widget-value last-name)) (widget-value first-name))
                            (t (s-join " " (list (widget-value first-name) (widget-value last-name)))))))
           (widget-value-set list (list full-name)))
       ;; Else if switched to dual-field mode
-      (let* ((full-name (first namefields))
+      (let* ((full-name (nth 0 namefields))
              ;; Split the full name to a first and last name
              (words (s-split-words (widget-value full-name)))
              (first-name (or (s-join " " (butlast words)) ""))
@@ -153,6 +156,7 @@ Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
 or group library you want to access, e.g. the user ID or group
 ID."
+  ;; TODO: use schema for internationalisation
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
     (with-current-buffer buffer
       (zotero-edit-mode)
@@ -160,8 +164,7 @@ ID."
         (erase-buffer))
       (remove-overlays)
       (save-excursion
-        (let* ((schema (zotero-cache-schema))
-               (itemtype (plist-get data :itemType))
+        (let* ((itemtype (plist-get data :itemType))
                (linkmode (plist-get data :linkMode))
                (itemtypes (zotero-cache-itemtypes))
                (itemfields (zotero-cache-itemtypefields itemtype))
@@ -198,7 +201,7 @@ ID."
                              (choices (seq-map (lambda (elt) `(item :value ,elt :tag ,(zotero-cache-itemtype-locale elt))) itemtypes)))
                         (widget-create 'menu-choice
                                        :format (concat fieldname ": %[%v%]")
-                                       :notify (lambda (widget &rest ignore)
+                                       :notify (lambda (widget &rest _ignore)
                                                  (let* ((current-itemtype value)
                                                         (new-itemtype (widget-value widget))
                                                         (new-itemfields (zotero-cache-itemtypefields new-itemtype)))
@@ -229,7 +232,7 @@ ID."
                         (widget-create 'editable-field
                                        :size 10
                                        :format "%v\n"
-                                       :notify (lambda (widget &rest ignore)
+                                       :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                        :value value)))
                      ;; Creators
@@ -256,14 +259,14 @@ ID."
                         (setq zotero-edit-creators-widget
                               (widget-create 'editable-list
                                              :entry-format "%i %d %v\n"
-                                             :notify (lambda (widget &rest ignore)
+                                             :notify (lambda (widget &rest _ignore)
                                                        (let* ((creators-list (seq-map (lambda (elt)
                                                                                         (pcase (length elt)
-                                                                                          (3 (list :creatorType (first elt)
-                                                                                                   :name (second elt)))
-                                                                                          (4 (list :creatorType (first elt)
-                                                                                                   :firstName (second elt)
-                                                                                                   :lastName (third elt)))
+                                                                                          (3 (list :creatorType (nth 0 elt)
+                                                                                                   :name (nth 1 elt)))
+                                                                                          (4 (list :creatorType (nth 0 elt)
+                                                                                                   :firstName (nth 1 elt)
+                                                                                                   :lastName (nth 2 elt)))
                                                                                           (_ (error "Invalid value")))) (widget-value widget)))
                                                               (creators-vector (seq-into creators-list 'vector)))
                                                          (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field creators-vector))))
@@ -296,7 +299,7 @@ ID."
                                        :size 10
                                        :format "%v\n"
                                        :help-echo "M-TAB: complete field; RET: enter value; C-c ': edit in buffer"
-                                       :notify (lambda (widget &rest ignore)
+                                       :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                        :value value
                                        :keymap zotero-edit-text-keymap)))
@@ -309,7 +312,7 @@ ID."
                                        :size 10
                                        :format "%v\n"
                                        :help-echo "M-TAB: complete field; RET: enter value; C-c ': edit in buffer"
-                                       :notify (lambda (widget &rest ignore)
+                                       :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                        :value value
                                        :keymap zotero-edit-text-keymap)))
@@ -332,7 +335,7 @@ ID."
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
                                        :entry-format "%d %v"
-                                       :notify (lambda (widget &rest ignore)
+                                       :notify (lambda (widget &rest _ignore)
                                                  (let* ((value (if-let ((values (widget-value widget)))
                                                                    (seq-into values'vector)
                                                                  :json-empty)))
@@ -350,7 +353,7 @@ ID."
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
                                        :entry-format "%i %d %v\n"
-                                       :notify (lambda (widget &rest ignore)
+                                       :notify (lambda (widget &rest _ignore)
                                                  (let* ((value (seq-into (widget-value widget) 'vector)))
                                                    (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field value))))
 
@@ -369,7 +372,7 @@ ID."
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
                                        :entry-format "%d %v"
-                                       :notify (lambda (widget &rest ignore)
+                                       :notify (lambda (widget &rest _ignore)
                                                  (let* ((value (if-let ((values (widget-value widget)))
                                                                    (seq-into values'vector)
                                                                  :json-empty)))
@@ -384,7 +387,7 @@ ID."
                         (widget-create 'editable-field
                                        :size 10
                                        :format "%v\n"
-                                       :notify (lambda (widget &rest ignore)
+                                       :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                        :value value)))))
           ;; Date Added
@@ -404,7 +407,7 @@ ID."
           ;; Save button
           (widget-insert "\n")
           (widget-create 'push-button
-		         :notify (lambda (&rest ignore)
+		         :notify (lambda (&rest _ignore)
                                    (message "Saving...")
                                    (if-let ((object (zotero-cache-save zotero-edit-data-copy "items" type id)))
                                        (progn
@@ -417,7 +420,7 @@ ID."
           (widget-insert " ")
           ;; Reset button
           (widget-create 'push-button
-		         :notify (lambda (&rest ignore)
+		         :notify (lambda (&rest _ignore)
                                    (message "Item reset.")
                                    (zotero-edit-item data type id))
 		         "Reset")
@@ -463,7 +466,7 @@ ID."
                       (widget-create 'editable-field
                                      :size 10
                                      :format "%v\n"
-                                     :notify (lambda (widget &rest ignore)
+                                     :notify (lambda (widget &rest _ignore)
 			                       (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                      :value value)))
                    ;; Parent Collection
@@ -475,7 +478,7 @@ ID."
                            (choices (cons `(item :format "%t" :value :json-false :tag "None") collections)))
                       (widget-create 'menu-choice
                                      :format (concat fieldname ": %[%v%]\n")
-                                     :notify (lambda (widget &rest ignore)
+                                     :notify (lambda (widget &rest _ignore)
                                                (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                      :button-prefix "▾"
                                      :value value
@@ -488,7 +491,7 @@ ID."
                       (widget-insert (format "%d %s:\n" (length values) fieldname))
                       (widget-create 'editable-list
                                      :entry-format "%d %v"
-                                     :notify (lambda (widget &rest ignore)
+                                     :notify (lambda (widget &rest _ignore)
                                                (let* ((value (if-let ((values (widget-value widget)))
                                                                  (seq-into values'vector)
                                                                :json-empty)))
@@ -498,7 +501,7 @@ ID."
         ;; Save button
         (widget-insert "\n")
         (widget-create 'push-button
-		       :notify (lambda (&rest ignore)
+		       :notify (lambda (&rest _ignore)
 	                         (message "Saving...")
                                  (if-let ((object (zotero-cache-save zotero-edit-data-copy "collections" type id)))
                                      (progn
@@ -511,7 +514,7 @@ ID."
         (widget-insert " ")
         ;; Reset button
         (widget-create 'push-button
-		       :notify (lambda (&rest ignore)
+		       :notify (lambda (&rest _ignore)
                                  (zotero-edit-collection data type id))
 		       "Reset")
         (use-local-map widget-keymap)
@@ -524,10 +527,10 @@ ID."
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
 or group library you want to access, e.g. the user ID or group
-ID."
+ID. COLLECTION is the collection key."
   (let* ((template (zotero-cache-item-template itemtype))
          (data (if collection (plist-put template :collections (vector collection)) template)))
-    (zotero-edit-item template type id)))
+    (zotero-edit-item data type id)))
 
 (defun zotero-edit-create-collection (type id)
   "Create an empty collection edit buffer.
@@ -555,9 +558,9 @@ ID.
 Optional argument PARENT is the key of the parent item.
 
 Keyword arguments CONTENT-TYPE, CHARSET FILENAME, FILESIZE, MD5,
-and MTIME are attributes of the file and can be obtained by
-`zotero-file-attributes', except for the charset that cannot be
-determined without external tools."
+MTIME, and ACCESSDATE are attributes of the file and can be
+obtained by `zotero-file-attributes', except for the charset that
+cannot be determined without external tools."
   (let* ((template (zotero-cache-attachment-template linkmode))
          (new-template (copy-tree template)))
     (when parent (plist-put new-template :parentItem parent))
@@ -594,8 +597,8 @@ Optional argument PARENT is the key of the parent item."
 
 (defun zotero-edit-save ()
   "Save current item."
-  (message "Saving item...")
   (interactive)
+  (message "Saving item...")
   (let ((resource zotero-edit-resource)
         (type zotero-edit-type)
         (id zotero-edit-id)
@@ -613,7 +616,7 @@ Optional argument PARENT is the key of the parent item."
   (unless (local-variable-p 'zotero-edit-widget)
     (user-error "Current buffer is not a Zotero editing buffer")))
 
-(defun zotero-edit-text (&optional pos buffer-name)
+(defun zotero-edit-text ()
   "Edit the text at point.
 \\<zotero-edit-text-mode-map>
 
@@ -624,10 +627,9 @@ in the source buffer, and replace it with the edited version.
 When optional argument BUFFER-NAME is non-nil, use it as the
 name of the sub-editing buffer."
   (interactive "d")
-  (let* ((widget (widget-at (or pos (point))))
+  (let* ((widget (widget-at (point)))
          (value (widget-value widget))
-         (buffer (generate-new-buffer "*Zotero Edit Text*"))
-         (tempfile (concat temporary-file-directory "zotero-edit-text")))
+         (buffer (generate-new-buffer "*Zotero Edit Text*")))
     (when (eq (widget-type widget) 'text)
       (with-current-buffer buffer
         (insert value)
@@ -643,8 +645,7 @@ name of the sub-editing buffer."
   "Save source buffer with current state sub-editing buffer."
   (interactive)
   (zotero-edit-ensure-edit-buffer)
-  (let* ((edit-buffer (current-buffer))
-         (widget zotero-edit-widget)
+  (let* ((widget zotero-edit-widget)
          (src-buffer (widget-field-buffer widget))
          (contents (save-excursion (widen) (buffer-string))))
     (set-buffer-modified-p nil)

@@ -33,7 +33,8 @@
 (defvar zotero-auth-token nil
   "The access token.")
 
-;; The Client Key and Client Secret for use during all future OAuth handshakes between emacs-zotero and zotero.org.
+;; The Client Key and Client Secret for use during all future OAuth handshakes
+;; between emacs-zotero and zotero.org.
 (defconst zotero-auth-client-key "28b59774b8e3e022a296"
   "The client key issued by Zotero.")
 
@@ -123,7 +124,9 @@ Zotero will send the username associated with the key along too."
 
 (defun zotero-auth--fetch-token (arg)
   "Advice replacing `oauth-fetch-token' in package `oauth.el'.
-Fetch an access token, secret, user ID and username from the service provider. The original function only fetches the access token and secret."
+Fetch an access token, secret, user ID and username from the
+service provider. The original function only fetches the access
+token and secret."
   (with-current-buffer (oauth-do-request arg)
     ;; Move beyond blank line at end of headers.
     (goto-char (point-min))

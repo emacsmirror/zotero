@@ -67,7 +67,7 @@
                                                                    (reusable-frames . nil))))
 
 (defvar zotero-browser-padding 1
-  "Set the number of characters preceding each entry")
+  "Set the number of characters preceding each entry.")
 
 (defvar zotero-browser-default-itemtypes nil
   "Default itemtypes when creating a new item.")
@@ -228,7 +228,7 @@
   :type 'integer)
 
 (defcustom zotero-browser-library-keys '(icon :name)
-  "Keys to show in the items browser"
+  "Keys to show in the library browser."
   :group 'zotero-browser
   :type
   '(repeat (choice
@@ -251,7 +251,7 @@
             (const :tag "File Editing" :fileEditing))))
 
 (defcustom zotero-browser-collection-keys '(icon :name)
-  "Keys to show in the collections browser"
+  "Keys to show in the collections browser."
   :group 'zotero-browser
   :type '(repeat (choice
                   (const :tag "Icon" icon)
@@ -264,7 +264,7 @@
                   (const :tag "Name" :name))))
 
 (defcustom zotero-browser-attachment-keys '(icon :title)
-  "Keys to show in the items browser"
+  "Attachment keys to show in the items browser."
   :group 'zotero-browser
   :type
   '(repeat (choice
@@ -284,7 +284,7 @@
             (const :tag "Charset" :charset))))
 
 (defcustom zotero-browser-note-keys '(icon " " :note)
-  "Keys to show in the items browser"
+  "Note keys to show in the items browser."
   :group 'zotero-browser
   :type
   '(repeat (choice
@@ -300,7 +300,7 @@
             (const :tag "Note" :note))))
 
 (defcustom zotero-browser-item-keys '(icon " " :creators "." " " :title "." " " :year)
-  "Keys to show in the items browser"
+  "Item keys to show in the items browser."
   :group 'zotero-browser
   :type
   '(repeat (choice
@@ -456,7 +456,7 @@ STRING should contain only one character."
     (put-text-property position (line-end-position) 'line-prefix (concat spacing string))))
 
 (defun zotero-browser--add (ewoc node table)
-  "Add items of TABLE after NODE in EWOC"
+  "Add items of TABLE after NODE in EWOC."
   (let ((keys (pcase major-mode
                 ('zotero-browser-collections-mode
                  (zotero-cache-sort-by :name 'asc table))
@@ -600,7 +600,7 @@ GNU/Linux, macOS, or Microsoft Windows."
     ('windows-nt
      (w32-shell-execute "open" path))
     (system
-     (error "Unable to determine default application on operating system %S."))))
+     (error "Unable to determine default application on operating system %S"))))
 
 (defun zotero-browser--open-file (path)
   "Open the file at PATH.
@@ -638,10 +638,12 @@ application is found, Emacs simply visits the file."
            (find-file-other-frame file))))))))
 
 (defun zotero-browser--open-imported-file (entry)
+  "Open attachment ENTRY."
   (let ((path (expand-file-name (zotero-browser-find-attachment))))
     (zotero-browser--open-file path)))
 
 (defun zotero-browser--open-imported-url (entry)
+  "Open attachment ENTRY."
   (let ((path (expand-file-name (zotero-browser-find-attachment)))
         (contenttype (zotero-lib-plist-get* entry :object :data :contentType))
         (key (zotero-lib-plist-get* entry :object :data :key))
@@ -658,10 +660,12 @@ application is found, Emacs simply visits the file."
           (error "Error extracting snapshot"))))))
 
 (defun zotero-browser--open-linked-file (entry)
+  "Open attachment ENTRY."
   (let ((path (zotero-lib-plist-get* entry :object :data :path)))
     (zotero-browser--open-file path)))
 
 (defun zotero-browser--open-linked-url (entry)
+  "Open attachment ENTRY."
   (let ((url (zotero-lib-plist-get* entry :object :data :url)))
     (browse-url url)))
 
@@ -1065,7 +1069,9 @@ application is found, Emacs simply visits the file."
                 (ewoc-goto-next ewoc 1))))))))
 
 (defun zotero-browser-expand-level (&optional num)
-  "Expand children till LEVEL."
+  "Expand children till level NUM.
+
+If NUM is omitted or nil, expand till level 1."
   (interactive "P")
   (zotero-browser-ensure-browser-buffer)
   (let* ((ewoc zotero-browser-ewoc)
@@ -1171,7 +1177,7 @@ With a `C-u' prefix, move to top level."
     (zotero-cache-substitute-collection key new old type id)))
 
 (defun zotero-browser-copy-to-collection ()
-  "Copy current entry to a collection."
+  "Copy current entry to another collection."
   (interactive)
   (zotero-browser-ensure-items-mode)
   (zotero-browser-ensure-write-access)
@@ -1192,7 +1198,7 @@ With a `C-u' prefix, move to top level."
     (zotero-cache-add-to-collection key collection type id)))
 
 (defun zotero-browser-remove-from-collection ()
-  "Remove current entry from a collection."
+  "Remove current entry from the collection."
   (interactive)
   (zotero-browser-ensure-items-mode)
   (zotero-browser-ensure-write-access)
@@ -1461,7 +1467,12 @@ client."
       (zotero-browser-download-attachment temporary-file-directory)))))
 
 (defun zotero-browser-download-attachment (&optional dir)
-  "Download the attachment of the current entry."
+  "Download the attachment of the current entry.
+
+Optional argument DIR is the directory. If DIR is omitted or nil,
+the attachment is downloaded to the default storage directory
+`zotero-cache-storage-dir' and a subdirectory named as the item
+key."
   (zotero-browser-ensure-items-mode)
   (zotero-browser-ensure-item-at-point)
   (let* ((type zotero-browser-type)
@@ -1477,6 +1488,9 @@ client."
     (zotero-download-file key filename dir t :type type :id id)))
 
 (defun zotero-browser-add-by-identifier (string)
+  "Create a new item by providing an identifier.
+
+Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
   (interactive "sEnter a ISBN, DOI, PMID, or arXiv ID: ")
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
@@ -1490,14 +1504,17 @@ client."
                  (zotero-pmid identifier))
                 ((setq identifier (zotero-lib-validate-arxiv string) )
                  (zotero-arxiv identifier))
-                (t (user-error "Identifier \"%s\" is not a valid arXiv id, DOI, or ISBN." string)))))
+                (t (user-error "Identifier \"%s\" is not a valid arXiv id, DOI, or ISBN" string)))))
     (if data
         (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)
-      (user-error "No metadata found for identifier \"%s\"." identifier))))
+      (user-error "No metadata found for identifier \"%s\"" identifier))))
 
 (defun zotero-browser--filename-base (data)
   "Return a base filename to match DATA.
-The format can be changed by customizing `zotero-browser-filename-keys' and `zotero-browser-filename-max-length'."
+
+The format can be changed by customizing
+`zotero-browser-filename-keys' and
+`zotero-browser-filename-max-length'."
   (let (result)
     (dolist (key zotero-browser-filename-keys)
       (pcase key
@@ -1628,7 +1645,17 @@ The format can be changed by customizing `zotero-browser-filename-keys' and `zot
     buffer))
 
 (defun zotero-browser-collections (&optional resource type id)
-  "Create a collections browser buffer."
+  "Create a collections browser buffer.
+
+Optional argument RESOURCE is one of:
+  - \"collections\": collections in the library
+  - \"items\": all items in the library, excluding trashed items
+  - \"searches\": all saved searches in the library
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the user ID or group
+ID."
   (let ((buffer (get-buffer-create zotero-browser-collections-buffer-name)))
     (with-current-buffer buffer
       (zotero-browser-collections-mode)
@@ -1658,7 +1685,17 @@ The format can be changed by customizing `zotero-browser-filename-keys' and `zot
     buffer))
 
 (defun zotero-browser-items (&optional resource collection type id)
-  "Create an items buffer."
+  "Create an items buffer.
+
+Optional argument RESOURCE is one of:
+  - \"collections\": collections in the library
+  - \"items\": all items in the library, excluding trashed items
+  - \"searches\": all saved searches in the library
+
+Argument COLLECTION is the collection. TYPE is \"user\" for your
+personal library, and \"group\" for the group libraries. ID is
+the ID of the personal or group library you want to access, e.g.
+the user ID or group ID."
   (let ((buffer (get-buffer-create zotero-browser-items-buffer-name)))
     (with-current-buffer buffer
       (zotero-browser-items-mode)

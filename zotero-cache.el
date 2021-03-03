@@ -143,7 +143,7 @@ If optional argument NO-CONFIRM is non-nil, don't ask for confirmation."
   "Return non-nil if PRED is satisfied for at least one element of TABLE.
 PRED is a function that takes a data element as its first
 argument."
-  (if (ht-find (lambda (key value) (funcall pred (zotero-lib-plist-get* value :object :data))) table) t nil))
+  (if (ht-find (lambda (_key value) (funcall pred (zotero-lib-plist-get* value :object :data))) table) t nil))
 
 (defun zotero-cache--pred (field direction)
   "Return a predicate function as used by `zotero-cache-sort-by'.
@@ -183,7 +183,7 @@ the sorting order: 'asc for ascending or 'desc for descending."
 
 PRED is a function that takes a `:data' element as its first
 argument."
-  (ht-select (lambda (key value)
+  (ht-select (lambda (_key value)
                ;; keep the predicate nil-safe
                (ignore-error wrong-type-argument
                  (funcall pred (zotero-lib-plist-get* value :object :data)))) table))
@@ -287,8 +287,8 @@ or group library you want to access, e.g. the user ID or group
 ID."
   (let ((table (ht-get zotero-cache "libraries")))
     (cond
-     ((and type id) (ht-get (ht-select (lambda (key value) (equal (plist-get value :type) type)) table) id))
-     (type (ht-select (lambda (key value) (equal (plist-get value :type) type)) table))
+     ((and type id) (ht-get (ht-select (lambda (_key value) (equal (plist-get value :type) type)) table) id))
+     (type (ht-select (lambda (_key value) (equal (plist-get value :type) type)) table))
      (id (ht-get* zotero-cache "libraries" id))
      (t (ht-get* zotero-cache "libraries")))))
 
@@ -334,14 +334,14 @@ items in the trash are included."
        (cond
         (key (ht-get* zotero-cache "synccache" "collections" key))
         ((and type id)
-         (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                             (equal (plist-get value :id) id))) table))
+         (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                              (equal (plist-get value :id) id))) table))
         (t table))))
     ("collections-top"
      (let* ((table (ht-get* zotero-cache "synccache" "collections"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (zotero-cache-filter-data (lambda (elt) (or (not (plist-member elt :parentCollection))
                                                    (eq (plist-get elt :parentCollection) :json-false))) table)))
@@ -350,15 +350,15 @@ items in the trash are included."
     ("subcollections"
      (let* ((table (ht-get* zotero-cache "synccache" "collections"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (zotero-cache-filter-data (lambda (elt) (equal (plist-get elt :parentCollection) key)) table)))
     ("items"
      (let* ((table (ht-get* zotero-cache "synccache" "items"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table))
             (table (if include-trashed
                        (zotero-cache-filter-data (lambda (elt) (not (eq (plist-get elt :deleted) 1))) table)
@@ -366,14 +366,14 @@ items in the trash are included."
        (cond
         (key (ht-get* zotero-cache "synccache" "items" key))
         ((and type id)
-         (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                             (equal (plist-get value :id) id))) table))
+         (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                              (equal (plist-get value :id) id))) table))
         (t table))))
     ("items-top"
      (let* ((table (ht-get* zotero-cache "synccache" "items"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (if include-trashed
            (zotero-cache-filter-data (lambda (elt) (or (eq (plist-get elt :collections) [])
@@ -384,8 +384,8 @@ items in the trash are included."
     ("trash-items"
      (let* ((table (ht-get* zotero-cache "synccache" "items"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table))
             (select (zotero-cache-filter-data (lambda (elt) (or (not (plist-member elt :parentItem))
                                                                 (eq (plist-get elt :parentItem) :json-false))) table)))
@@ -403,8 +403,8 @@ items in the trash are included."
     ("collection-items"
      (let* ((table (ht-get* zotero-cache "synccache" "items"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (if include-trashed
            (zotero-cache-filter-data (lambda (elt) (seq-contains-p (plist-get elt :collections) key)) table)
@@ -413,8 +413,8 @@ items in the trash are included."
     ("collection-items-top"
      (let* ((table (ht-get* zotero-cache "synccache" "items"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (if include-trashed
            (zotero-cache-filter-data (lambda (elt) (seq-contains-p (plist-get elt :collections) key)) table)
@@ -423,8 +423,8 @@ items in the trash are included."
     ("searches"
      (let ((table (ht-get* zotero-cache "synccache" "searches")))
        (if (and type id)
-           (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                               (equal (plist-get value :id) id))) table)
+           (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                (equal (plist-get value :id) id))) table)
          table)))
     ("search"
      (ht-get* zotero-cache "synccache" "search" key))
@@ -483,14 +483,14 @@ items in the trash are included."
        (cond
         (key (ht-get* zotero-cache "deletions" "collections" key))
         ((and type id)
-         (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                             (equal (plist-get value :id) id))) table))
+         (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                              (equal (plist-get value :id) id))) table))
         (t table))))
     ("collections-top"
      (let* ((table (ht-get* zotero-cache "deletions" "collections"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (zotero-cache-filter-data (lambda (elt) (or (not (plist-member elt :parentCollection))
                                                    (eq (plist-get elt :parentCollection) :json-false))) table)))
@@ -499,15 +499,15 @@ items in the trash are included."
     ("subcollections"
      (let* ((table (ht-get* zotero-cache "deletions" "collections"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (zotero-cache-filter-data (lambda (elt) (equal (plist-get elt :parentCollection) key)) table)))
     ("items"
      (let* ((table (ht-get* zotero-cache "deletions" "items"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table))
             (table (if include-trashed
                        (zotero-cache-filter-data (lambda (elt) (not (eq (plist-get elt :deleted) 1))) table)
@@ -515,14 +515,14 @@ items in the trash are included."
        (cond
         (key (ht-get* zotero-cache "deletions" "items" key))
         ((and type id)
-         (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                             (equal (plist-get value :id) id))) table))
+         (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                              (equal (plist-get value :id) id))) table))
         (t table))))
     ("items-top"
      (let* ((table (ht-get* zotero-cache "deletions" "items"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (if include-trashed
            (zotero-cache-filter-data (lambda (elt) (or (eq (plist-get elt :collections) [])
@@ -533,8 +533,8 @@ items in the trash are included."
     ("trash-items"
      (let* ((table (ht-get* zotero-cache "deletions" id "items"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (zotero-cache-filter-data (lambda (elt) (eq (plist-get elt :deleted) 1)) table)))
     ("item"
@@ -550,8 +550,8 @@ items in the trash are included."
     ("collection-items"
      (let* ((table (ht-get* zotero-cache "deletions" "items"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (if include-trashed
            (zotero-cache-filter-data (lambda (elt) (seq-contains-p (plist-get elt :collections) key)) table)
@@ -560,8 +560,8 @@ items in the trash are included."
     ("collection-items-top"
      (let* ((table (ht-get* zotero-cache "deletions" id "items"))
             (table (if (and type id)
-                       (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                           (equal (plist-get value :id) id))) table)
+                       (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                            (equal (plist-get value :id) id))) table)
                      table)))
        (if include-trashed
            (zotero-cache-filter-data (lambda (elt) (and (seq-contains-p (plist-get elt :collections) key)
@@ -574,8 +574,8 @@ items in the trash are included."
     ("searches"
      (let ((table (ht-get* zotero-cache "deletions" "searches")))
        (if (and type id)
-           (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                               (equal (plist-get value :id) id))) table)
+           (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                (equal (plist-get value :id) id))) table)
          table)))
     ("search"
      (ht-get* zotero-cache "deletions" "search" key))
@@ -596,13 +596,16 @@ items in the trash are included."
     ;; ("file")
     ))
 
-(defun zotero-cache-search (query id &optional include-trashed mode)
+(defun zotero-cache-search (query type id &optional include-trashed)
   "Search all items for QUERY.
-Search titles and individual creator fields by default. Use the
-MODE argument to change the mode. Default is
-\"titleCreatorYear\". To include full-text content, use
-\"everything\"."
-  (let ((table (ht-get* zotero-cache "synccache" "items")))
+Search titles and individual creator fields.
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, e.g. the \"user ID\" or
+\"group ID\". If INCLUDE-TRASHED is non-nil, items in the trash
+are included."
+  (let ((table (zotero-cache-synccache "items" nil type id include-trashed)))
     (zotero-cache-filter-data (lambda (elt) (let* ((title (plist-get elt :title))
                                                    (year (plist-get elt :date))
                                                    (creators (plist-get elt :creators)))
@@ -610,10 +613,10 @@ MODE argument to change the mode. Default is
                                                (s-contains-p query title t)
                                                (s-contains-p query year t)
                                                (unless (seq-empty-p creators)
-                                                 (let ((values (cl-loop for (key value) on creators by #'cddr
-                                                                        unless (eq key :creatorType)
-                                                                        collect value))
-                                                       (string (s-join " " values)))
+                                                 (let* ((values (cl-loop for (key value) on creators by #'cddr
+                                                                         unless (eq key :creatorType)
+                                                                         collect value))
+                                                        (string (s-join " " values)))
                                                    (s-contains-p query string t)))))) table)))
 
 (defun zotero-cache-item-template (itemtype)
@@ -628,7 +631,7 @@ not (yet) implemented in the Zotero API."
     (if (or (null template)
             (and zotero-cache-expire (> seconds-since-last-sync zotero-cache-expire)))
         (with-demoted-errors "Error downloading template: %S"
-          (zotero-sync--item-template zotero-cache itemtype))
+          (zotero-sync-item-template zotero-cache itemtype))
       (plist-get template :object))))
 
 (defun zotero-cache-attachment-template (linkmode)
@@ -643,7 +646,7 @@ not (yet) implemented in the Zotero API."
     (if (or (null template)
             (and zotero-cache-expire (> seconds-since-last-sync zotero-cache-expire)))
         (with-demoted-errors "Error downloading template: %S"
-          (zotero-sync--attachment-template zotero-cache linkmode))
+          (zotero-sync-attachment-template zotero-cache linkmode))
       (plist-get template :object))))
 
 (defun zotero-cache-schema ()
@@ -656,7 +659,7 @@ without making further requests."
          (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
     (when (or (null schema)
               (and zotero-cache-expire (> seconds-since-last-sync zotero-cache-expire)))
-      (zotero-sync--schema zotero-cache))
+      (zotero-sync-schema zotero-cache))
     schema))
 
 (defun zotero-cache-itemtype-locale (itemtype &optional locale)
@@ -773,11 +776,11 @@ ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
          (data (zotero-lib-plist-get* entry :object :data))
          (collections (zotero-lib-plist-get* entry :object :data :collections))
-         (updated-collections (cl-substitute new old collection :test #'equal)))
+         (updated-collections (cl-substitute new old collections :test #'equal)))
     (zotero-cache-save (plist-put data :collections updated-collections) "items" type id)))
 
-(defun zotero-cache-remove-from-item (key item type id)
-  "Remove item KEY from parent ITEM.
+(defun zotero-cache-remove-from-item (key type id)
+  "Remove item KEY from parent.
 
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
@@ -800,25 +803,24 @@ Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
 or group library you want to access, e.g. the user ID or group
 ID."
-  (let* ((value (zotero-cache-synccache resource key type id))
-         (synccache (ht-get* zotero-cache "synccache" resource))
-         (deletions (ht-get* zotero-cache "deletions" resource)))
+  (let* ((value (zotero-cache-synccache resource key type id t))
+         (synccache (zotero-cache-synccache resource nil type id t))
+         (deletions (zotero-cache-deletions resource nil type id t)))
     (pcase resource
       ("collections"
        (let* ((children (zotero-cache-subcollections key synccache))
               (collection key)
               (table (zotero-cache-synccache "collection-items" collection type id t)))
          ;; Remove all subcollections from the collection
-         (ht-each (lambda (key value) (zotero-cache-remove-from-collection key collection type id)) children)
+         (ht-each (lambda (key _value) (zotero-cache-remove-from-collection key collection type id)) children)
          ;; Remove all items from the collection
-         (ht-each (lambda (key value)
+         (ht-each (lambda (key _value)
                     (zotero-cache-remove-from-collection type id key collection))
                   table)))
       ("items"
        ;; Remove all subitems from the item
-       (let ((children (zotero-cache-subitems key synccache))
-             (parent key))
-         (ht-each (lambda (key value) (zotero-cache-remove-from-item key parent type id)) children))))
+       (let ((children (zotero-cache-subitems key synccache)))
+         (ht-each (lambda (key _value) (zotero-cache-remove-from-item key type id)) children))))
     (ht-set! deletions key value)
     (ht-remove! synccache key)
     (zotero-cache-serialize)))
@@ -853,6 +855,11 @@ If DATA contains a prop `:key', it already exists in cache and is
 updated, else it is uploaded and a new entry is created. Return
 the object if successful, or nil.
 
+RESOURCE is one of:
+  - \"collections\": collections in the library
+  - \"items\": all items in the library, excluding trashed items
+  - \"searches\": all saved searches in the library
+
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
 or group library you want to access, e.g. the user ID or group
@@ -873,19 +880,24 @@ ID."
   "Upload OBJECT.
 Return the object if syncing was successful, or nil.
 
+RESOURCE is one of:
+  - \"collections\": collections in the library
+  - \"items\": all items in the library, excluding trashed items
+  - \"searches\": all saved searches in the library
+
 Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
 or group library you want to access, e.g. the user ID or group
 ID."
   (message "Uploading...")
-  (let* ((table (ht-get* zotero-cache "synccache" resource))
+  (let* ((table (zotero-cache-synccache resource nil type id t))
          (result (pcase resource
                    ("items" (zotero-create-item object :type type :id id))
                    ("collections" (zotero-create-collection object :type type :id id))
                    ("searches" (zotero-create-search object :type type :id id))))
          (status (zotero-response-data result))
          (successful (plist-get status :successful))
-         (success (plist-get status :success))
+         ;; (success (plist-get status :success))
          (unchanged (plist-get status :unchanged))
          (failed (plist-get status :failed)))
     (cond

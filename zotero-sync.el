@@ -610,7 +610,7 @@ VERSION is the \"Last-Modified-Version\"."
               (throw 'sync 'quit))))))))
   table)
 
-(defun zotero-sync--schema (cache)
+(defun zotero-sync-schema (cache)
   "Store the schema in CACHE.
 
 Argument CACHE is the hash table containing the cache.
@@ -642,7 +642,7 @@ repository of the schema."
     (plist-put (ht-get cache "schema") :last-sync (current-time))
     cache))
 
-(defun zotero-sync--item-template (cache itemtype)
+(defun zotero-sync-item-template (cache itemtype)
   "Store the template for ITEMTYPE.
 
 Argument CACHE is the hash table containing the cache."
@@ -652,7 +652,7 @@ Argument CACHE is the hash table containing the cache."
     (ht-set! table itemtype `(:last-sync ,(current-time) :object ,object))
     object))
 
-(defun zotero-sync--attachment-template (cache linkmode)
+(defun zotero-sync-attachment-template (cache linkmode)
   "Store the attachment template for LINKMODE.
 
 Argument CACHE is the hash table containing the cache."
@@ -669,9 +669,9 @@ Argument CACHE is the hash table containing the cache."
   (let ((itemtypes (seq-map (lambda (elt) (plist-get elt :itemType)) (zotero-item-types)))
         (linkmodes (zotero-attachment-linkmodes)))
     (dolist (itemtype itemtypes)
-      (zotero-sync--item-template cache itemtype))
+      (zotero-sync-item-template cache itemtype))
     (dolist (linkmode linkmodes)
-      (zotero-sync--attachment-template cache linkmode))
+      (zotero-sync-attachment-template cache linkmode))
     cache))
 
 (defun zotero-sync--download-attachments (cache type id api-key)
@@ -848,7 +848,7 @@ Argument RETRIES is used to count the number of retries."
         (_ ; this should not happen
          (error "Syncing cache failed: unknown error")))
       (message "Syncing schema...")
-      (if-let ((result (zotero-sync--schema cache)))
+      (if-let ((result (zotero-sync-schema cache)))
           (progn
             (message "Syncing schema...done")
             (message "Writing cache...")
