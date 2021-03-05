@@ -84,7 +84,7 @@ around `json-read-object' and `json-encode' use the value
   "Function to be run after a JSON write."
   (advice-remove #'json-encode #'zotero-json--encode))
 
-(defun zotero-json-read-object (object)
+(defun zotero-json-read (object)
   "Convert the JSON OBJECT to Lisp data, else return nil.
 
 A JSON object will be converted to a plist. A JSON array of
@@ -113,7 +113,40 @@ OBJECT may be:
           (_ (error "Object %S doesn't return a JSON array or object" object)))
       (zotero-json--after-read-function))))
 
-(defun zotero-json-encode-object (&rest objects)
+(defun zotero-json-encode (object)
+  "Return a JSON representation of OBJECT as a string.
+
+OBJECT may be:
+- a cons cell
+- a buffer (read one Lisp expression from the beginning)
+- a function (call it with no arguments)
+- a file (read one Lisp expression from the beginning)
+- a string (takes text from string, starting at the beginning)."
+  (zotero-json--before-write-function)
+  (let ((plist (pcase object
+                 ((pred functionp)
+                  (funcall object))
+                 ((pred consp)
+                  object)
+                 ((pred bufferp)
+                  (with-current-buffer object
+                    (save-excursion
+                      (goto-char (point-min))
+                      (read (current-buffer)))))
+                 ((pred file-readable-p)
+                  (with-temp-buffer
+                    (insert-file-contents object)
+                    (goto-char (point-min))
+                    (read (current-buffer))))
+                 ((pred stringp)
+                  (read object)))))
+    (prog1
+        (if (json-plist-p plist)
+            (json-encode plist)
+          (error "Object %S doesn't return a property list" object))
+      (zotero-json--after-write-function))))
+
+(defun zotero-json-encode-to-array (&rest objects)
   "Return a JSON array with OBJECTS.
 
 Each of the OBJECTS may be:
@@ -122,35 +155,7 @@ Each of the OBJECTS may be:
 - a function (call it with no arguments)
 - a file (read one Lisp expression from the beginning)
 - a string (takes text from string, starting at the beginning)."
-  (zotero-json--before-write-function)
-  (let (result)
-    (dolist (object objects result)
-      (let ((plist (pcase object
-                     ((pred functionp)
-                      (funcall object))
-                     ((pred consp)
-                      object)
-                     ((pred bufferp)
-                      (with-current-buffer object
-                        (save-excursion
-                          (goto-char (point-min))
-                          (read (current-buffer)))))
-                     ((pred file-readable-p)
-                      (with-temp-buffer
-                        (insert-file-contents object)
-                        (goto-char (point-min))
-                        (read (current-buffer))))
-                     ((pred stringp)
-                      (read object)))))
-        (if (json-plist-p plist)
-            (push plist result)
-          (error "Object %S doesn't return a property list" object))))
-    (prog1
-        (thread-first result
-          (nreverse)
-          (seq-into 'vector)
-          (json-encode-array))
-      (zotero-json--after-write-function))))
+  (concat "[" (mapconcat #'zotero-json-encode objects "") "]"))
 
 (provide 'zotero-json)
 

@@ -184,7 +184,7 @@ item metadata. Optional argument DESCRIPTION is a
 string for the report."
   (let ((url (concat zotero-recognize-base-url "/report"))
         (headers `(("Content-Type" . "application/json")))
-        (json (zotero-json-encode-object `(,description ,zotero-api-version ,metadata-pdf ,metadata-item))))
+        (json (zotero-json-encode-to-array `(,description ,zotero-api-version ,metadata-pdf ,metadata-item))))
     (zotero-dispatch (zotero-request-create :method "POST"
                                             :url url
                                             :headers headers
