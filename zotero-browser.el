@@ -228,7 +228,8 @@
   :type 'integer)
 
 (defcustom zotero-browser-library-keys '(" " :name)
-  "Keys to show in the library browser."
+  "Fields to show in the library browser.
+Join all the key values with the separator in between."
   :group 'zotero-browser
   :type '(cons (string :tag "Separator")
                (repeat (choice
@@ -246,7 +247,8 @@
                         (const :tag "File Editing" :fileEditing)))))
 
 (defcustom zotero-browser-collection-keys '(" " :name)
-  "Keys to show in the collections browser."
+  "Fields to show in the collections browser.
+Join all the key values with the separator in between."
   :group 'zotero-browser
   :type '(cons (string :tag "Separator")
                (repeat (choice
@@ -255,7 +257,8 @@
                         (const :tag "Name" :name)))))
 
 (defcustom zotero-browser-attachment-keys '(". " :title)
-  "Attachment keys to show in the items browser."
+  "Attachment fields to show in the items browser.
+Join all the key values with the separator in between."
   :group 'zotero-browser
   :type '(cons (string :tag "Separator")
                (repeat (choice
@@ -269,7 +272,8 @@
                         (const :tag "Charset" :charset)))))
 
 (defcustom zotero-browser-note-keys '(". " :note)
-  "Note keys to show in the items browser."
+  "Note fields to show in the items browser.
+Join all the key values with the separator in between."
   :group 'zotero-browser
   :type '(cons (string :tag "Separator")
                (repeat (choice
@@ -279,7 +283,7 @@
                         (const :tag "Note" :note)))))
 
 (defcustom zotero-browser-item-keys '(". " :creators :title :year)
-  "Item keys to show in the items browser.
+  "Item fields to show in the items browser.
 Join all the key values with the separator in between."
   :group 'zotero-browser
   :type
