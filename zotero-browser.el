@@ -299,24 +299,26 @@ Join all the key values with the separator in between."
                   (const :tag "Extra" :extra)
                   (const :tag "Note" :note)))))
 
-(defcustom zotero-browser-filename-keys '(:creators " - " :title " - " :year)
-  "Fields to show in the attachment filename."
+(defcustom zotero-browser-filename-keys '(" - " :creators :title :year)
+  "Fields to show in the attachment filename.
+Join all the key values with the separator in between."
   :group 'zotero-browser
   :type
-  '(repeat (choice
-            (const :tag "Key" :key)
-            (const :tag "Version" :version)
-            (const :tag "Item Type" :itemtype)
-            (const :tag "Title" :title)
-            (const :tag "Creators" :creators)
-            (const :tag "Date" :date)
-            (const :tag "Year" :year)
-            (const :tag "Publisher" :publisher)
-            (const :tag "Publication Title" :publicationTitle)
-            (const :tag "Date Added" :dateAdded)
-            (const :tag "Date Modified" :dateModified)
-            (const :tag "Extra" :extra)
-            (const :tag "Note" :note))))
+  '(cons (string :tag "Separator")
+         (repeat (choice
+                  (const :tag "Key" :key)
+                  (const :tag "Version" :version)
+                  (const :tag "Item Type" :itemtype)
+                  (const :tag "Title" :title)
+                  (const :tag "Creators" :creators)
+                  (const :tag "Date" :date)
+                  (const :tag "Year" :year)
+                  (const :tag "Publisher" :publisher)
+                  (const :tag "Publication Title" :publicationTitle)
+                  (const :tag "Date Added" :dateAdded)
+                  (const :tag "Date Modified" :dateModified)
+                  (const :tag "Extra" :extra)
+                  (const :tag "Note" :note)))))
 
 (defcustom zotero-browser-filename-max-length 50
   "Maximum length of fields in attachment filenames.
@@ -1532,11 +1534,11 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
 The format can be changed by customizing
 `zotero-browser-filename-keys' and
 `zotero-browser-filename-max-length'."
-  (let (result)
-    (dolist (key zotero-browser-filename-keys)
+  (let ((separator (car zotero-browser-filename-keys))
+        (keys (cdr zotero-browser-filename-keys))
+        result)
+    (dolist (key keys)
       (pcase key
-        ((pred stringp)
-         (unless (s-ends-with-p key (car result)) (push key result)))
         (:creators
          (when-let ((creators (plist-get data :creators))
                     (names (when (seq-some (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators)
@@ -1553,7 +1555,7 @@ The format can be changed by customizing
         ((pred keywordp)
          (when-let ((value (plist-get data key)))
            (push value result)))))
-    (mapconcat (lambda (elt) (s-truncate zotero-browser-filename-max-length elt)) (nreverse result) "")))
+    (mapconcat (lambda (elt) (s-truncate zotero-browser-filename-max-length elt)) (nreverse result) separator)))
 
 (defun zotero-browser-recognize-attachment ()
   "Recognize content of the current entry."
