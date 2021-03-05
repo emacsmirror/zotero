@@ -55,6 +55,8 @@
 
 (defconst zotero-base-url "https://api.zotero.org")
 
+(defconst zotero-group-settings-url "https://www.zotero.org/groups/")
+
 (defconst zotero-api-version 3
   "API version. Version 3 is currently the default and recommended version.")
 
@@ -1760,6 +1762,20 @@ Return t if success, or nil if failed."
       (message "Authorizing upload...failed")
       ;; Failed: return nil
       nil)))
+
+(defun zotero-create-group ()
+  "Create a new group.
+The Zotero API doesn't support creating groups, so this function
+invokes a browser to open a link."
+  (interactive)
+  (browse-url (concat zotero-browser-group-settings-url "new")))
+
+(defun zotero-group-settings (id)
+  "Change the group settings of group ID.
+The Zotero API doesn't support changing the group settings, so this function
+invokes a browser to open a link."
+  (interactive "sGroup ID: ")
+  (browse-url (concat zotero-group-settings-url id "/settings")))
 
 (provide 'zotero)
 
