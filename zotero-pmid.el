@@ -69,7 +69,7 @@ Return plist that could be saved to the library by passing it to
                            space
                            (repeat 2 digit) ?: (repeat 2 digit)
                            string-end))
-               (match (string-match regexp sortpubdate))
+               (_ (string-match regexp sortpubdate))
                (year (match-string 1 sortpubdate))
                (month (match-string 2 sortpubdate))
                (day (match-string 3 sortpubdate)))
@@ -90,13 +90,11 @@ Return plist that could be saved to the library by passing it to
 Argument ID is the PMID"
   (let* ((method "GET")
          (url zotero-pmid-url)
-         (headers `(("User-Agent" . ,zotero-user-agent)))
          (params `(("db" "pubmed")
                    ("id" ,id)
                    ("retmode" "json"))))
     (zotero-dispatch (zotero-request-create :method method
                                             :url url
-                                            :headers headers
                                             :params params))))
 
 (defun zotero-pmid (id)

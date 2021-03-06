@@ -182,7 +182,7 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (let* ((json (zotero-json-encode object)))
+  (let ((json (zotero-json-encode object)))
     (zotero-request "PUT" "item-fulltext" key
                     :type type
                     :id id

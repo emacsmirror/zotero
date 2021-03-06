@@ -70,9 +70,9 @@ is one of \"collections\", \"items\", or \"searches\". TYPE is
 libraries. ID is the ID of the personal or group library you want
 to access, that is the \"user ID\" or \"group ID\"."
   (let* ((table (ht-get* cache "synccache" resource))
-         (modified (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                       (equal (plist-get value :id) id)
-                                                       (not (plist-get value :synced)))) table)))
+         (modified (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                        (equal (plist-get value :id) id)
+                                                        (not (plist-get value :synced)))) table)))
     (ht-keys modified)))
 
 (defun zotero-sync--get-locally-deleted (cache resource type id)
@@ -84,8 +84,8 @@ is one of \"collections\", \"items\", or \"searches\". TYPE is
 libraries. ID is the ID of the personal or group library you want
 to access, that is the \"user ID\" or \"group ID\"."
   (let* ((table (ht-get* cache "deletions" resource))
-         (deleted (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                      (equal (plist-get value :id) id))) table)))
+         (deleted (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                       (equal (plist-get value :id) id))) table)))
     (ht-keys deleted)))
 
 (defun zotero-sync--get-remotely-updated (keys resource type id api-key)
@@ -156,12 +156,12 @@ ID of the personal or group library you want to access, that is the
                  (when (equal type "group") (ht-clear! (ht-get groups id)))
                  (dolist (resource '("collections" "items" "searches"))
                    (let* ((table (ht-get* cache "synccache" resource))
-                          (library (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                                       (equal (plist-get value :id) id))) table)))
+                          (library (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                                        (equal (plist-get value :id) id))) table)))
                      (ht-clear! library))
                    (let* ((table (ht-get* cache "deletions" resource))
-                          (library (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                                       (equal (plist-get value :id) id))) table)))
+                          (library (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                                        (equal (plist-get value :id) id))) table)))
                      (ht-clear! library)))
                  (message "%s library %s removed from cache." (upcase-initials type) id))
              (let ((value (thread-first library
@@ -189,8 +189,8 @@ ID of the personal or group library you want to access, that is the
                           (y-or-n-p (format "%s library %s has no write access. Reset local changes? " (upcase-initials type) id)))
                  (cl-loop for resource in '("collections" "items" "searches") do
                           (let* ((table (ht-get* cache "synccache" resource))
-                                 (selection (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                                                (equal (plist-get value :id) id))) table))
+                                 (selection (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                                                 (equal (plist-get value :id) id))) table))
                                  (keys (cdr (assoc resource updated))))
                             (dolist (key keys)
                               (ht-remove! selection key))))
@@ -204,8 +204,8 @@ ID of the personal or group library you want to access, that is the
                           (y-or-n-p (format "%s library %s has no write access. Reset local deletions? " (upcase-initials type) id)))
                  (cl-loop for resource in '("collections" "items" "searches") do
                           (let* ((table (ht-get* cache "deletions" resource))
-                                 (selection (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                                                (equal (plist-get value :id) id))) table))
+                                 (selection (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                                                 (equal (plist-get value :id) id))) table))
                                  (keys (cdr (assoc resource deleted))))
                             (dolist (key keys)
                               (ht-remove! selection key))))
@@ -232,8 +232,7 @@ ID of the personal or group library you want to access, that is the
          (remote-groups (zotero-response-data result))
          (libraries (ht-get cache "libraries"))
          (groups (ht-get cache "groups")))
-    (cl-loop for id being the hash-keys of groups
-             using (hash-values value) do
+    (cl-loop for id being the hash-keys of groups do
              (let ((key (zotero-lib-string->keyword id)))
                (if (plist-member remote-groups key)
                    ;; Update version of library
@@ -356,33 +355,28 @@ to access, that is the \"user ID\" or \"group ID\". API-KEY is the
 Zotero API key."
   (let* ((libraries (ht-get cache "libraries"))
          (library (ht-get libraries id))
-         (storage-version (plist-get library :storage-version))
          (version (plist-get library :version))
          (synccache (ht-get cache "synccache"))
          (failures 0))
     (cl-loop for resource being the hash-keys of synccache
              using (hash-values table) do
              (when-let ((modified (thread-last table
-                                    (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                                        (equal (plist-get value :id) id))))
-                                    (ht-reject (lambda (key value) (plist-get value :synced)))))
+                                    (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                                         (equal (plist-get value :id) id))))
+                                    (ht-reject (lambda (_key value) (plist-get value :synced)))))
                         (keys (ht-keys modified))
                         (objects (seq-map (lambda (elt) (zotero-lib-plist-get* elt :object :data)) (ht-values modified)))
                         (partitions (seq-partition objects 50))
                         (number 0))
                (dolist (partition partitions)
                  (message "Uploading %d-%d of %d updated %s..." (1+ number) (+ number (length partition)) (length keys) resource)
-                 (let* ((param-key (pcase resource
-                                     ("collections" "collectionKey")
-                                     ("items" "itemKey")
-                                     ("searches" "searchKey")))
-                        (json (apply #'zotero-json-encode-to-array partition))
+                 (let* ((json (apply #'zotero-json-encode-to-array partition))
                         (result (zotero-request "POST" resource nil :type type :id id :api-key api-key :headers `(("Content-Type" . "application/json")) :data (encode-coding-string json 'utf-8)))
                         (status-code (zotero-response-status-code result))
                         (remote-version (zotero-response-version result))
                         (data (zotero-response-data result))
                         (successful (plist-get data :successful))
-                        (success (plist-get data :success))
+                        ;; (success (plist-get data :success))
                         (unchanged (plist-get data :unchanged))
                         (failed (plist-get data :failed)))
                    (pcase status-code
@@ -400,7 +394,7 @@ Zotero API key."
                           (ht-set! libraries id value)
                           (setq version remote-version)))
                       (unless (eq successful :json-empty)
-                        (cl-loop for (index object) on successful by #'cddr do
+                        (cl-loop for (_index object) on successful by #'cddr do
                                  (let ((key (plist-get object :key))
                                        (type (zotero-lib-plist-get* object :library :type))
                                        (id (number-to-string (zotero-lib-plist-get* object :library :id))))
@@ -408,7 +402,7 @@ Zotero API key."
                       ;; Do not update the version of Zotero objects in the
                       ;; unchanged object.
                       (unless (eq unchanged :json-empty)
-                        (cl-loop for (number key) on unchanged do
+                        (cl-loop for (_number key) on unchanged do
                                  (ht-set! table key (plist-put (ht-get table key) :synced t))))
                       (unless (eq failed :json-empty)
                         (cl-loop for (_ value) on failed by #'cddr do
@@ -439,14 +433,13 @@ to access, that is the \"user ID\" or \"group ID\". API-KEY is the
 Zotero API key."
   (let* ((libraries (ht-get cache "libraries"))
          (library (ht-get libraries id))
-         (storage-version (plist-get library :storage-version))
          (version (plist-get library :version))
          (deletions (ht-get cache "deletions")))
     (cl-loop for resource being the hash-keys of deletions
              using (hash-values table) do
              (when-let ((keys (thread-last table
-                                (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                                    (equal (plist-get value :id) id))))
+                                (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                                     (equal (plist-get value :id) id))))
                                 (ht-keys)))
                         (partitions (seq-partition keys 50))
                         (number 0))
@@ -569,45 +562,46 @@ Return the updated table when success or nil when failed.
 VERSION is the \"Last-Modified-Version\"."
   (let (default)
     (seq-doseq (key keys)
-      (pcase (ht-get table key)
-        ;; if local object doesn't exist:
-        ;; continue
-        ((pred null))
-        ;; if object hasn't been modified locally (synced == true):
-        ;; delete local object, skipping delete log
-        ((and value (guard (eq (plist-get value :synced) t)))
-         (ht-remove! table key))
-        ;; else:
-        ;; perform conflict resolution
-        (value
-         (let ((choice (read-multiple-choice
-                        "Deleted object was modified. How should this be resolved? "
-                        '((?d "delete the locally modified object")
-                          (?k "keep the locally modified object")
-                          (?D "always delete the locally modified object")
-                          (?K "always keep the locally modified object")
-                          (?q "quit")))))
-           (pcase (car choice)
-             ;; if user chooses deletion, delete local object, skipping delete log
-             (?d
-              (ht-remove! table key))
-             ;; if user chooses local modification, keep object and set synced = true and version = Last-Modified-Version
-             (?k
-              (let* ((object (plist-get value :object))
-                     (type (zotero-lib-plist-get* object :library :type))
-                     (id (number-to-string (zotero-lib-plist-get* object :library :id))))
-                (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object))))
-             (?D
-              (ht-remove! table key)
-              (setq default ?d))
-             (?K
-              (let* ((object (plist-get value :object))
-                     (type (zotero-lib-plist-get* object :library :type))
-                     (id (number-to-string (zotero-lib-plist-get* object :library :id))))
-                (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
-              (setq default ?k))
-             (?q
-              (throw 'sync 'quit))))))))
+      (let ((value (ht-get table key)))
+        (pcase value
+          ;; if local object doesn't exist:
+          ;; continue
+          ((pred null))
+          ;; if object hasn't been modified locally (synced == true):
+          ;; delete local object, skipping delete log
+          ((guard (eq (plist-get value :synced) t))
+           (ht-remove! table key))
+          ;; else:
+          ;; perform conflict resolution
+          (_
+           (let ((choice (read-multiple-choice
+                          "Deleted object was modified. How should this be resolved? "
+                          '((?d "delete the locally modified object")
+                            (?k "keep the locally modified object")
+                            (?D "always delete the locally modified object")
+                            (?K "always keep the locally modified object")
+                            (?q "quit")))))
+             (pcase (car choice)
+               ;; if user chooses deletion, delete local object, skipping delete log
+               (?d
+                (ht-remove! table key))
+               ;; if user chooses local modification, keep object and set synced = true and version = Last-Modified-Version
+               (?k
+                (let* ((object (plist-get value :object))
+                       (type (zotero-lib-plist-get* object :library :type))
+                       (id (number-to-string (zotero-lib-plist-get* object :library :id))))
+                  (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object))))
+               (?D
+                (ht-remove! table key)
+                (setq default ?d))
+               (?K
+                (let* ((object (plist-get value :object))
+                       (type (zotero-lib-plist-get* object :library :type))
+                       (id (number-to-string (zotero-lib-plist-get* object :library :id))))
+                  (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
+                (setq default ?k))
+               (?q
+                (throw 'sync 'quit)))))))))
   table)
 
 (defun zotero-sync-schema (cache)
@@ -684,8 +678,8 @@ to access, that is the \"user ID\" or \"group ID\". API-KEY is the
 Zotero API key."
   (let* ((table (ht-get* cache "synccache" "items"))
          (attachments (thread-last table
-                        (ht-select (lambda (key value) (and (equal (plist-get value :type) type)
-                                                            (equal (plist-get value :id) id))))
+                        (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
+                                                             (equal (plist-get value :id) id))))
                         (zotero-cache-filter-data (lambda (elt) (and (equal (plist-get elt :itemType) "attachment")
                                                                      (or (equal (plist-get elt :linkMode) "imported_file")
                                                                          (equal (plist-get elt :linkMode) "imported_url"))))))))

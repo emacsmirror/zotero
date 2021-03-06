@@ -30,6 +30,7 @@
 (require 'zotero-fulltext)
 (require 'zotero-lib)
 (require 'zotero-openlibrary)
+(require 'zotero-pmid)
 (require 'zotero-recognize)
 (require 'cl-lib)
 (require 'ewoc)
@@ -597,9 +598,10 @@ GNU/Linux, macOS, or Microsoft Windows."
     ('gnu/linux
      (start-process-shell-command "zotero-browser-open-externally" nil (concat "xdg-open" " " (shell-quote-argument path))))
     ('windows-nt
-     (w32-shell-execute "open" path))
-    (system
-     (error "Unable to determine default application on operating system %S"))))
+     (when (fboundp 'w32-shell-execute)
+       (w32-shell-execute "open" path)))
+    (_
+     (error "Unable to determine default application on operating system %S" system-type))))
 
 (defun zotero-browser--open-file (path)
   "Open the file at PATH.
@@ -636,18 +638,18 @@ application is found, Emacs simply visits the file."
 	       (eq cmd 'emacs))
            (find-file-other-frame file))))))))
 
-(defun zotero-browser--open-imported-file (entry)
-  "Open attachment ENTRY."
+(defun zotero-browser--open-imported-file ()
+  "Open attachment."
   (let ((path (expand-file-name (zotero-browser-find-attachment))))
     (zotero-browser--open-file path)))
 
 (defun zotero-browser--open-imported-url (entry)
   "Open attachment ENTRY."
-  (let ((path (expand-file-name (zotero-browser-find-attachment)))
-        (contenttype (zotero-lib-plist-get* entry :object :data :contentType))
-        (key (zotero-lib-plist-get* entry :object :data :key))
-        (filename (zotero-lib-plist-get* entry :object :data :filename))
-        (dir (concat temporary-file-directory key)))
+  (let* ((path (expand-file-name (zotero-browser-find-attachment)))
+         (contenttype (zotero-lib-plist-get* entry :object :data :contentType))
+         (key (zotero-lib-plist-get* entry :object :data :key))
+         (filename (zotero-lib-plist-get* entry :object :data :filename))
+         (dir (concat temporary-file-directory key)))
     (if (equal contenttype "application/pdf")
         (zotero-browser--open-file path)
       (let* ((unzip (or (executable-find "unzip")
@@ -712,7 +714,7 @@ The format can be changed by customizing
                        ("group" "treesource-groups.png")))
                (dir (file-name-as-directory "img"))
                (file (expand-file-name (concat dir icon) zotero-directory))
-               (image (create-image file 'png nil :height (window-font-height))))
+               (image (create-image file 'png nil :height height)))
       (insert (propertize type 'display image 'rear-nonsticky t))
       (insert (string ?\s)))
     (dolist (key keys)
@@ -828,7 +830,7 @@ The format can be changed by customizing
          (dolist (key keys)
            (when-let ((string (pcase key
                                 (:version
-                                 (when-let ((value (plist-get library key)))
+                                 (when-let ((value (zotero-lib-plist-get* entry :object :data :version)))
                                    (number-to-string value)))
                                 ((pred keywordp)
                                  (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
@@ -860,7 +862,7 @@ The format can be changed by customizing
                                             (first-line (match-string-no-properties 0 text)))
                                    first-line))
                                 (:version
-                                 (when-let ((value (plist-get library key)))
+                                 (when-let ((value (zotero-lib-plist-get* entry :object :data :version)))
                                    (number-to-string value)))
                                 ((pred keywordp)
                                  (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
@@ -898,7 +900,7 @@ The format can be changed by customizing
                                       (let* ((selection (seq-take names 1)))
                                         (setq string (concat (string-join selection ", ") " et al.")))))))
                                 (:version
-                                 (when-let ((value (plist-get library key)))
+                                 (when-let ((value (zotero-lib-plist-get* entry :object :data :version)))
                                    (setq string (number-to-string value))))
                                 (:year
                                  (when-let ((date (zotero-lib-plist-get* entry :object :data :date))
@@ -940,7 +942,7 @@ The format can be changed by customizing
     (when (equal itemtype "attachment")
       (let ((linkmode (zotero-lib-plist-get* entry :object :data :linkMode)))
         (pcase linkmode
-          ("imported_file" (zotero-browser--open-imported-file entry))
+          ("imported_file" (zotero-browser--open-imported-file))
           ("imported_url" (zotero-browser--open-imported-url entry))
           ("linked_file" (zotero-browser--open-linked-file entry))
           ("linked_url" (zotero-browser--open-linked-url entry)))))))
@@ -1296,13 +1298,13 @@ If region is active, trash entries in active region instead."
   (zotero-browser-ensure-item-at-point)
   (when (equal zotero-browser-resource "trash-items")
     (user-error "Current buffer is a Zotero trash buffer"))
+  (when (eq major-mode 'zotero-browser-libraries-mode)
+    (user-error "Trashing libraries is not supported"))
+  (when (eq major-mode 'zotero-browser-collections-mode)
+    (user-error "Trashing collections is not supported"))
   (let* ((inhibit-read-only t)
          (type zotero-browser-type)
          (id zotero-browser-id)
-         (resource (pcase major-mode
-                     ('zotero-browser-libraries-mode (user-error "Trashing libraries is not supported"))
-                     ('zotero-browser-collections-mode "collections")
-                     ('zotero-browser-items-mode "items")))
          (ewoc zotero-browser-ewoc)
          (nodes (zotero-browser--nodes ewoc))
          (keys (zotero-browser--keys ewoc)))
@@ -1344,8 +1346,7 @@ If region is active, delete entries in active region instead."
                      ('zotero-browser-collections-mode "collections")
                      ('zotero-browser-items-mode "items")))
          (ewoc zotero-browser-ewoc)
-         (nodes (zotero-browser--nodes ewoc))
-         (keys (zotero-browser--keys ewoc)))
+         (nodes (zotero-browser--nodes ewoc)))
     (dolist (node nodes)
       (let* ((key (ewoc-data node))
              (children (zotero-browser--children key)))
@@ -1419,10 +1420,7 @@ client."
        (let* ((file (expand-file-name (read-file-name "Select file: " nil nil t)))
               (attributes (zotero-file-attributes file))
               (filename (file-name-nondirectory file))
-              (filesize (plist-get attributes :filesize))
               (content-type (plist-get attributes :content-type))
-              (md5 (plist-get attributes :md5))
-              (mtime (plist-get attributes :mtime))
               (accessdate (plist-get attributes :accessdate))
               ;; REVIEW: charset cannot be determined without external tools
               (data (thread-first template
@@ -1503,10 +1501,7 @@ client."
       (let* ((file (expand-file-name (read-file-name "Select file: " dir nil t path)))
              (attributes (zotero-file-attributes file))
              (filename (file-name-nondirectory file))
-             (filesize (plist-get attributes :filesize))
              (content-type (plist-get attributes :content-type))
-             (md5 (plist-get attributes :md5))
-             (mtime (plist-get attributes :mtime))
              (accessdate (plist-get attributes :accessdate))
              (data (thread-first data
                      (plist-put :title filename)
@@ -1534,16 +1529,18 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
          (string (s-trim string))
-         (data (cond
-                ((setq identifier (zotero-lib-validate-isbn string))
-                 (zotero-openlibrary identifier))
-                ((setq identifier (zotero-lib-validate-doi string))
-                 (zotero-crossref identifier))
-                ((setq identifier (zotero-lib-validate-pmid string) )
-                 (zotero-pmid identifier))
-                ((setq identifier (zotero-lib-validate-arxiv string) )
-                 (zotero-arxiv identifier))
-                (t (user-error "Identifier \"%s\" is not a valid arXiv id, DOI, or ISBN" string)))))
+         identifier
+         data)
+    (cond
+     ((setq identifier (zotero-lib-validate-isbn string))
+      (setq data (zotero-openlibrary identifier)))
+     ((setq identifier (zotero-lib-validate-doi string))
+      (setq data (zotero-crossref identifier)))
+     ((setq identifier (zotero-lib-validate-pmid string) )
+      (setq data (zotero-pmid identifier)))
+     ((setq identifier (zotero-lib-validate-arxiv string) )
+      (setq data (zotero-arxiv identifier)))
+     (t (user-error "Identifier \"%s\" is not a valid arXiv id, DOI, or ISBN" string)))
     (if data
         (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)
       (user-error "No metadata found for identifier \"%s\"" identifier))))
@@ -1563,8 +1560,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
          (entry (zotero-cache-synccache "item" key type id))
          (attachment-data (zotero-lib-plist-get* entry :object :data))
          (itemtype (plist-get attachment-data :itemType))
-         (linkmode (plist-get attachment-data :linkMode))
-         (filename (plist-get attachment-data :filename)))
+         (linkmode (plist-get attachment-data :linkMode)))
     (when (and (equal itemtype "attachment")
                (equal linkmode "imported_file"))
       (let* ((file (zotero-browser-find-attachment))
@@ -1625,8 +1621,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
          (key (ewoc-data node))
          (entry (zotero-cache-synccache "item" key type id))
          (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-         (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
-         (filename (zotero-lib-plist-get* entry :object :data :filename)))
+         (linkmode (zotero-lib-plist-get* entry :object :data :linkMode)))
     (when (and (equal itemtype "attachment")
                (or (equal linkmode "imported_file")
                    (equal linkmode "linked_file")))
@@ -1795,8 +1790,7 @@ is the user ID or group ID."
          (display-buffer (zotero-browser-items "items-top" nil type id))))
       ('zotero-browser-collections-mode
        (let* ((type zotero-browser-type)
-              (id zotero-browser-id)
-              (table (zotero-cache-synccache "collections" nil type id)))
+              (id zotero-browser-id))
          (pcase key
            ('unfiled
             (display-buffer (zotero-browser-items "items-top" key type id)))
