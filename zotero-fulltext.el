@@ -84,7 +84,7 @@ Pandoc is an open-source document converter that supports many
 formats and is freely available for most operating systems."
   :group 'zotero-fulltext
   :type 'string
-  :link '(url-link "http://pandoc.org/"))
+  :link '(url-link "https://pandoc.org/"))
 
 (defcustom zotero-fulltext-antiword "antiword"
   "Executable for antiword executable.
