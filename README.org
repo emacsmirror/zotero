@@ -693,3 +693,64 @@
 
 **** User Option zotero-browser-preferred-application
      Preferred application to open files. The default is mailcap.
+
+** Helper functions
+
+   Emacs-zotero provides a few helper functions that are used internally, but
+   could prove useful elsewhere as well.
+
+*** Convert keywords and strings
+
+**** Function: zotero-lib-keyword->string KEYWORD
+     Convert KEYWORD to a string. Strip the leading ":" from the keyword.
+
+**** Function: zotero-lib-string->keyword STRING
+     Convert STRING to a keyword. Add a leading ":" to the string.
+
+*** Manipulate plists
+
+**** Function: zotero-lib-plist-get* PLIST &rest PROPS
+     Recursively extract a value from a property list. This function returns the value corresponding to the given PROPS
+     in a nested PLIST. The lookup for each prop should return another
+     plist, except for the final prop, which may return any value.
+
+**** Function: zotero-lib-plist-delete PLIST &rest PROPS
+     Delete PROPS from PLIST.
+
+**** Function: zotero-lib-mergable-plist-p PLIST1 PLIST2
+     Return non-nil if PLIST1 and PLIST2 can be merged without conflicts. Two plists are considered mergable when the same keys don't have different values.
+
+**** Function: zotero-lib-merge-plist PLIST1 PLIST2
+     Merge PLIST2 into PLIST1.
+
+*** Validate identifiers
+
+**** Function: zotero-lib-validate-isbn STRING
+     Check if STRING is a valid ISBN. Return the ISBN if it is valid, else return
+     nil. Argument STRING can be in either the older ISBN-10 or the current ISBN-13
+     format. A leading "ISBN" identifier is allowed, and ISBN parts can optionally be
+     separated by hyphens or spaces. The format is validated by a regexp and the
+     validity of the final digit is checked using a checksum algorithm.
+
+**** Function: zotero-lib-validate-arxiv STRING
+     Check if STRING is a valid arXiv identifier. Return the arXiv identifier if it
+     is valid, else return nil. The scheme used by arXiv was changed in April 2007. Argument STRING can be in
+     either the old scheme (from 1999 to March 2007) or the new scheme (since 1 April
+     2007). A leading "arXiv" identifier is allowed. The format is validated by a regexp.
+
+**** Function: zotero-lib-validate-doi STRING
+     Check if STRING is a valid Crossref DOI. Return the DOI if it is valid, else
+     return nil. A leading "doi" identifier or a link (for example,
+     https://doi.org/10.1000/182) is allowed. The format is validated by a regexp.
+
+**** Function: zotero-lib-validate-pmid STRING
+     Check if STRING is a valid PubMed ID (PMID). Return the PMID if it is valid,
+     else return nil. A leading "PMID" identifier is allowed. The format is validated by a regexp.
+
+*** Clean up HTML
+
+**** Function: zotero-lib-html-to-unicode STRING
+     Replace HTML entities with unicode in STRING.
+
+**** Function: zotero-lib-remove-html-tags STRING
+     Remove all HTML tags from STRING.
