@@ -56,11 +56,10 @@
     valid indefinitely, unless it is revoked by the user manually.
 
     Requests for data in a specific library require a user ID or group ID. User
-    IDs are different from usernames and can be found on the [[https://www.zotero.org/settings/keys][API Keys]] page. ='M-x
-    zotero-auth-username'=, ='M-x zotero-auth-userid'=, and 'M-x
-    zotero-auth-api-key'= return the username, userid and API key, respectively.
-    When you haven't authorized emacs-zotero already, you will be redirected to
-    authorize.
+    IDs are different from usernames and can be found on the [[https://www.zotero.org/settings/keys][API Keys]] page. =M-x
+    zotero-auth-username=, =M-x zotero-auth-userid=, and =M-x zotero-auth-api-key=
+    return the username, userid and API key, respectively. When you haven't
+    authorized emacs-zotero already, you will be redirected to authorize.
 
     Group IDs are different from group names and can be retrieved with the
     =zotero-groups=.
