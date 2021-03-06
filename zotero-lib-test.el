@@ -1,16 +1,3 @@
-(ert-deftest zotero-lib--encode-object ()
-  (should (equal (zotero-lib--encode-object '(:key :value)) "[{\"key\":\"value\"}]"))
-  (should (equal (zotero-lib--encode-object '(:key nil)) "[{\"key\":null}]"))
-  (should (equal (zotero-lib--encode-object '(:key :json-false)) "[{\"key\":false}]"))
-  (should (equal (zotero-lib--encode-object '(:key :json-empty)) "[{\"key\":{}}]")))
-
-(ert-deftest zotero-lib--read-json ()
-  (should (equal (zotero-lib--read-json "{\"key\":\"value\"}") '(:key "value")))
-  (should (equal (zotero-lib--read-json "{\"key\":null}") '(:key nil)))
-  (should (equal (zotero-lib--read-json "{\"key\":false}") '(:key :json-false)))
-  (should (equal (zotero-lib--read-json "{\"key\":{}}") '(:key :json-empty)))
-  (should (equal (zotero-lib--read-json "[{\"key\":\"value\"}, {\"key\":null}, {\"key\":false}, {\"key\":{}}]") [(:key "value") (:key nil) (:key :json-false) (:key :json-empty)])))
-
 (ert-deftest zotero-lib-validate-isbn ()
   (should (zotero-lib-validate-isbn "ISBN 978-0-596-52068-7"))
   (should (zotero-lib-validate-isbn "ISBN-13: 978-0-596-52068-7"))
