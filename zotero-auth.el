@@ -101,24 +101,26 @@ An access token is considered valid if it is a struct type called
 key)."
   (when (and (zotero-auth-token-p token) (zotero-auth-token-token-secret token) (zotero-auth-token-userid token)) t))
 
-(defun zotero-auth-api-key (token)
+(defun zotero-auth-api-key (&optional token)
   "Return the Zotero API key in TOKEN.
 
 In Zotero's case the token and secret are just the same Zotero
 API key."
-  (zotero-auth-token-token-secret token))
+  (interactive)
+  (let ((token (or token zotero-auth-token)))
+    (zotero-auth-token-token-secret token)))
 
-(defun zotero-auth-userid (token)
-  "Return the Zotero user ID in TOKEN.
+(defun zotero-auth-userid (&optional token)
+  "Return the Zotero user ID in TOKEN."
+  (interactive)
+  (let ((token (or token zotero-auth-token)))
+    (zotero-auth-token-userid token)))
 
-Zotero will send the userID associated with the key along too."
-  (zotero-auth-token-userid token))
-
-(defun zotero-auth-username (token)
-  "Return the Zotero username in TOKEN.
-
-Zotero will send the username associated with the key along too."
-  (zotero-auth-token-username token))
+(defun zotero-auth-username (&optional token)
+  "Return the Zotero username in TOKEN."
+  (interactive)
+  (let ((token (or token zotero-auth-token)))
+    (zotero-auth-token-username token)))
 
 ;;;; Functions
 
