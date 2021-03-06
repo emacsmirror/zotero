@@ -372,20 +372,24 @@
 **** User Option: zotero-fulltext-pdftotext
      Executable for pdftotext. Needed for fulltext indexing of PDF documents. It is
      freely available and included by default with many Linux distributions, and is
-     also available for Windows as part of the Xpdf Windows port. Default="pdftotext".
+     also available for Windows as part of the [[https://www.xpdfreader.com/][Xpdf]] Windows port. Default="pdftotext".
 
 **** User Option: zotero-fulltext-pdfinfo
-     Executable for pdfinfo. Needed for fulltext indexing of PDF documents. It is
-     freely available and included by default with many Linux distributions, and is
-     also available for Windows as part of the Xpdf Windows port. Default="pdfinfo".
+     Executable for pdfinfo. Needed for fulltext indexing of PDF documents. It
+     is freely available and included by default with many Linux distributions,
+     and is also available for Windows as part of the [[https://www.xpdfreader.com/][Xpdf]] Windows port. This
+     variable is set by =zotero-fulltext-install-pdftools= after downloading the
+     PDF tools modified by Zotero. If you compile the PDF tools from source, it
+     should point to the "pdfinfo-*" binary for your operating system.
+     Default="pdfinfo".
 
 **** User Option: zotero-fulltext-pandoc
-     Executable for pandoc executable. Pandoc is an open-source document converter
+     Executable for pandoc executable. [[https://pandoc.org/][Pandoc]] is an open-source document converter
      that supports many formats and is freely available for most operating systems.
      Default="pandoc".
 
 **** User Option: zotero-fulltext-antiword
-     Executable for antiword executable. Antiword is an open source reader for
+     Executable for antiword executable. [[http://www.winfield.demon.nl/][Antiword]] is an open source reader for
      proprietary Microsoft Word documents and is freely available for most operating
      systems. Default="antiword".
 
