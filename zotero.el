@@ -1307,6 +1307,33 @@ ID\". API-KEY is the Zotero API key."
                                ("Zotero-Write-Token" . ,write-token))
                     :data (encode-coding-string json 'utf-8))))
 
+(cl-defun zotero-create-collections (objects &key type id api-key)
+  "Create multiple collections.
+
+OBJECTS is a list of
+objects, each of which should return a plist and may be:
+- a cons cell (containing a propery list),
+- a buffer (read one Lisp expression from the beginning),
+- a function (call it with no arguments),
+- a file (read one Lisp expression from the beginning),
+- a string (takes text from string, starting at the beginning).
+
+Up to 50 items can be created in a single request.
+
+Keyword TYPE is \"user\" for your personal library, and \"group\"
+for the group libraries. ID is the ID of the personal or group
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
+  (let* ((write-token (zotero--write-token))
+         (json (apply #'zotero-json-encode-to-array objects)))
+    (zotero-request "POST" "collections" nil
+                    :type type
+                    :id id
+                    :api-key api-key
+                    :headers `(("Content-Type" . "application/json")
+                               ("Zotero-Write-Token" . ,write-token))
+                    :data (encode-coding-string json 'utf-8))))
+
 (cl-defun zotero-update-collection (key object &key type id api-key)
   "Update existing collection KEY.
 
@@ -1408,6 +1435,33 @@ library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
   (let ((write-token (zotero--write-token))
         (json (zotero-json-encode-to-array object)))
+    (zotero-request "POST" "searches" nil
+                    :type type
+                    :id id
+                    :api-key api-key
+                    :headers `(("Content-Type" . "application/json")
+                               ("Zotero-Write-Token" . ,write-token))
+                    :data (encode-coding-string json 'utf-8))))
+
+(cl-defun zotero-create-searches (objects &key type id api-key)
+  "Create multiple searches.
+
+OBJECTS is a list of
+objects, each of which should return a plist and may be:
+- a cons cell (containing a propery list),
+- a buffer (read one Lisp expression from the beginning),
+- a function (call it with no arguments),
+- a file (read one Lisp expression from the beginning),
+- a string (takes text from string, starting at the beginning).
+
+Up to 50 items can be created in a single request.
+
+Keyword TYPE is \"user\" for your personal library, and \"group\"
+for the group libraries. ID is the ID of the personal or group
+library you want to access, that is the \"user ID\" or \"group
+ID\". API-KEY is the Zotero API key."
+  (let* ((write-token (zotero--write-token))
+         (json (apply #'zotero-json-encode-to-array objects)))
     (zotero-request "POST" "searches" nil
                     :type type
                     :id id
