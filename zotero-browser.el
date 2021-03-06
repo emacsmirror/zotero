@@ -668,6 +668,35 @@ application is found, Emacs simply visits the file."
   (let ((url (zotero-lib-plist-get* entry :object :data :url)))
     (browse-url url)))
 
+(defun zotero-browser--filename-base (data)
+  "Return a base filename to match DATA.
+
+The format can be changed by customizing
+`zotero-browser-filename-keys' and
+`zotero-browser-filename-max-length'."
+  (let ((separator (car zotero-browser-filename-keys))
+        (keys (cdr zotero-browser-filename-keys))
+        result)
+    (dolist (key keys)
+      (pcase key
+        (:creators
+         (when-let ((creators (plist-get data :creators))
+                    (names (when (seq-some (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators)
+                             (seq-map (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators))))
+           (push (seq-elt names 0) result)))
+        (:year
+         (when-let ((date (plist-get data :date))
+                    (match (string-match "[[:digit:]]\\{4\\}" date))
+                    (year (match-string 0 date)))
+           (push year result)))
+        (:title
+         (when-let ((title (plist-get data :title)))
+           (push title result)))
+        ((pred keywordp)
+         (when-let ((value (plist-get data key)))
+           (push value result)))))
+    (mapconcat (lambda (elt) (s-truncate zotero-browser-filename-max-length elt)) (nreverse result) separator)))
+
 (defun zotero-browser--library-pp (key)
   "Pretty print library KEY."
   (let* ((library (zotero-cache-library nil key))
@@ -1497,51 +1526,6 @@ client."
           (error "Failed to associate attachment with item %s" key))
         (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)))))
 
-(defun zotero-browser-find-attachment ()
-  "Return the path of the attachment of the current entry."
-  (zotero-browser-ensure-items-mode)
-  (zotero-browser-ensure-item-at-point)
-  (when-let ((ewoc zotero-browser-ewoc)
-             (type zotero-browser-type)
-             (id zotero-browser-id)
-             (node (ewoc-locate ewoc))
-             (key (ewoc-data node))
-             (entry (zotero-cache-synccache "item" key type id))
-             (filename (zotero-lib-plist-get* entry :object :data :filename))
-             (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
-             (file (concat (file-name-as-directory dir) filename)))
-    (cond
-     ;; If the file exists, return path
-     ((file-exists-p file)
-      file)
-     ;; If storage is enabled, download to storage
-     (zotero-cache-enable-storage
-      (zotero-browser-download-attachment))
-     ;; If storage is disabled, download to temp directory
-     (t
-      (zotero-browser-download-attachment temporary-file-directory)))))
-
-(defun zotero-browser-download-attachment (&optional dir)
-  "Download the attachment of the current entry.
-
-Optional argument DIR is the directory. If DIR is omitted or nil,
-the attachment is downloaded to the default storage directory
-`zotero-cache-storage-dir' and a subdirectory named as the item
-key."
-  (zotero-browser-ensure-items-mode)
-  (zotero-browser-ensure-item-at-point)
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (ewoc zotero-browser-ewoc)
-         (node (ewoc-locate ewoc))
-         (key (ewoc-data node))
-         (entry (zotero-cache-synccache "item" key type id))
-         (filename (zotero-lib-plist-get* entry :object :data :filename))
-         (dir (or dir (concat (file-name-as-directory zotero-cache-storage-dir) key))))
-    (unless (file-exists-p dir)
-      (make-directory dir t))
-    (zotero-download-file key filename dir t :type type :id id)))
-
 (defun zotero-browser-add-by-identifier (string)
   "Create a new item by providing an identifier.
 
@@ -1563,35 +1547,6 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
     (if data
         (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)
       (user-error "No metadata found for identifier \"%s\"" identifier))))
-
-(defun zotero-browser--filename-base (data)
-  "Return a base filename to match DATA.
-
-The format can be changed by customizing
-`zotero-browser-filename-keys' and
-`zotero-browser-filename-max-length'."
-  (let ((separator (car zotero-browser-filename-keys))
-        (keys (cdr zotero-browser-filename-keys))
-        result)
-    (dolist (key keys)
-      (pcase key
-        (:creators
-         (when-let ((creators (plist-get data :creators))
-                    (names (when (seq-some (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators)
-                             (seq-map (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators))))
-           (push (seq-elt names 0) result)))
-        (:year
-         (when-let ((date (plist-get data :date))
-                    (match (string-match "[[:digit:]]\\{4\\}" date))
-                    (year (match-string 0 date)))
-           (push year result)))
-        (:title
-         (when-let ((title (plist-get data :title)))
-           (push title result)))
-        ((pred keywordp)
-         (when-let ((value (plist-get data key)))
-           (push value result)))))
-    (mapconcat (lambda (elt) (s-truncate zotero-browser-filename-max-length elt)) (nreverse result) separator)))
 
 (defun zotero-browser-recognize-attachment ()
   "Recognize content of the current entry."
@@ -1679,6 +1634,51 @@ The format can be changed by customizing
              (attributes (zotero-file-attributes file))
              (content-type (plist-get attributes :content-type)))
         (zotero-fulltext-index-item key file content-type :type type :id id)))))
+
+(defun zotero-browser-download-attachment (&optional dir)
+  "Download the attachment of the current entry.
+
+Optional argument DIR is the directory. If DIR is omitted or nil,
+the attachment is downloaded to the default storage directory
+`zotero-cache-storage-dir' and a subdirectory named as the item
+key."
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-item-at-point)
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node))
+         (entry (zotero-cache-synccache "item" key type id))
+         (filename (zotero-lib-plist-get* entry :object :data :filename))
+         (dir (or dir (concat (file-name-as-directory zotero-cache-storage-dir) key))))
+    (unless (file-exists-p dir)
+      (make-directory dir t))
+    (zotero-download-file key filename dir t :type type :id id)))
+
+(defun zotero-browser-find-attachment ()
+  "Return the path of the attachment of the current entry."
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-item-at-point)
+  (when-let ((ewoc zotero-browser-ewoc)
+             (type zotero-browser-type)
+             (id zotero-browser-id)
+             (node (ewoc-locate ewoc))
+             (key (ewoc-data node))
+             (entry (zotero-cache-synccache "item" key type id))
+             (filename (zotero-lib-plist-get* entry :object :data :filename))
+             (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
+             (file (concat (file-name-as-directory dir) filename)))
+    (cond
+     ;; If the file exists, return path
+     ((file-exists-p file)
+      file)
+     ;; If storage is enabled, download to storage
+     (zotero-cache-enable-storage
+      (zotero-browser-download-attachment))
+     ;; If storage is disabled, download to temp directory
+     (t
+      (zotero-browser-download-attachment temporary-file-directory)))))
 
 (defun zotero-browser-libraries ()
   "Create a libraries browser buffer."
