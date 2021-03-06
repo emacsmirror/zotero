@@ -45,7 +45,7 @@ Return plist that could be saved to the library by passing it to
 `zotero-cache-save' or uploaded by passing it to
 `zotero-create-item'."
   (let (result)
-    (when-let ((item (cadr data)))
+    (when-let ((item (unless (eq data :json-empty) (cadr data))))
       (setq result (copy-tree (zotero-cache-item-template "book")))
       (setq result (plist-put result :url (plist-get item :info_url)))
       (let ((details (plist-get item :details)))
