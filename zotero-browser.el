@@ -166,6 +166,21 @@
     ["Quit" quit-window]
     ["Customize" (customize-group 'zotero-browser)]))
 
+(easy-menu-define zotero-browser-collections-mode-menu zotero-browser-collections-mode-map
+  "Menu for `zotero-browser-collections-mode'."
+  `("Zotero-Browser"
+    ["Toggle" zotero-browser-toggle :help "Expand or collapse the children of the current item"]
+    ["Cycle" zotero-browser-cycle :help "Cycle the visibility of children"]
+    ["Expand all" zotero-browser-expand-all :help "Expand all children"]
+    ["Collapse all" zotero-browser-collapse-all :help "Collapse all children"]
+    "--"
+    ["Edit" zotero-browser-edit :help "Edit current entry"]
+    ["Create" zotero-browser-create :help "Create a new collection"]
+    "--"
+    ["Revert" zotero-browser-revert]
+    ["Quit" quit-window]
+    ["Customize" (customize-group 'zotero-browser)]))
+
 (easy-menu-define zotero-browser-items-mode-menu zotero-browser-items-mode-map
   "Menu for `zotero-browser-items-mode'."
   `("Zotero-Browser"
@@ -188,21 +203,6 @@
     ["Move to parent" zotero-browser-move-to-parent :help "Move current entry to a parent item"]
     "--"
     ["Open attachment" zotero-browser-open-attachment]
-    "--"
-    ["Revert" zotero-browser-revert]
-    ["Quit" quit-window]
-    ["Customize" (customize-group 'zotero-browser)]))
-
-(easy-menu-define zotero-browser-collections-mode-menu zotero-browser-collections-mode-map
-  "Menu for `zotero-browser-collections-mode'."
-  `("Zotero-Browser"
-    ["Toggle" zotero-browser-toggle :help "Expand or collapse the children of the current item"]
-    ["Cycle" zotero-browser-cycle :help "Cycle the visibility of children"]
-    ["Expand all" zotero-browser-expand-all :help "Expand all children"]
-    ["Collapse all" zotero-browser-collapse-all :help "Collapse all children"]
-    "--"
-    ["Edit" zotero-browser-edit :help "Edit current entry"]
-    ["Create" zotero-browser-create :help "Create a new collection"]
     "--"
     ["Revert" zotero-browser-revert]
     ["Quit" quit-window]
