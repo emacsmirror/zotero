@@ -98,10 +98,12 @@ The saved data can be restored with `zotero-cache--unserialize'."
 
 (defun zotero-cache-serialize ()
   "Serialize the memory cache to the hard drive."
+  (interactive)
   (zotero-cache--serialize zotero-cache zotero-cache-file))
 
 (defun zotero-cache-unserialize ()
   "Serialize the hard drive to the memory cache."
+  (interactive)
   (setq zotero-cache (zotero-cache--unserialize zotero-cache-file)))
 
 (defun zotero-cache-erase (&optional no-confirm)
@@ -115,6 +117,7 @@ If optional argument NO-CONFIRM is non-nil, don't ask for confirmation."
 
 (defun zotero-cache-maybe-initialize-cache ()
   "Initialize the cache if needed."
+  (interactive)
   (unless zotero-cache
     (setq zotero-cache
           (or (zotero-cache--unserialize zotero-cache-file)
