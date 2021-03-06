@@ -1,6 +1,6 @@
 * Emacs Zotero
 
-  Emacs-zotero is a GNU Emacs interface to the Zotero API.
+  Emacs-zotero is a GNU Emacs interface to the [[https://www.zotero.org/support/dev/web_api/v3/start][Zotero API v3]].
 
 ** Installation
 
@@ -20,27 +20,60 @@
     (add-to-list 'load-path "/path/to/emacs-zotero")
     #+END_SRC
 
+** Dependencies
+
+   - [[https://github.com/psanford/emacs-oauth][oauth.el]]: OAuth library
+   - [[https://github.com/Wilfred/ht.el][ht.el]]: hash table library
+   - [[https://github.com/magnars/s.el][s.el]]: string manipulation library
+
 ** Usage
 
    To use emacs-zotero, include the following in your =init.el= or =.emacs= file:
 
    #+BEGIN_SRC emacs-lisp
-   (require 'zotero)
-   (require 'zotero-browser)
+   (require 'zotero) ; wrapper for the Zotero API
+   (require 'zotero-browser) ; Zotero client
    #+END_SRC
 
 *** Authentication
-    Accessing non-public libraries requires the use of an Zotero account. An account
-    can be created via the [[https://www.zotero.org/user/register][Zotero website]]. Authentication is not required for read
-    access to public libraries.
+    Accessing non-public libraries requires the use of an Zotero account. An
+    account can be created via the [[https://www.zotero.org/user/register][Zotero website]]. Authentication is not
+    required for read access to public libraries.
 
-    Emacs-zotero uses Oauth 1.0 to authenticate requests. A token can be requested
-    with =zotero-auth-authorize=. The token and user ID will be saved for future
-    sessions, usually to your initialization file. The token will be valid
-    indefinitely, unless it is revoked by the user manually.
+    Emacs-zotero uses Oauth 1.0 to authenticate requests. A token can be
+    requested with =zotero-auth-authorize=. The token and user ID will be saved
+    for future sessions, usually to your initialization file. The token will be
+    valid indefinitely, unless it is revoked by the user manually.
 
-*** Read functions
-    The read functions return a record of type =zotero-response=, which contains the slots:
+*** Requests
+    Requests for data in a specific library require a user ID or group ID. User
+    IDs are different from usernames and can be found on the [[https://www.zotero.org/settings/keys][API Keys]] page.
+    Group IDs are different from group names and can be retrieved with the
+    function =zotero-groups=.
+
+**** Arguments
+     The request functions accept one or more of the following arguments:
+     - *TYPE* (string): a valid Zotero API library type: "user" or "group".
+       Defaults to "user".
+     - *ID* (string): a valid Zotero API user or group ID. Defaults to the user ID
+       stored in =zotero-auth-token=.
+     - *API-KEY* (string): a valid Zotero API user key. Defaults to the API key
+       stored in =zotero-auth-token=.
+     - *LOCALE* (string): the locale, allowing retrieval of localised item types,
+       field types, and creator types. Defaults to "en-US".
+     - *KEY* (string): a valid item key, collection key, or search key, depending
+       on the resource.
+     - *OBJECT* (plist): a plist of an object. Instead of a plist, OBJECT may be:
+       + buffer (read one Lisp expression from the beginning)
+       + a function (call it with no arguments)
+       + a file (read one Lisp expression from the beginning)
+       + a string (takes text from string, starting at the beginning).
+     - *VERSION* (string or number): the last known version number of the object,
+       as returned by the ="Last-Modified-Version"= response header.
+
+*** Response
+    The request functions return a record of type =zotero-response=, which
+    contains the following slots:
     - =status-code=: status code of the response
     - =headers=: an alist of extra headers. The CAR of each cons cell is the field
       name and the CDR is the field value. Headers has the form: =(("Content-Type"
@@ -48,11 +81,13 @@
     - =version=: current library version, as returned by the ="Last-Modified-Version"=
       header in the response.
     - =etag=: attachment item's md5 value, as returned by the ="ETag"= header in the response.
-    - =data=: data returned in the response.
+    - =data=: data returned in the response. The data is returned as a property
+      list, converted from JSON. The value =:json-empty= (instead of =nil)= is used
+      for an empty object to differentiate an empty value and an empty object.
 
-    The data is returned as a property list, converted from JSON. The value
-    =:json-empty= (instead of =nil)= is used for an empty object to differentiate an
-    empty value and an empty object.
+** API requests
+
+*** Miscellaneous
 
 **** (zotero-key &optional API-KEY)
      Return info about the user and group library permissions, based on the API-KEY.
@@ -68,6 +103,16 @@
 
 **** (zotero-group ID &key API-KEY)
      Return the metadata of the Zotero group.
+
+**** (zotero-create-group)
+     Create a new group. The Zotero API doesn't support creating groups, so this
+     function invokes a browser to open a link.
+
+**** (zotero-group-settings ID)
+     Change the group settings of group ID. The Zotero API doesn't support changing
+     the group settings, so this function invokes a browser to open a link.
+
+*** Retrieving items
 
 **** (zotero-items &key TYPE ID API-KEY)
      Return Zotero library items.
@@ -88,6 +133,8 @@
 **** (zotero-children KEY &key TYPE ID API-KEY)
      Return the child items of a specific item.
 
+*** Retrieving Collections
+
 **** (zotero-collection-items KEY &key TYPE ID API-KEY)
      Return items from the specified collection. This includes sub-collection items.
 
@@ -106,6 +153,8 @@
 **** (zotero-subcollections KEY &key TYPE ID API-KEY)
      Return the sub-collections of a specific collection.
 
+*** Retrieving Tags
+
 **** (zotero-tags &key TYPE ID API-KEY)
      Return a library's tags.
 
@@ -115,14 +164,13 @@
 **** (zotero-collection-tags KEY &key TYPE ID API-KEY)
      Return tags in a specific collection.
 
+*** Searching
+
 **** (zotero-search-items QUERY &optional FULLTEXT INCLUDE-TRASHED &key TYPE ID API-KEY )
      Search all items.
 
 **** (zotero-search-tags QUERY &optional STARTS-WITH &key TYPE ID API-KEY)
      Search all tags.
-
-**** (zotero-attachment-attributes KEY &key TYPE ID API-KEY)
-     Return the attributes of an attachment file.
 
 *** Write functions
 
@@ -196,7 +244,7 @@
 
 *** Templates
 
-**** (zotero-collection-template )
+**** (zotero-collection-template)
      Return a template for a new collection.
 
 **** (zotero-item-template ITEM-TYPE)
@@ -207,6 +255,9 @@
 
 *** File uploads
 
+**** (zotero-attachment-attributes KEY &key TYPE ID API-KEY)
+     Return the attributes of an attachment file.
+
 **** (zotero-file-attributes FILE)
      Get the attributes of a file. The result is a plist with =:filename=, =:filesize=,
      =:content-type=, =:md5=, =:mtime=, and =:accessdate= props to be passed to
@@ -216,6 +267,8 @@
      Authorize, upload and register an attachment to an item. This is a convenient
      wrapper around =zotero-authorize-upload=, =zotero-upload-file=, and
      =zotero-register-upload=.
+
+*** Retrieving Files
 
 **** (zotero-file KEY &key TYPE ID API-KEY)
      Return the raw file content of an item.
@@ -282,23 +335,31 @@
      - LaTeX
      - Org-mode.
 
-*** Syncing
+*** Browser
+    Zotero provides a user interface to the Zotero library with =zotero-browser=. To
+    use the browser, emacs-zotero should be synchronized with the Zotero server.
+
+**** (zotero-browser)
+     Create a new Zotero browser buffer.
+
+*** Sync
     The Zotero library is synced to a hash table =zotero-cache=.
 
 **** (zotero-sync &optional FULL-SYNC RETRIES)
-     Sync the Zotero library, templates, schemas and file storage.
+     Sync the Zotero library, templates, schemas and file storage. When optional
+     argument FULL-SYNC is non-nil, or with a ‘C-u’ prefix, force a full sync.
 
 ** Configuration
 
 *** API requests
 
 **** zotero-timeout
-     Timeout in seconds; default=30
+     Timeout in seconds; default=30.
 
 **** zotero-locale
      Locale used in translations; default="en-US".
 
-*** Caching
+*** Cache
 **** zotero-cache-enable-caching
      Caching is automatically enabled by default.
 
