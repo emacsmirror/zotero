@@ -227,6 +227,12 @@
   :group 'zotero-browser
   :type 'integer)
 
+(defcustom zotero-browser-icons t
+  "When t show browser icons.
+Icons are enabled by default."
+  :group 'zotero-browser
+  :type 'boolean)
+
 (defcustom zotero-browser-library-keys '(" " :name)
   "Fields to show in the library browser.
 Join all the key values with the separator in between."
@@ -659,7 +665,8 @@ application is found, Emacs simply visits the file."
          (height (window-font-height))
          (separator (car zotero-browser-library-keys))
          (keys (cdr zotero-browser-library-keys)))
-    (when-let ((icon (pcase type
+    (when-let ((_ zotero-browser-icons)
+               (icon (pcase type
                        ("user" "treesource-library.png")
                        ("group" "treesource-groups.png")))
                (dir (file-name-as-directory "img"))
@@ -708,7 +715,8 @@ application is found, Emacs simply visits the file."
             (indentation (+ zotero-browser-padding level))
             (prefix (make-string indentation ?\s))
             (beg (point)))
-       (when-let ((icon "treesource-unfiled.png")
+       (when-let ((_ zotero-browser-icons)
+                  (icon "treesource-unfiled.png")
                   (dir (file-name-as-directory "img"))
                   (file (expand-file-name (concat dir icon) zotero-directory))
                   (image (create-image file 'png nil :height (window-font-height))))
@@ -721,7 +729,8 @@ application is found, Emacs simply visits the file."
             (indentation (+ zotero-browser-padding level))
             (prefix (make-string indentation ?\s))
             (beg (point)))
-       (when-let ((icon "treesource-trash.png")
+       (when-let ((_ zotero-browser-icons)
+                  (icon "treesource-trash.png")
                   (dir (file-name-as-directory "img"))
                   (file (expand-file-name (concat dir icon) zotero-directory))
                   (image (create-image file 'png nil :height (window-font-height))))
@@ -737,7 +746,8 @@ application is found, Emacs simply visits the file."
             (beg (point))
             (separator (car zotero-browser-collection-keys))
             (keys (cdr zotero-browser-collection-keys)))
-       (when-let ((icon "treesource-collection.png")
+       (when-let ((_ zotero-browser-icons)
+                  (icon "treesource-collection.png")
                   (dir (file-name-as-directory "img"))
                   (file (expand-file-name (concat dir icon) zotero-directory))
                   (image (create-image file 'png nil :height (window-font-height))))
@@ -768,7 +778,8 @@ application is found, Emacs simply visits the file."
       ("attachment"
        (let ((separator (car zotero-browser-attachment-keys))
              (keys (cdr zotero-browser-attachment-keys)))
-         (when-let ((linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
+         (when-let ((_ zotero-browser-icons)
+                    (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
                     (file (zotero-browser--attachment-icon linkmode))
                     (image (create-image file 'png nil :height (window-font-height))))
            (insert-image image itemtype)
@@ -793,7 +804,8 @@ application is found, Emacs simply visits the file."
       ("note"
        (let ((separator (car zotero-browser-note-keys))
              (keys (cdr zotero-browser-note-keys)))
-         (when-let ((itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+         (when-let ((_ zotero-browser-icons)
+                    (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
                     (file (zotero-browser--itemtype-icon itemtype))
                     (image (create-image file 'png nil :height (window-font-height))))
            (insert-image image itemtype)
@@ -824,7 +836,8 @@ application is found, Emacs simply visits the file."
       (_
        (let ((separator (car zotero-browser-item-keys))
              (keys (cdr zotero-browser-item-keys)))
-         (when-let ((itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+         (when-let ((_ zotero-browser-icons)
+                    (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
                     (file (zotero-browser--itemtype-icon itemtype))
                     (image (create-image file 'png nil :height (window-font-height))))
            (insert-image image itemtype)
