@@ -103,6 +103,8 @@
     (define-key map (kbd "p") #'zotero-browser-prev)
     (define-key map (kbd "C-c C-n") #'zotero-browser-next-collection)
     (define-key map (kbd "C-c C-p") #'zotero-browser-prev-collection)
+    (define-key map (kbd "+") #'zotero-create-group)
+    (define-key map (kbd "e") #'zotero-browser-edit)
     (define-key map (kbd "q") #'quit-window)
     map)
   "Local keymap for `zotero-browser-libraries-mode'.")
@@ -153,6 +155,16 @@
   "Local keymap for `zotero-items-mode'.")
 
 ;;;; Menu
+
+(easy-menu-define zotero-browser-libraries-mode-menu zotero-browser-libraries-mode-map
+  "Menu for `zotero-browser-libraries-mod'."
+  `("Zotero-Browser"
+    ["Edit" zotero-browser-edit :help "Change the group settings"]
+    ["Create" zotero-create-group :help "Create a new group"]
+    "--"
+    ["Revert" zotero-browser-revert]
+    ["Quit" quit-window]
+    ["Customize" (customize-group 'zotero-browser)]))
 
 (easy-menu-define zotero-browser-items-mode-menu zotero-browser-items-mode-map
   "Menu for `zotero-browser-items-mode'."
@@ -1134,6 +1146,13 @@ If NUM is omitted or nil, expand till level 1."
   (let* ((type zotero-browser-type)
          (id zotero-browser-id))
     (pcase major-mode
+      ('zotero-browser-libraries-mode
+       (let* ((ewoc zotero-browser-ewoc)
+              (node (ewoc-locate ewoc))
+              (key (ewoc-data node)))
+         (if (zotero-cache-group key)
+             (zotero-group-settings key)
+           (user-error "Library %s is not a group" key))))
       ('zotero-browser-collections-mode
        (let* ((ewoc zotero-browser-ewoc)
               (node (ewoc-locate ewoc))
