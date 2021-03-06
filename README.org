@@ -408,7 +408,7 @@
    (require 'zotero-browser)
    #+END_SRC
 
-   To use the browser, you should do ='M-x zotero-sync'= to sync the cache with
+   To use the browser, you should do =M-x zotero-sync= to sync the cache with
    the Zotero server.
 
    The browser is interactive an has its own keybindings.
