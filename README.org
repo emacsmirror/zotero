@@ -1,38 +1,42 @@
 * Emacs Zotero
 
-  Emacs-zotero is a GNU Emacs interface to the [[https://www.zotero.org/support/dev/web_api/v3/start][Zotero API v3]].
+** Introduction
+
+   Emacs-zotero is a GNU Emacs interface to the [[https://www.zotero.org/support/dev/web_api/v3/start][Zotero Web API v3]]. It provides
+   wrapper functions to access the API, functions to cache and sync emacs-zotero
+   with the Zotero server, and a browser to interact with the cache.
 
 ** Installation
 
 *** Development Version
 
-    To follow or contribute to emacs-zotero development, you can browse or clone the
-    Git repository [[https://gitlab.com/fvdbeek/emacs-zotero][on GitLab]]:
+    To follow or contribute to emacs-zotero development, you can browse or clone
+    the Git repository [[https://gitlab.com/fvdbeek/emacs-zotero][on GitLab]]:
 
     #+BEGIN_SRC sh
     git clone https://gitlab.com/fvdbeek/emacs-zotero.git
     #+END_SRC
 
-    If you clone the repository directly, then make sure that Emacs can find it by
-    adding the following line to your startup file:
+    If you are installing manually, make sure that Emacs can find it by adding
+    the following line to your startup file:
 
     #+BEGIN_SRC emacs-lisp
     (add-to-list 'load-path "/path/to/emacs-zotero")
     #+END_SRC
 
-** Dependencies
+*** Dependencies
 
-   - [[https://github.com/psanford/emacs-oauth][oauth.el]]: OAuth library
-   - [[https://github.com/Wilfred/ht.el][ht.el]]: hash table library
-   - [[https://github.com/magnars/s.el][s.el]]: string manipulation library
+    - [[https://github.com/psanford/emacs-oauth][oauth.el]]: OAuth library
+    - [[https://github.com/Wilfred/ht.el][ht.el]]: hash table library
+    - [[https://github.com/magnars/s.el][s.el]]: string manipulation library
 
 ** Usage
 
    To use emacs-zotero, include the following in your =init.el= or =.emacs= file:
 
    #+BEGIN_SRC emacs-lisp
-   (require 'zotero) ; wrapper for the Zotero API
-   (require 'zotero-browser) ; Zotero client
+   (require 'zotero)
+   (require 'zotero-browser)
    #+END_SRC
 
 *** Authentication
@@ -40,36 +44,48 @@
     account can be created via the [[https://www.zotero.org/user/register][Zotero website]]. Authentication is not
     required for read access to public libraries.
 
-    Emacs-zotero uses Oauth 1.0 to authenticate requests. A token can be
-    requested with =zotero-auth-authorize=. The token and user ID will be saved
-    for future sessions, usually to your initialization file. The token will be
+    The Zotero API uses OAuth 1.0 to authenticate requests. A token can be
+    requested with =zotero-auth-authorize=:
+
+    #+BEGIN_SRC emacs-lisp
+    (zotero-auth-authorize)
+    #+END_SRC
+
+    The token is stored in a record of type =zotero-auth-token=. It is saved for
+    future sessions, by default to your initialization file. The token will be
     valid indefinitely, unless it is revoked by the user manually.
 
-*** Requests
     Requests for data in a specific library require a user ID or group ID. User
-    IDs are different from usernames and can be found on the [[https://www.zotero.org/settings/keys][API Keys]] page.
-    Group IDs are different from group names and can be retrieved with the
-    function =zotero-groups=.
+    IDs are different from usernames and can be found on the [[https://www.zotero.org/settings/keys][API Keys]] page. ='M-x
+    zotero-auth-username'=, ='M-x zotero-auth-userid'=, and 'M-x
+    zotero-auth-api-key'= return the username, userid and API key, respectively.
+    When you haven't authorized emacs-zotero already, you will be redirected to
+    authorize.
 
-**** Arguments
-     The request functions accept one or more of the following arguments:
-     - *TYPE* (string): a valid Zotero API library type: "user" or "group".
-       Defaults to "user".
-     - *ID* (string): a valid Zotero API user or group ID. Defaults to the user ID
-       stored in =zotero-auth-token=.
-     - *API-KEY* (string): a valid Zotero API user key. Defaults to the API key
-       stored in =zotero-auth-token=.
-     - *LOCALE* (string): the locale, allowing retrieval of localised item types,
-       field types, and creator types. Defaults to "en-US".
-     - *KEY* (string): a valid item key, collection key, or search key, depending
-       on the resource.
-     - *OBJECT* (plist): a plist of an object. Instead of a plist, OBJECT may be:
-       + buffer (read one Lisp expression from the beginning)
-       + a function (call it with no arguments)
-       + a file (read one Lisp expression from the beginning)
-       + a string (takes text from string, starting at the beginning).
-     - *VERSION* (string or number): the last known version number of the object,
-       as returned by the ="Last-Modified-Version"= response header.
+    Group IDs are different from group names and can be retrieved with the
+    =zotero-groups=.
+
+** API requests
+
+*** Arguments
+    The request functions accept one or more of the following arguments:
+    - *TYPE* (string): a valid Zotero API library type: "user" or "group".
+      Defaults to "user".
+    - *ID* (string): a valid Zotero API user or group ID. Defaults to the user ID
+      stored in =zotero-auth-token=.
+    - *API-KEY* (string): a valid Zotero API user key. Defaults to the API key
+      stored in =zotero-auth-token=.
+    - *LOCALE* (string): the locale, allowing retrieval of localised item types,
+      field types, and creator types. Defaults to "en-US".
+    - *KEY* (string): a valid item key, collection key, or search key, depending
+      on the resource.
+    - *OBJECT* (plist): a plist of an object. Instead of a plist, OBJECT may be:
+      + buffer (read one Lisp expression from the beginning)
+      + a function (call it with no arguments)
+      + a file (read one Lisp expression from the beginning)
+      + a string (takes text from string, starting at the beginning).
+    - *VERSION* (string or number): the last known version number of the object,
+      as returned by the ="Last-Modified-Version"= response header.
 
 *** Response
     The request functions return a record of type =zotero-response=, which
@@ -85,201 +101,219 @@
       list, converted from JSON. The value =:json-empty= (instead of =nil)= is used
       for an empty object to differentiate an empty value and an empty object.
 
-** API requests
+*** Customization
+
+**** User Option: zotero-timeout
+     Timeout in seconds. Default=30.
+
+**** User Option: zotero-locale
+     Locale used in translations. Default="en-US".
 
 *** Miscellaneous
 
-**** (zotero-key &optional API-KEY)
+**** Function: zotero-key &optional API-KEY
      Return info about the user and group library permissions, based on the API-KEY.
      Together with =zotero-groups=, this allows all accessible resources to be
      determined.
 
-**** (zotero-delete-key &optional API-KEY)
+**** Function: zotero-delete-key &optional API-KEY
      Delete the API-KEY.
 
-**** (zotero-groups &key TYPE ID API-KEY)
+**** Function: zotero-groups &key TYPE ID API-KEY
      Return the Zotero group data to which the current library ID and API-KEY has
      access.
 
-**** (zotero-group ID &key API-KEY)
+**** Function: zotero-group ID &key API-KEY
      Return the metadata of the Zotero group.
 
-**** (zotero-create-group)
+**** Function: zotero-create-group
      Create a new group. The Zotero API doesn't support creating groups, so this
      function invokes a browser to open a link.
 
-**** (zotero-group-settings ID)
+**** Function: zotero-group-settings ID
      Change the group settings of group ID. The Zotero API doesn't support changing
      the group settings, so this function invokes a browser to open a link.
 
-*** Retrieving items
+*** Retrieve items
 
-**** (zotero-items &key TYPE ID API-KEY)
+**** Function: zotero-items &key TYPE ID API-KEY
      Return Zotero library items.
 
-**** (zotero-top &key TYPE ID API-KEY)
+**** Function: zotero-top &key TYPE ID API-KEY
      Return top-level Zotero library items.
 
-**** (zotero-publications &key TYPE ID API-KEY)
+**** Function: zotero-publications &key TYPE ID API-KEY
      Return the publications from the "My Publications" collection of a user's
      library. Only available on user libraries.
 
-**** (zotero-trash &key TYPE ID API-KEY)
+**** Function: zotero-trash &key TYPE ID API-KEY
      Return library items from the library's trash.
 
-**** (zotero-item KEY &key TYPE ID API-KEY)
+**** Function: zotero-item KEY &key TYPE ID API-KEY
      Return a specific item.
 
-**** (zotero-children KEY &key TYPE ID API-KEY)
+**** Function: zotero-children KEY &key TYPE ID API-KEY
      Return the child items of a specific item.
 
-*** Retrieving Collections
+*** Retrieve collections
 
-**** (zotero-collection-items KEY &key TYPE ID API-KEY)
+**** Function: zotero-collection-items KEY &key TYPE ID API-KEY
      Return items from the specified collection. This includes sub-collection items.
 
-**** (zotero-collection-items-top KEY &key TYPE ID API-KEY)
+**** Function: zotero-collection-items-top KEY &key TYPE ID API-KEY
      Return top-level items from the specified collection.
 
-**** (zotero-collections &key TYPE ID API-KEY)
+**** Function: zotero-collections &key TYPE ID API-KEY
      Return a library's collections. This includes subcollections.
 
-**** (zotero-collections-top &key TYPE ID API-KEY)
+**** Function: zotero-collections-top &key TYPE ID API-KEY
      Return a library's top-level collections.
 
-**** (zotero-collection KEY &key TYPE ID API-KEY)
+**** Function: zotero-collection KEY &key TYPE ID API-KEY
      Return a specific collection.
 
-**** (zotero-subcollections KEY &key TYPE ID API-KEY)
+**** Function: zotero-subcollections KEY &key TYPE ID API-KEY
      Return the sub-collections of a specific collection.
 
-*** Retrieving Tags
+*** Retrieve tags
 
-**** (zotero-tags &key TYPE ID API-KEY)
+**** Function: zotero-tags &key TYPE ID API-KEY
      Return a library's tags.
 
-**** (zotero-item-tags KEY &key TYPE ID API-KEY)
+**** Function: zotero-item-tags KEY &key TYPE ID API-KEY
      Return tags from a specific item.
 
-**** (zotero-collection-tags KEY &key TYPE ID API-KEY)
+**** Function: zotero-collection-tags KEY &key TYPE ID API-KEY
      Return tags in a specific collection.
 
-*** Searching
+*** Search
 
-**** (zotero-search-items QUERY &optional FULLTEXT INCLUDE-TRASHED &key TYPE ID API-KEY )
+**** Function: zotero-search-items QUERY &optional FULLTEXT INCLUDE-TRASHED &key TYPE ID API-KEY
      Search all items.
 
-**** (zotero-search-tags QUERY &optional STARTS-WITH &key TYPE ID API-KEY)
+**** Function: zotero-search-tags QUERY &optional STARTS-WITH &key TYPE ID API-KEY
      Search all tags.
 
-*** Write functions
+*** Write items
 
-**** (zotero-create-item OBJECT &key TYPE ID API-KEY)
+**** Function: zotero-create-item OBJECT &key TYPE ID API-KEY
      Create an item.
 
-**** (zotero-create-items OBJECTS &key TYPE ID API-KEY)
+**** Function: zotero-create-items OBJECTS &key TYPE ID API-KEY
      Create multiple items.
 
-**** (zotero-update-item KEY OBJECT &key TYPE ID API-KEY)
+**** Function: zotero-update-item KEY OBJECT &key TYPE ID API-KEY
      Update an existing item.
 
-**** (zotero-update-items OBJECTS &key TYPE ID API-KEY)
+**** Function: zotero-update-items OBJECTS &key TYPE ID API-KEY
      Update multiple existing items.
 
-**** (zotero-patch-item KEY OBJECT VERSION &key TYPE ID API-KEY)
+**** Function: zotero-patch-item KEY OBJECT VERSION &key TYPE ID API-KEY
      Partially update an existing item.
 
-**** (zotero-delete-item KEY VERSION &key TYPE ID API-KEY)
+**** Function: zotero-delete-item KEY VERSION &key TYPE ID API-KEY
      Delete an item.
 
-**** (zotero-delete-items KEYS VERSION &key TYPE ID API-KEY)
+**** Function: zotero-delete-items KEYS VERSION &key TYPE ID API-KEY
      Delete multiple items.
 
-**** (zotero-create-collection OBJECT &key TYPE ID API-KEY)
+*** Write collections
+
+**** Function: zotero-create-collection OBJECT &key TYPE ID API-KEY
      Create a collection.
 
-**** (zotero-update-collection KEY OBJECT &key TYPE ID API-KEY)
+**** Function: zotero-create-collection OBJECTS &key TYPE ID API-KEY
+     Create multiple collections.
+
+**** Function: zotero-update-collection KEY OBJECT &key TYPE ID API-KEY
      Update an existing collection.
 
-**** (zotero-update-collections OBJECTS &key TYPE ID API-KEY)
+**** Function: zotero-update-collections OBJECTS &key TYPE ID API-KEY
      Update multiple existing collections.
 
-**** (zotero-delete-collection KEY VERSION &key TYPE ID API-KEY)
+**** Function: zotero-delete-collection KEY VERSION &key TYPE ID API-KEY
      Delete a collection.
 
-**** (zotero-delete-collections KEYS VERSION &key TYPE ID API-KEY)
+**** Function: zotero-delete-collections KEYS VERSION &key TYPE ID API-KEY
      Delete multiple collections.
 
-**** (zotero-create-search OBJECT &key TYPE ID API-KEY)
+*** Write searches
+
+**** Function: zotero-create-search OBJECT &key TYPE ID API-KEY
      Create a saved search.
 
-**** (zotero-update-searches OBJECTS &key TYPE ID API-KEY)
+**** Function: zotero-create-searches OBJECTS &key TYPE ID API-KEY
+     Create multiple searches.
+
+**** Function: zotero-update-searches OBJECTS &key TYPE ID API-KEY
      Update existing searches.
 
-**** (zotero-delete-searches KEYS VERSION &key TYPE ID API-KEY)
+**** Function: zotero-delete-searches KEYS VERSION &key TYPE ID API-KEY
      Delete multiple searches.
 
-**** (zotero-delete-tags TAGS VERSION &key TYPE ID API-KEY)
+*** Write tags
+
+**** Function: zotero-delete-tags TAGS VERSION &key TYPE ID API-KEY
      Delete multiple tags.
 
-*** Item types and fields
+*** Retrieve item types and fields
 
-**** (zotero-item-types &optional LOCALE)
+**** Function: zotero-item-types &optional LOCALE
      Return all available item types.
 
-**** (zotero-item-fields &optional LOCALE)
+**** Function: zotero-item-fields &optional LOCALE
      Return all available item fields.
 
-**** (zotero-item-type-fields ITEM-TYPE &optional LOCALE)
+**** Function: zotero-item-type-fields ITEM-TYPE &optional LOCALE
      Return all valid fields for the specified item type.
 
-**** (zotero-item-type-creator-types ITEM-TYPE &optional LOCALE)
+**** Function: zotero-item-type-creator-types ITEM-TYPE &optional LOCALE
      Return all valid creator types for the specified item type.
 
-**** (zotero-creator-fields &optional LOCALE)
+**** Function: zotero-creator-fields &optional LOCALE
      Return all creator fields.
 
-**** (zotero-attachment-linkmodes )
+**** Function: zotero-attachment-linkmodes
      Return the attachment linkmode types.
 
-*** Templates
+*** Retrieve templates
 
-**** (zotero-collection-template)
+**** Function: zotero-collection-template
      Return a template for a new collection.
 
-**** (zotero-item-template ITEM-TYPE)
+**** Function: zotero-item-template ITEM-TYPE
      Return the template for a new item of an item type.
 
-**** (zotero-attachment-template LINKMODE)
+**** Function: zotero-attachment-template LINKMODE
      Return a template for a new attachment item of a linkmode.
 
-*** File uploads
+*** Upload files
 
-**** (zotero-attachment-attributes KEY &key TYPE ID API-KEY)
+**** Function: zotero-attachment-attributes KEY &key TYPE ID API-KEY
      Return the attributes of an attachment file.
 
-**** (zotero-file-attributes FILE)
+**** Function: zotero-file-attributes FILE
      Get the attributes of a file. The result is a plist with =:filename=, =:filesize=,
      =:content-type=, =:md5=, =:mtime=, and =:accessdate= props to be passed to
      =zotero-authorize-upload=.
 
-**** (zotero-upload-attachment KEY FILE &optional HASH &key TYPE ID API-KEY)
+**** Function: zotero-upload-attachment KEY FILE &optional HASH &key TYPE ID API-KEY
      Authorize, upload and register an attachment to an item. This is a convenient
      wrapper around =zotero-authorize-upload=, =zotero-upload-file=, and
      =zotero-register-upload=.
 
-*** Retrieving Files
+*** Retrieve files
 
-**** (zotero-file KEY &key TYPE ID API-KEY)
+**** Function: zotero-file KEY &key TYPE ID API-KEY
      Return the raw file content of an item.
 
-**** (zotero-download-file KEY &optional FILE DIR CONFIRM &key TYPE ID API-KEY)
+**** Function: zotero-download-file KEY &optional FILE DIR CONFIRM &key TYPE ID API-KEY
      A convenient wrapper around =zotero-file=. Download an attachment using the
      optional path and filename. If neither are supplied, the file is written to the
      current working directory, and =zotero-item= is called to determine the attachment
      filename.
 
-*** Recognize
+*** Recognize files
     PDFs are recognized using an undocumented Zotero web service that
     operates on the first few pages of text using extraction
     algorithms and known metadata from CrossRef. The Zotero lookup
@@ -290,7 +324,7 @@
     attachment, by looking up item metadata when supplied with a
     standard identifier.
 
-**** (zotero-recognize-install-pdftools)
+**** Command: zotero-recognize-install-pdftools
      Install the PDF tools modified by Zotero. The executables are modified to
      output a preprocessed JSON that contains rich and structured information about
      the PDF and the text extracted from it, for use with the PDF recognizer.
@@ -305,24 +339,24 @@
      =zotero-recognize-pdfinfo=, and =zotero-recognize-pdfdata= to the corresponding
      paths. The source is available at https://github.com/zotero/cross-poppler.
 
-**** (zotero-recognize FILE)
+**** Function: zotero-recognize FILE
      Return metadata recognized from a PDF.
 
 *** Full-text content
-    Functions to access and create full-text content of Zotero items. To index
-    documents external dependencies are needed. The pdftotext executable is needed
-    for PDFs, the antiword executable for Microsoft Word documents until version
-    2003, and the pandoc executable for pandoc compatible markup formats. See the
-    variable =zotero-fulltext-pandoc-mimetypes= for a list of formats understood by
-    pandoc.
+    While Zotero is only able to index PDF documents, emacs-zotero can index far
+    more file types. To index documents external dependencies are needed. The
+    pdftotext executable is needed for PDFs, the antiword executable for
+    Microsoft Word documents until version 2003, and the pandoc executable for
+    pandoc compatible markup formats. See the variable
+    =zotero-fulltext-pandoc-mimetypes= for a list of formats understood by pandoc.
 
-**** (zotero-fulltext-item KEY &key TYPE ID API-KEY)
+**** Function: zotero-fulltext-item KEY &key TYPE ID API-KEY
      Return fulltext content of an item.
 
-**** (zotero-fulltext-create-item KEY OBJECT &key TYPE ID API-KEY)
+**** Function: zotero-fulltext-create-item KEY OBJECT &key TYPE ID API-KEY
      Create full-text content for an item.
 
-**** (zotero-fulltext-index-item KEY FILE &optional CONTENT-TYPE &key TYPE ID API-KEY)
+**** Function: zotero-fulltext-index-item KEY FILE &optional CONTENT-TYPE &key TYPE ID API-KEY
      Create full-text content for an item.
 
      This is a convenient wrapper around =zotero-fulltext-create-item= that is able to
@@ -335,70 +369,327 @@
      - LaTeX
      - Org-mode.
 
-*** Browser
-    Zotero provides a user interface to the Zotero library with =zotero-browser=. To
-    use the browser, emacs-zotero should be synchronized with the Zotero server.
-
-**** (zotero-browser)
-     Create a new Zotero browser buffer.
-
-*** Sync
-    The Zotero library is synced to a hash table =zotero-cache=.
-
-**** (zotero-sync &optional FULL-SYNC RETRIES)
-     Sync the Zotero library, templates, schemas and file storage. When optional
-     argument FULL-SYNC is non-nil, or with a ‘C-u’ prefix, force a full sync.
-
-** Configuration
-
-*** API requests
-
-**** zotero-timeout
-     Timeout in seconds; default=30.
-
-**** zotero-locale
-     Locale used in translations; default="en-US".
-
-*** Cache
-**** zotero-cache-enable-caching
-     Caching is automatically enabled by default.
-
-**** zotero-cache-enable-storage
-     Storage is automatically enabled by default.
-
-**** zotero-cache-file
-     The cache file. By default "zotero-cache" in =user-emacs-directory=.
-
-**** zotero-cache-storage-dir
-     Attachment storage directory. By default "zotero-storage" in =user-emacs-directory=.
-
-**** zotero-cache-expire
-     Number of seconds before the cache expires; default=86400 (one day).
-
-*** Full-text content
-
-**** zotero-fulltext-pdftotext
+**** User Option: zotero-fulltext-pdftotext
      Executable for pdftotext. Needed for fulltext indexing of PDF documents. It is
      freely available and included by default with many Linux distributions, and is
      also available for Windows as part of the Xpdf Windows port. Default="pdftotext".
 
-**** zotero-fulltext-pdfinfo
+**** User Option: zotero-fulltext-pdfinfo
      Executable for pdfinfo. Needed for fulltext indexing of PDF documents. It is
      freely available and included by default with many Linux distributions, and is
      also available for Windows as part of the Xpdf Windows port. Default="pdfinfo".
 
-**** zotero-fulltext-pandoc
+**** User Option: zotero-fulltext-pandoc
      Executable for pandoc executable. Pandoc is an open-source document converter
      that supports many formats and is freely available for most operating systems.
      Default="pandoc".
 
-**** zotero-fulltext-antiword
+**** User Option: zotero-fulltext-antiword
      Executable for antiword executable. Antiword is an open source reader for
      proprietary Microsoft Word documents and is freely available for most operating
      systems. Default="antiword".
 
-**** zotero-fulltext-max-chars
+**** User Option: zotero-fulltext-max-chars
      How much text is indexed. Default: 500000 characters.
 
-**** zotero-fulltext-max-pages
+**** User Option: zotero-fulltext-max-pages
      How much text is indexed. Default: 100 pages.
+
+** The Browser
+   Zotero provides a user interface to the Zotero library with =zotero-browser=.
+   The browser allows you to interact with the cache.
+
+   You can add the browser to your setup by loading it with:
+
+   #+BEGIN_SRC emacs-lisp
+   (require 'zotero-browser)
+   #+END_SRC
+
+   To use the browser, you should do ='M-x zotero-sync'= to sync the cache with
+   the Zotero server.
+
+   The browser is interactive an has its own keybindings.
+
+*** Zotero libraries mode
+    | Key     | Binding                     |
+    |---------+-----------------------------|
+    | =n=       | Move to next library        |
+    | =p=       | Move to previous library    |
+    | =C-c C-n= | Move to next collection     |
+    | =C-c C-p= | Move to previous collection |
+    | =RET=     | Display library             |
+    | =e=       | Change group settings       |
+    | =+=       | Create new group            |
+    | =g=       | Reload the current buffer   |
+    | =q=       | Quit current window         |
+
+*** Zotero collections mode
+    | Key   | Binding                                             |
+    |-------+-----------------------------------------------------|
+    | =n=     | Move to next collection                             |
+    | =p=     | Move to previous collection                         |
+    | =u=     | Move to parent collection                           |
+    | =TAB=   | Expand or collapse the children of the current item |
+    | =S-TAB= | Cycle the visibility of children                    |
+    | =$=     | Expand all children                                 |
+    | =M-$=   | Collapse all children                               |
+    | =RET=   | Display collection                                  |
+    | =e=     | Edit collection                                     |
+    | =+=     | Create new collection                               |
+    | =D=     | Delete collection                                   |
+    | =g=     | Reload the current buffer                           |
+    | =q=     | Quit current window                                 |
+
+*** Zotero items mode
+    | Key     | Binding                                             |
+    |---------+-----------------------------------------------------|
+    | =n=       | Move to next item                                   |
+    | =p=       | Move to previous item                               |
+    | =u=       | Move to parent item                                 |
+    | =C-c C-n= | Move to next collection                             |
+    | =C-c C-p= | Move to previous collection                         |
+    | =C-c C-u= | Move to parent collection                           |
+    | =TAB=     | Expand or collapse the children of the current item |
+    | =S-TAB=   | Cycle the visibility of children                    |
+    | =$=       | Expand all children                                 |
+    | =M-$=     | Collapse all children                               |
+    | =RET=     | Open attachment                                     |
+    | =e=       | Edit current entry                                  |
+    | =+=       | Create new item                                     |
+    | =D=       | Delete item                                         |
+    | =R=       | Remove item from collection                         |
+    | =C=       | Copy item to a collection                           |
+    | =M=       | Move item to a parent item                          |
+    | =g=       | Reload the current buffer                           |
+    | =q=       | Quit current window                                 |
+
+*** Cache
+
+**** Command: zotero-cache-serialize
+     Serialize the memory cache to the hard drive.
+
+**** Command: zotero-cache-unserialize
+     Serialize the hard drive to the memory cache.
+
+**** Command: zotero-cache-erase &optional NO-CONFIRM
+     Erase the cache.
+     If optional argument NO-CONFIRM is non-nil, don't ask for confirmation.
+
+**** Command: zotero-cache-maybe-initialize-cache
+     Initialize the cache if needed.
+
+**** User Option: zotero-cache-enable-caching
+     Caching is automatically enabled by default.
+
+**** User Option: zotero-cache-enable-storage
+     Storage is automatically enabled by default.
+
+**** User Option: zotero-cache-file
+     The cache file. By default "zotero-cache" in =user-emacs-directory=.
+
+**** User Option: zotero-cache-storage-dir
+     Attachment storage directory. By default "zotero-storage" in =user-emacs-directory=.
+
+**** User Option: zotero-cache-expire
+     Number of seconds before the cache expires. Default=86400 (one day).
+
+*** Sync
+
+**** Command: zotero-sync &optional FULL-SYNC RETRIES
+     Sync the Zotero library, templates, schemas and file storage. When optional
+     argument FULL-SYNC is non-nil, or with a =C-u= prefix, force a full sync.
+
+**** User Option: zotero-sync-max-delay
+     Seconds to wait before stopping sync retries; set to 0 to disable retrying. Default=3600.
+
+**** User Option: zotero-sync-max-retries
+     Seconds to wait before stopping sync retries. Set to 0 to disable retrying. Default=100.
+
+*** Browser functions
+
+**** Command: zotero-browser
+     Create a new Zotero browser buffer.
+
+**** Command: zotero-browser-display
+     Display current library or collection.
+
+**** Command: zotero-browser-open-attachment
+     Open attachment at point.
+
+**** Command: zotero-browser-ensure-browser-buffer
+     Check if the current buffer is a Zotero browser buffer.
+
+**** Command: zotero-browser-ensure-items-mode
+     Check if the current buffer is a Zotero items buffer.
+
+**** Command: zotero-browser-ensure-write-access
+     Check if the library in the current buffer has write access.
+
+**** Command: zotero-browser-ensure-item-at-point
+     Check if there is an item at point.
+
+**** Command: zotero-browser-revert
+     Reload the current buffer.
+
+**** Command zotero-browser-next
+     Move point to the next item.
+
+**** Command: zotero-browser-prev
+     Move point to the previous item.
+
+**** Command: zotero-browser-up
+     Move point to the parent item.
+
+**** Command: zotero-browser-next-collection
+     Move point to the next collection.
+
+**** Command: zotero-browser-prev-collection
+     Move point to the previous collection.
+
+**** Command: zotero-browser-up-collection
+     Move point to the parent collection.
+
+**** Command: zotero-browser-all-items
+     Show all items.
+
+**** Command: zotero-browser-unfiled-items
+     Show unfiled items.
+
+**** Command: zotero-browser-trash-items
+     Show trashed items.
+
+**** Command: zotero-browser-toggle
+     Expand or collapse the children of the current item.
+
+**** Command: zotero-browser-cycle
+     Cycle the visibility of children.
+
+**** Command: zotero-browser-expand-all
+     Expand all children.
+
+**** Command: zotero-browser-collapse-all
+     Collapse all children.
+
+**** Command: zotero-browser-expand-level &optional NUM
+     Expand children till level NUM.
+     If NUM is omitted or nil, expand till level 1.
+
+**** Command: zotero-browser-edit
+     Edit current entry.
+
+**** Command: zotero-browser-move-to-parent &optional ARG
+     Move current entry to a parent item.
+     With a =C-u= prefix, move to top level.
+
+**** Command: zotero-browser-move-to-collection
+     Move current entry to a collection.
+
+**** Command: zotero-browser-copy-to-collection
+     Copy current entry to another collection.
+
+**** Command: zotero-browser-remove-from-collection
+     Remove current entry from the collection.
+
+**** Command: zotero-browser-move-to-trash
+     Move current entry to trash.
+     If region is active, trash entries in active region instead.
+
+**** Command: zotero-browser-restore-from-trash
+     Restore current entry from trash.
+     If region is active, restore entries in active region instead.
+
+**** Command: zotero-browser-delete
+     Delete current entry.
+     If region is active, delete entries in active region instead.
+
+**** Command: zotero-browser-create
+     Create a new collection or item.
+
+**** Command: zotero-browser-create-note &optional ARG
+     Create a new note.
+     With a =C-u= prefix, create a new top level note.
+
+**** Command: zotero-browser-create-attachment &optional ARG
+     Create a new attachment with the current entry as parent.
+     With a =C-u= prefix, create a new top level attachment.
+
+     Only file attachments (imported_file/linked_file) and PDF
+     imported web attachments (imported_url with content type
+     application/pdf) are allowed as top-level items, as in the Zotero
+     client.
+
+**** Command: zotero-browser-update-attachment
+     Update the attachment of the current entry.
+
+**** Command: zotero-browser-add-by-identifier STRING
+     Create a new item by providing an identifier.
+     Argument STRING is a ISBN, DOI, PMID, or arXiv ID.
+
+**** Command: zotero-browser-recognize-attachment
+     Recognize content of the current entry.
+
+**** Function: zotero-browser-index-attachment
+     Index the full-text content of the current entry.
+
+**** Function: zotero-browser-find-attachment
+     Return the path of the attachment of the current entry.
+
+**** Function: zotero-browser-download-attachment &optional DIR
+     Download the attachment of the current entry.
+
+     Optional argument DIR is the directory. If DIR is omitted or nil,
+     the attachment is downloaded to the default storage directory
+     =zotero-cache-storage-dir= and a subdirectory named as the item
+     key.
+
+
+*** Browser customization
+
+**** User Option: zotero-browser-libraries-buffer-name
+     The default buffer name. Default="\*Zotero Libraries\*".
+
+**** User Option: zotero-browser-collections-buffer-name
+     The default buffer name. Default="\*Zotero Collections\*".
+
+**** User Option: zotero-browser-items-buffer-name
+     The default name of the items buffer. Default="\*Zotero Items\*".
+
+**** User Option: zotero-browser-default-collection-level
+     The default expansion level for collections. Default=1.
+
+**** User Option: zotero-browser-default-item-level
+     The default expansion level for items. Default=1.
+
+**** User Option: zotero-browser-icons
+     When t show browser icons. Icons are enabled by default.
+
+**** User Option zotero-browser-library-keys
+     Fields to show in the library browser.
+     Join all the key values with the separator in between.
+
+**** User Option: zotero-browser-collection-keys
+     Fields to show in the collections browser.
+     Join all the key values with the separator in between.
+
+**** User Option zotero-browser-attachment-keys
+     Attachment fields to show in the items browser.
+     Join all the key values with the separator in between.
+
+**** User Option zotero-browser-note-keys
+     Note fields to show in the items browser.
+     Join all the key values with the separator in between.
+
+**** User Option zotero-browser-item-keys
+     Item fields to show in the items browser.
+     Join all the key values with the separator in between.
+
+**** User Option: zotero-browser-filename-keys
+     Fields to show in the attachment filename.
+     Join all the key values with the separator in between.
+
+**** User Option zotero-browser-filename-max-length
+     Maximum length of fields in attachment filenames.
+     Fields exceeding the maximum length are truncated. Default=50.
+
+**** User Option zotero-browser-preferred-application
+     Preferred application to open files. The default is mailcap.
