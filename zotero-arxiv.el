@@ -45,36 +45,35 @@
 Return plist that could be saved to the library by passing it to
 `zotero-cache-save' or uploaded by passing it to
 `zotero-create-item'."
-  (catch 'available
-    (let (result)
-      (let-alist dom
-        (when-let ((item .feed.entry))
-          (let ((title (xml-node-attributes .feed.entry.title)) ; The title of the article.
-                ;; (arxiv-id (s-chop-prefix "http://arxiv.org/abs/" (xml-node-attributes .feed.entry.id))) ; A url http://arxiv.org/abs/id
-                ;; (published (xml-node-attributes .feed.entry.published)) ; The date that version 1 of the article was submitted.
-                (updated (xml-node-attributes .feed.entry.updated)) ; The date that the retrieved version of the article was submitted. Same as <published> if the retrieved version is version 1.
-                (summary (xml-node-attributes .feed.entry.summary)) ; The article abstract.
-                (authors (xml-get-children .feed.entry 'author)) ; One for each author. Has child element <name> containing the author name.
-                (links (xml-get-children .feed.entry 'link)) ; Can be up to 3 given url's associated with this article.
-                ;; (arxiv:comment (xml-node-attributes .feed.entry.arxiv:comment)) ; The authors comment if present.
-                (arxiv:journal_ref (xml-node-attributes .feed.entry.arxiv:journal_ref)) ; A journal reference if present.
-                (arxiv:doi (xml-node-attributes .feed.entry.arxiv:doi))) ; A url for the resolved DOI to an external resource if present.
-            (setq result (copy-tree (zotero-cache-item-template "journalArticle")))
-            (when title (setq result (plist-put result :title title)))
-            (when authors (setq result (plist-put result :creators (zotero-arxiv--parse-creators authors))))
-            (when summary (setq result (plist-put result :abstractNote (s-trim summary))))
-            (when updated
-              (let* ((time (iso8601-parse updated))
-                     (timestamp (encode-time time))
-                     (time-string (format-time-string "%Y-%m-%d" timestamp)))
-                (setq result (plist-put result :date time-string))))
-            (dolist (link links)
-              (let-alist (xml-node-attributes link)
-                (when (equal .rel "alternate")
-                  (setq result (plist-put result :url .href)))))
-            (when arxiv:journal_ref (setq result (plist-put result :publicationTitle arxiv:journal_ref)))
-            (when arxiv:doi (setq result (plist-put result :DOI arxiv:doi))))))
-      result)))
+  (let (result)
+    (let-alist dom
+      (when-let ((item .feed.entry))
+        (let ((title (xml-node-attributes .feed.entry.title)) ; The title of the article.
+              ;; (arxiv-id (s-chop-prefix "http://arxiv.org/abs/" (xml-node-attributes .feed.entry.id))) ; A url http://arxiv.org/abs/id
+              ;; (published (xml-node-attributes .feed.entry.published)) ; The date that version 1 of the article was submitted.
+              (updated (xml-node-attributes .feed.entry.updated)) ; The date that the retrieved version of the article was submitted. Same as <published> if the retrieved version is version 1.
+              (summary (xml-node-attributes .feed.entry.summary)) ; The article abstract.
+              (authors (xml-get-children .feed.entry 'author)) ; One for each author. Has child element <name> containing the author name.
+              (links (xml-get-children .feed.entry 'link)) ; Can be up to 3 given url's associated with this article.
+              ;; (arxiv:comment (xml-node-attributes .feed.entry.arxiv:comment)) ; The authors comment if present.
+              (arxiv:journal_ref (xml-node-attributes .feed.entry.arxiv:journal_ref)) ; A journal reference if present.
+              (arxiv:doi (xml-node-attributes .feed.entry.arxiv:doi))) ; A url for the resolved DOI to an external resource if present.
+          (setq result (copy-tree (zotero-cache-item-template "journalArticle")))
+          (when title (setq result (plist-put result :title title)))
+          (when authors (setq result (plist-put result :creators (zotero-arxiv--parse-creators authors))))
+          (when summary (setq result (plist-put result :abstractNote (s-trim summary))))
+          (when updated
+            (let* ((time (iso8601-parse updated))
+                   (timestamp (encode-time time))
+                   (time-string (format-time-string "%Y-%m-%d" timestamp)))
+              (setq result (plist-put result :date time-string))))
+          (dolist (link links)
+            (let-alist (xml-node-attributes link)
+              (when (equal .rel "alternate")
+                (setq result (plist-put result :url .href)))))
+          (when arxiv:journal_ref (setq result (plist-put result :publicationTitle arxiv:journal_ref)))
+          (when arxiv:doi (setq result (plist-put result :DOI arxiv:doi))))))
+    result))
 
 (defun zotero-arxiv--request (id)
   "Return the response of the Arxiv request.
