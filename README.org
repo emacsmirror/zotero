@@ -92,8 +92,8 @@
     contains the following slots:
     - =status-code=: status code of the response
     - =headers=: an alist of extra headers. The CAR of each cons cell is the field
-      name and the CDR is the field value. Headers has the form: =(("Content-Type"
-      . "application/x-www-form-urlencoded"))=
+      name and the CDR is the field value. Headers has the form:
+      =(("Content-Type" . "application/x-www-form-urlencoded"))=
     - =version=: current library version, as returned by the ="Last-Modified-Version"=
       header in the response.
     - =etag=: attachment item's md5 value, as returned by the ="ETag"= header in the response.
@@ -337,7 +337,7 @@
      If there are no binaries available for your operating system, you should
      compile them from source and set the variables =zotero-recognize-pdftotext=,
      =zotero-recognize-pdfinfo=, and =zotero-recognize-pdfdata= to the corresponding
-     paths. The source is available at https://github.com/zotero/cross-poppler.
+     paths. The source is available at [[https://github.com/zotero/cross-poppler][https://github.com/zotero/cross-poppler]].
 
 **** Function: zotero-recognize FILE
      Return metadata recognized from a PDF.
