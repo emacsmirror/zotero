@@ -438,8 +438,9 @@ ID."
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
     (with-current-buffer buffer
       (zotero-edit-mode)
-      (erase-buffer)
-      ;; (remove-overlays)
+      (let ((inhibit-read-only t))
+        (erase-buffer))
+      (remove-overlays)
       (let ((template (zotero-collection-template)))
         (setq zotero-edit-resource "collections"
               zotero-edit-type type
