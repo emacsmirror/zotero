@@ -1229,8 +1229,8 @@ With a `C-u' prefix, move to top level."
         (if (or (equal itemtype "attachment") (equal itemtype "note"))
             (user-error "Parent item cannot be a note or attachment")
           (setq updated-data (plist-put data :parentItem parent)))))
-    (ewoc-delete ewoc node)
-    (zotero-cache-save updated-data "items" type id)))
+    (zotero-cache-save updated-data "items" type id)
+    (zotero-browser-revert)))
 
 (defun zotero-browser-move-to-collection ()
   "Move current entry to a collection."
@@ -1249,8 +1249,8 @@ With a `C-u' prefix, move to top level."
          (name (completing-read "Select collection:" choices nil t))
          (new (cdr (assoc name choices)))
          (old zotero-browser-collection))
-    (ewoc-delete ewoc node)
-    (zotero-cache-substitute-collection key new old type id)))
+    (zotero-cache-substitute-collection key new old type id)
+    (zotero-browser-revert)))
 
 (defun zotero-browser-copy-to-collection ()
   "Copy current entry to another collection."
