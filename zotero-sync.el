@@ -529,7 +529,7 @@ VERSION is the \"Last-Modified-Version\"."
                   ;; synced = false and set a flag to restart the sync when finished
                   ;; REVIEW: flag to restart the sync when finished?
                   (?l
-                   (ht-set! table key `(:type ,type :id ,id :synced nil :object ,(plist-get value :object))))
+                   (ht-set! table key `(:synced nil :version ,version :type ,type :id ,id :object ,(plist-get value :object))))
                   ;; if user chooses remote copy:
                   ;; overwrite with synced = true and version = Last-Modified-Version
                   (?r
