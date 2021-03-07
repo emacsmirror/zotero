@@ -1810,7 +1810,7 @@ is the user ID or group ID."
          (setq zotero-browser-type type
                zotero-browser-id id)
          (display-buffer (zotero-browser-collections "collections-top" type id))
-         (display-buffer (zotero-browser-items "items-top" nil type id))))
+         (display-buffer (zotero-browser-items "items" nil type id))))
       ('zotero-browser-collections-mode
        (let* ((type zotero-browser-type)
               (id zotero-browser-id))
