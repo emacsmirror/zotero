@@ -506,7 +506,7 @@
      Seconds to wait before stopping sync retries; set to 0 to disable retrying. Default=3600.
 
 **** User Option: zotero-sync-max-retries
-     Seconds to wait before stopping sync retries. Set to 0 to disable retrying. Default=100.
+     Maximum sync retries. Set to 0 to disable retrying. Default=100.
 
 *** Browser functions
 
@@ -644,7 +644,6 @@
      the attachment is downloaded to the default storage directory
      =zotero-cache-storage-dir= and a subdirectory named as the item
      key.
-
 
 *** Browser customization
 

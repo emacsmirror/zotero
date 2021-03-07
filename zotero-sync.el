@@ -51,7 +51,7 @@
 		        widget)))))
 
 (defcustom zotero-sync-max-retries 100
-  "Seconds to wait before stopping sync retries; set to 0 to disable retrying."
+  "Maximum sync retries; set to 0 to disable retrying."
   :group 'zotero-cache
   :type '(integer :validate
 		  (lambda (widget)
