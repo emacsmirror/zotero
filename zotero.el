@@ -1718,7 +1718,7 @@ See also URL
 `https://www.zotero.org/support/dev/web_api/v3/file_upload#i_post_file'."
   (let* ((content (with-temp-buffer
                     (insert-file-contents-literally file)
-                    (buffer-string)))
+                    (encode-coding-string (buffer-string) 'raw-text)))
          (data (concat prefix content suffix))
          (url-request-method "POST")
          (url-request-extra-headers `(("Content-Type" . ,content-type)))
