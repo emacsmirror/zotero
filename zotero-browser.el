@@ -1762,11 +1762,15 @@ is the user ID or group ID."
                   zotero-browser-resource resource
                   zotero-browser-collection collection)
             (dolist (key keys)
-              ;; Create a new node if key is not a child
-              (unless (zotero-cache-parentitem key table)
-                (ewoc-enter-last ewoc key))
-              ;; Then create nodes for the children of key
-              (when-let ((children (ht-keys (zotero-cache-subitems key table))))
+              (let ((parent (zotero-cache-parentitem key table))
+                    (children (ht-keys (zotero-cache-subitems key table))))
+                ;; Create a new node if key is not a child of an existing parent
+                (unless (member parent keys)
+                  (ewoc-enter-last ewoc key)
+                  ;; Orphans shouldn't happen
+                  (when parent
+                    (message "Item %s is an orphan" key)))
+                ;; Then create nodes for the children of key
                 (dolist (child children)
                   (ewoc-enter-last ewoc child))))
             (zotero-browser-expand-level zotero-browser-default-item-level)))))
