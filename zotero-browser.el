@@ -1444,13 +1444,13 @@ client."
               (data (if parent (plist-put data :parentItem parent) data)))
          (when-let ((object (zotero-cache-save data "items" type id))
                     (key (plist-get object :key)))
-           (unless (zotero-upload-attachment key file nil :type type :id id)
-             (error "Failed to associate attachment with item %s" key))
            (if parent
                (progn
                  (zotero-browser--prefix (ewoc-location node) "▾")
                  (ewoc-enter-after ewoc node key))
              (ewoc-enter-last ewoc key))
+           (unless (zotero-upload-attachment key file nil :type type :id id)
+             (error "Failed to associate attachment with item %s" key))
            (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))
       ("imported_url"
        (user-error "Creating a snapshot is not supported"))
