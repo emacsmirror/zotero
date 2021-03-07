@@ -1354,7 +1354,7 @@ If region is active, delete entries in active region instead."
         (ewoc-delete ewoc node)
         ;; Refresh expanded children to change indentation
         (unless (ht-empty? children)
-          (ewoc-map (lambda (node) (ht-contains? children (ewoc-data node))) ewoc))))))
+          (ewoc-map (lambda (key) (ht-contains? children key)) ewoc))))))
 
 (defun zotero-browser-create ()
   "Create a new collection or item."
