@@ -1822,7 +1822,7 @@ Return t if success, or nil if failed."
 The Zotero API doesn't support creating groups, so this function
 invokes a browser to open a link."
   (interactive)
-  (browse-url (concat zotero-browser-group-settings-url "new")))
+  (browse-url (concat zotero-group-settings-url "new")))
 
 (defun zotero-group-settings (id)
   "Change the group settings of group ID.
