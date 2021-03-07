@@ -1612,7 +1612,15 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
                      (data (thread-first attachment-data
                              (plist-put :parentItem key)
                              (plist-put :title base)
-                             (plist-put :filename (concat base ext)))))
+                             (plist-put :filename (concat base ext))
+                             ;; md5 and mtime can be edited directly in
+                             ;; personal libraries for WebDAV-based file
+                             ;; syncing. They should not be edited directly
+                             ;; when using Zotero File Storage, which provides
+                             ;; an atomic method for setting the properties
+                             ;; along with the corresponding file.
+                             (plist-put :md5 nil)
+                             (plist-put :mtime nil))))
                 (rename-file file newname t)
                 (zotero-cache-save data "items" type id)
                 (ewoc-enter-before ewoc node key)
