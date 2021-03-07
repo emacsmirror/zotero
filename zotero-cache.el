@@ -379,10 +379,12 @@ items in the trash are included."
                                                             (equal (plist-get value :id) id))) table)
                      table)))
        (if include-trashed
-           (zotero-cache-filter-data (lambda (elt) (or (eq (plist-get elt :collections) [])
+           (zotero-cache-filter-data (lambda (elt) (or (not (plist-member elt :collections))
+                                                       (eq (plist-get elt :collections) [])
                                                        (eq (plist-get elt :collections) :json-empty))) table)
          (zotero-cache-filter-data (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
-                                                      (or (eq (plist-get elt :collections) [])
+                                                      (or (not (plist-member elt :collections))
+                                                          (eq (plist-get elt :collections) [])
                                                           (eq (plist-get elt :collections) :json-empty)))) table))))
     ("trash-items"
      (let* ((table (ht-get* zotero-cache "synccache" "items"))
@@ -528,10 +530,12 @@ items in the trash are included."
                                                             (equal (plist-get value :id) id))) table)
                      table)))
        (if include-trashed
-           (zotero-cache-filter-data (lambda (elt) (or (eq (plist-get elt :collections) [])
+           (zotero-cache-filter-data (lambda (elt) (or (not (plist-member elt :collections))
+                                                       (eq (plist-get elt :collections) [])
                                                        (eq (plist-get elt :collections) :json-empty))) table)
          (zotero-cache-filter-data (lambda (elt) (and (not (eq (plist-get elt :deleted) 1))
-                                                      (or (eq (plist-get elt :collections) [])
+                                                      (or (not (plist-member elt :collections))
+                                                          (eq (plist-get elt :collections) [])
                                                           (eq (plist-get elt :collections) :json-empty)))) table))))
     ("trash-items"
      (let* ((table (ht-get* zotero-cache "deletions" id "items"))
