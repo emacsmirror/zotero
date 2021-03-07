@@ -1833,6 +1833,19 @@ Switch if one already exists."
     (with-current-buffer libraries-buffer
       (zotero-browser-display))))
 
+(defun zotero-browser-sync (&optional full-sync)
+  "Synchronize the Zotero library.
+When optional argument FULL-SYNC is non-nil, or with a ‘C-u’
+prefix, force a full sync."
+  (interactive "P")
+  (zotero-sync full-sync)
+  (when-let ((libraries-buffer (get-buffer zotero-browser-libraries-buffer-name)))
+    (with-current-buffer libraries-buffer (zotero-browser-revert)))
+  (when-let ((collections-buffer (get-buffer zotero-browser-collections-buffer-name)))
+    (with-current-buffer collections-buffer (zotero-browser-revert)))
+  (when-let ((items-buffer (get-buffer zotero-browser-items-buffer-name)))
+    (with-current-buffer items-buffer (zotero-browser-revert))))
+
 (provide 'zotero-browser)
 
 ;;; zotero-browser.el ends here

@@ -797,11 +797,8 @@ performed."
 (defun zotero-sync (&optional full-sync retries)
   "Sync the Zotero library.
 
-When optional argument FULL-SYNC is non-nil, or with a `C-u'
-prefix, force a full sync.
-
+When optional argument FULL-SYNC is non-nil, force a full sync.
 Argument RETRIES is used to count the number of retries."
-  (interactive "P")
   (let ((id (zotero-auth-token-userid zotero-auth-token))
         (api-key (zotero-auth-api-key zotero-auth-token)))
     (message "Syncing cache...")
