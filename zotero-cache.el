@@ -810,9 +810,9 @@ Argument TYPE is \"user\" for your personal library, and
 \"group\" for the group libraries. ID is the ID of the personal
 or group library you want to access, that is the user ID or group
 ID."
-  (let* ((value (zotero-cache-synccache resource key type id t))
-         (synccache (zotero-cache-synccache resource nil type id t))
-         (deletions (zotero-cache-deletions resource nil type id t)))
+  (let* ((synccache (ht-get* zotero-cache "synccache" resource))
+         (deletions (ht-get* zotero-cache "deletions" resource))
+         (value (ht-get synccache key)))
     (pcase resource
       ("collections"
        (let* ((children (zotero-cache-subcollections key synccache))
@@ -897,7 +897,7 @@ Argument TYPE is \"user\" for your personal library, and
 or group library you want to access, that is the user ID or group
 ID."
   (message "Uploading...")
-  (let* ((table (zotero-cache-synccache resource nil type id t))
+  (let* ((table (ht-get* zotero-cache "synccache" resource))
          (result (pcase resource
                    ("items" (zotero-create-item object :type type :id id))
                    ("collections" (zotero-create-collection object :type type :id id))
