@@ -408,8 +408,8 @@
    (require 'zotero-browser)
    #+END_SRC
 
-   To use the browser, you should do =M-x zotero-sync= to synchronize the cache
-   with the Zotero server.
+   To use the browser, you should do =M-x zotero-browser-sync= to synchronize the
+   cache with the Zotero server.
 
    The browser is interactive an has its own keybindings.
 
@@ -498,7 +498,7 @@
 
 *** Sync
 
-**** Command: zotero-sync &optional FULL-SYNC RETRIES
+**** Command: zotero-browser-sync &optional FULL-SYNC
      Sync the Zotero library, templates, schemas and file storage. When optional
      argument FULL-SYNC is non-nil, or with a =C-u= prefix, force a full sync.
 
