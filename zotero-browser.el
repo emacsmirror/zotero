@@ -717,8 +717,9 @@ The format can be changed by customizing
                (image (create-image file 'png nil :height height)))
       (insert (propertize type 'display image 'rear-nonsticky t))
       (insert (string ?\s)))
-    (dolist (key keys)
-      (when-let ((string (pcase key
+    (while keys
+      (when-let ((key (pop keys))
+                 (string (pcase key
                            (:name
                             (let ((value (pcase type
                                            ("user" "User library")
@@ -741,14 +742,16 @@ The format can be changed by customizing
                             (when-let ((value (plist-get library key)))
                               value)))))
         (insert string)
-        ;; Insert the separator's substring that doesn't overlap with the
-        ;; preceding string. This prevents ugly double dots and the like.
-        (let ((length (length separator))
-              (num 0))
-          (while (or (eq num length)
-                     (not (s-ends-with-p (substring separator 0 (- length num)) string)))
-            (setq num (1+ num)))
-          (insert (s-right num separator)))))))
+        ;; Don't put a separator after the last key
+        (when keys
+          ;; Insert the separator's substring that doesn't overlap with the
+          ;; preceding string. This prevents ugly double dots and the like.
+          (let ((length (length separator))
+                (num 0))
+            (while (or (eq num length)
+                       (not (s-ends-with-p (substring separator 0 (- length num)) string)))
+              (setq num (1+ num)))
+            (insert (s-right num separator))))))))
 
 (defun zotero-browser--collection-pp (key)
   "Pretty print collection KEY."
@@ -796,17 +799,20 @@ The format can be changed by customizing
                   (image (create-image file 'png nil :height (window-font-height))))
          (insert (propertize "collection" 'display image 'rear-nonsticky t))
          (insert (string ?\s)))
-       (dolist (key keys)
-         (when-let ((string (zotero-lib-plist-get* entry :object :data key)))
+       (while keys
+         (when-let ((key (pop keys))
+                    (string (zotero-lib-plist-get* entry :object :data key)))
            (insert string)
-           ;; Insert the separator's substring that doesn't overlap with the
-           ;; preceding string. This prevents ugly double dots and the like.
-           (let ((length (length separator))
-                 (num 0))
-             (while (or (eq num length)
-                        (not (s-ends-with-p (substring separator 0 (- length num)) string)))
-               (setq num (1+ num)))
-             (insert (s-right num separator)))))
+           ;; Don't put a separator after the last key
+           (when keys
+             ;; Insert the separator's substring that doesn't overlap with the
+             ;; preceding string. This prevents ugly double dots and the like.
+             (let ((length (length separator))
+                   (num 0))
+               (while (or (eq num length)
+                          (not (s-ends-with-p (substring separator 0 (- length num)) string)))
+                 (setq num (1+ num)))
+               (insert (s-right num separator))))))
        (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))))
 
 (defun zotero-browser--item-pp (key)
@@ -827,8 +833,9 @@ The format can be changed by customizing
                     (image (create-image file 'png nil :height (window-font-height))))
            (insert (propertize itemtype 'display image 'rear-nonsticky t))
            (insert (string ?\s)))
-         (dolist (key keys)
-           (when-let ((string (pcase key
+         (while keys
+           (when-let ((key (pop keys))
+                      (string (pcase key
                                 (:version
                                  (when-let ((value (zotero-lib-plist-get* entry :object :data :version)))
                                    (number-to-string value)))
@@ -836,14 +843,16 @@ The format can be changed by customizing
                                  (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
                                    value)))))
              (insert string)
-             ;; Insert the separator's substring that doesn't overlap with the
-             ;; preceding string. This prevents ugly double dots and the like.
-             (let ((length (length separator))
-                   (num 0))
-               (while (or (eq num length)
-                          (not (s-ends-with-p (substring separator 0 (- length num)) string)))
-                 (setq num (1+ num)))
-               (insert (s-right num separator)))))))
+             ;; Don't put a separator after the last key
+             (when keys
+               ;; Insert the separator's substring that doesn't overlap with the
+               ;; preceding string. This prevents ugly double dots and the like.
+               (let ((length (length separator))
+                     (num 0))
+                 (while (or (eq num length)
+                            (not (s-ends-with-p (substring separator 0 (- length num)) string)))
+                   (setq num (1+ num)))
+                 (insert (s-right num separator))))))))
       ("note"
        (let ((separator (car zotero-browser-note-keys))
              (keys (cdr zotero-browser-note-keys)))
@@ -853,8 +862,9 @@ The format can be changed by customizing
                     (image (create-image file 'png nil :height (window-font-height))))
            (insert (propertize itemtype 'display image 'rear-nonsticky t))
            (insert (string ?\s)))
-         (dolist (key keys)
-           (when-let ((string (pcase key
+         (while keys
+           (when-let ((key (pop keys))
+                      (string (pcase key
                                 (:note
                                  (when-let ((note (zotero-lib-plist-get* entry :object :data :note))
                                             (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
@@ -868,14 +878,16 @@ The format can be changed by customizing
                                  (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
                                    value)))))
              (insert string)
-             ;; Insert the separator's substring that doesn't overlap with the
-             ;; preceding string. This prevents ugly double dots and the like.
-             (let ((length (length separator))
-                   (num 0))
-               (while (or (eq num length)
-                          (not (s-ends-with-p (substring separator 0 (- length num)) string)))
-                 (setq num (1+ num)))
-               (insert (s-right num separator)))))))
+             ;; Don't put a separator after the last key
+             (when keys
+               ;; Insert the separator's substring that doesn't overlap with the
+               ;; preceding string. This prevents ugly double dots and the like.
+               (let ((length (length separator))
+                     (num 0))
+                 (while (or (eq num length)
+                            (not (s-ends-with-p (substring separator 0 (- length num)) string)))
+                   (setq num (1+ num)))
+                 (insert (s-right num separator))))))))
       (_
        (let ((separator (car zotero-browser-item-keys))
              (keys (cdr zotero-browser-item-keys)))
@@ -885,8 +897,9 @@ The format can be changed by customizing
                     (image (create-image file 'png nil :height (window-font-height))))
            (insert (propertize itemtype 'display image 'rear-nonsticky t))
            (insert (string ?\s)))
-         (dolist (key keys)
-           (when-let ((string (pcase key
+         (while keys
+           (when-let ((key (pop keys))
+                      (string (pcase key
                                 (:creators
                                  (when-let ((creators (zotero-lib-plist-get* entry :object :data :creators))
                                             (names (when (seq-some (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators)
@@ -917,14 +930,16 @@ The format can be changed by customizing
                                  (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
                                    (setq string value))))))
              (insert string)
-             ;; Insert the separator's substring that doesn't overlap with the
-             ;; preceding string. This prevents ugly double dots and the like.
-             (let ((length (length separator))
-                   (num 0))
-               (while (or (eq num length)
-                          (not (s-ends-with-p (substring separator 0 (- length num)) string)))
-                 (setq num (1+ num)))
-               (insert (s-right num separator))))))))
+             ;; Don't put a separator after the last key
+             (when keys
+               ;; Insert the separator's substring that doesn't overlap with the
+               ;; preceding string. This prevents ugly double dots and the like.
+               (let ((length (length separator))
+                     (num 0))
+                 (while (or (eq num length)
+                            (not (s-ends-with-p (substring separator 0 (- length num)) string)))
+                   (setq num (1+ num)))
+                 (insert (s-right num separator)))))))))
     (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))
 
 ;;;; Commands
