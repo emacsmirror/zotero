@@ -970,7 +970,7 @@ ID\". API-KEY is the Zotero API key."
     `(:filename ,(plist-get data :filename) :contenttype ,(plist-get data :contentType) :md5 ,(plist-get data :md5) :mtime ,(plist-get data :mtime))))
 
 (cl-defun zotero-file (key &key type id api-key)
-  "Return the attachment file of item KEY.
+  "Return the raw file content of item KEY.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
