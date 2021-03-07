@@ -1558,6 +1558,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
          (node (ewoc-locate ewoc))
          (key (ewoc-data node))
          (entry (zotero-cache-synccache "item" key type id))
+         (table (zotero-cache-synccache "items" nil type id))
          (attachment-data (zotero-lib-plist-get* entry :object :data))
          (itemtype (plist-get attachment-data :itemType))
          (linkmode (plist-get attachment-data :linkMode)))
@@ -1567,8 +1568,12 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
              (attributes (zotero-file-attributes file))
              (content-type (plist-get attributes :content-type)))
 	;; Check whether a given PDF could theoretically be recognized
-        (when (and (eq (zotero-browser--level key) 1)
-                   (equal content-type "application/pdf"))
+        (cond
+         ((zotero-cache-parentitem key table)
+          (user-error "Attachment already has a parent"))
+         ((not (equal content-type "application/pdf"))
+          (user-error "Attachment is not a PDF"))
+         (t
           (let* ((response (zotero-recognize file))
                  (metadata (zotero-response-data response))
                  (result (cond
@@ -1606,7 +1611,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
                 (zotero-cache-save data "items" type id)
                 (ewoc-enter-before ewoc node key)
                 (zotero-browser--prefix (ewoc-location (ewoc-prev ewoc node)) "▾")
-                (ewoc-invalidate ewoc node)))))))))
+                (ewoc-invalidate ewoc node))))))))))
 
 (defun zotero-browser-index-attachment ()
   "Index the full-text content of the current entry."
