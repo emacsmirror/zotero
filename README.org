@@ -402,6 +402,7 @@
    Zotero provides a user interface to the Zotero library with =zotero-browser=.
    The browser allows you to interact with the cache.
 
+   #+ATTR_ODT: :scale 0.5
    [[file:screenshot.png]]
 
    You can add the browser to your setup by loading it with:
