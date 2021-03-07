@@ -335,7 +335,7 @@ items in the trash are included."
     ("collections"
      (let ((table (ht-get* zotero-cache "synccache" "collections")))
        (cond
-        (key (ht-get* zotero-cache "synccache" "collections" key))
+        (key (ht-get table key))
         ((and type id)
          (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
                                               (equal (plist-get value :id) id))) table))
@@ -367,7 +367,7 @@ items in the trash are included."
                        (zotero-cache-filter-data (lambda (elt) (not (eq (plist-get elt :deleted) 1))) table)
                      table)))
        (cond
-        (key (ht-get* zotero-cache "synccache" "items" key))
+        (key (ht-get table key))
         ((and type id)
          (ht-select (lambda (_key value) (and (equal (plist-get value :type) type)
                                               (equal (plist-get value :id) id))) table))
