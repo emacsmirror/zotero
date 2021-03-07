@@ -65,7 +65,7 @@ Return plist that could be saved to the library by passing it to
           (setq result (plist-put result :edition edition)))
         (when-let ((seq (plist-get details :publish_places))
                    (_ (> (length seq) 0)))
-          (setq result (plist-put result :places (elt seq 0))))
+          (setq result (plist-put result :place (elt seq 0))))
         (let* ((seq (plist-get details :publishers))
                (_ (> (length seq) 0)))
           (setq result (plist-put result :publisher (elt seq 0))))
