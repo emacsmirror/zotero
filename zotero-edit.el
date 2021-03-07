@@ -228,13 +228,14 @@ ID."
                      ((and :title field)
                       (let ((fieldname (zotero-cache-itemfield-locale key))
                             (value (or (plist-get data key) "")))
-                        (widget-insert (concat fieldname ": "))
+                        (widget-insert (concat fieldname ":"))
                         (widget-create 'editable-field
                                        :size 10
-                                       :format "%v\n"
+                                       :format " %v "
                                        :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
-                                       :value value)))
+                                       :value value)
+                        (widget-insert "\n")))
                      ;; Creators
                      ((and :creators field)
                       (let* ((fieldname "Creators")
@@ -286,7 +287,7 @@ ID."
                                                 :entry-format "%v" ; Omit `insert-button' and `delete-button' widgets
                                                 (editable-field
                                                  :size 10
-                                                 :format "%v "))
+                                                 :format " %v "))
                                                (toggle
                                                 :format "Switch to %[%v%]"
                                                 :on "Dual field"
@@ -299,12 +300,13 @@ ID."
                         (widget-insert (concat fieldname ":\n"))
                         (widget-create 'text
                                        :size 10
-                                       :format "%v\n"
+                                       :format " %v "
                                        :help-echo "M-TAB: complete field; RET: enter value; C-c ': edit in buffer"
                                        :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                        :value value
-                                       :keymap zotero-edit-text-keymap)))
+                                       :keymap zotero-edit-text-keymap)
+                        (widget-insert "\n")))
                      ;; Note
                      ((and :note field)
                       (let* ((fieldname "Note")
@@ -312,12 +314,13 @@ ID."
                         (widget-insert (concat fieldname ":\n"))
                         (widget-create 'text
                                        :size 10
-                                       :format "%v\n"
+                                       :format " %v "
                                        :help-echo "M-TAB: complete field; RET: enter value; C-c ': edit in buffer"
                                        :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                        :value value
-                                       :keymap zotero-edit-text-keymap)))
+                                       :keymap zotero-edit-text-keymap)
+                        (widget-insert "\n")))
                      (:md5
                       (when-let ((fieldname "MD5")
                                  (value (plist-get data key)))
@@ -385,13 +388,14 @@ ID."
                      ((and _ field)
                       (let* ((fieldname (or (zotero-cache-itemfield-locale key) (capitalize (zotero-lib-keyword->string key))))
                              (value (or (plist-get data key) "")))
-                        (widget-insert (concat fieldname ": "))
+                        (widget-insert (concat fieldname ":"))
                         (widget-create 'editable-field
                                        :size 10
-                                       :format "%v\n"
+                                       :format " %v "
                                        :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
-                                       :value value)))))
+                                       :value value)
+                        (widget-insert "\n")))))
           ;; Date Added
           (when-let ((value (plist-get data :dateAdded))
                      (fieldname "Date Added")
@@ -465,13 +469,14 @@ ID."
                    ((and :name field)
                     (let ((fieldname "Name")
                           (value (or (plist-get data key) "")))
-                      (widget-insert (concat fieldname ": "))
+                      (widget-insert (concat fieldname ":"))
                       (widget-create 'editable-field
                                      :size 10
-                                     :format "%v\n"
+                                     :format " %v "
                                      :notify (lambda (widget &rest _ignore)
 			                       (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
-                                     :value value)))
+                                     :value value)
+                      (widget-insert "\n")))
                    ;; Parent Collection
                    ((and :parentCollection field)
                     (let* ((fieldname "Parent Collection" )
