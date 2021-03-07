@@ -1349,9 +1349,13 @@ If region is active, delete entries in active region instead."
          (nodes (zotero-browser--nodes ewoc)))
     (dolist (node nodes)
       (let* ((key (ewoc-data node))
+             (parent (zotero-browser--parent key))
              (children (zotero-browser--children key)))
         (zotero-cache-delete resource key type id)
         (ewoc-delete ewoc node)
+        ;; Refresh parent to change indentation
+        (when parent
+          (ewoc-map (lambda (key) (equal parent key)) ewoc))
         ;; Refresh expanded children to change indentation
         (unless (ht-empty? children)
           (ewoc-map (lambda (key) (ht-contains? children key)) ewoc))))))
