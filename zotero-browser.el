@@ -993,6 +993,8 @@ The format can be changed by customizing
   (zotero-browser-ensure-browser-buffer)
   (let ((pos (point)))
     (pcase major-mode
+      ('zotero-browser-libraries-mode
+       (display-buffer (zotero-browser-libraries)))
       ('zotero-browser-collections-mode
        (display-buffer (zotero-browser-collections zotero-browser-resource zotero-browser-type zotero-browser-id)))
       ('zotero-browser-items-mode
