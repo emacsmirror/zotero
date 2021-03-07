@@ -261,15 +261,17 @@ ID."
                                              :entry-format "%i %d %v\n"
                                              :notify (lambda (widget &rest _ignore)
                                                        (let* ((creators-list (seq-map (lambda (elt)
-                                                                                        (pcase (length elt)
-                                                                                          (3 (list :creatorType (nth 0 elt)
-                                                                                                   :name (nth 1 elt)))
-                                                                                          (4 (list :creatorType (nth 0 elt)
-                                                                                                   :firstName (nth 1 elt)
-                                                                                                   :lastName (nth 2 elt)))
+                                                                                        (pcase elt
+                                                                                          (`(,creator-type (,full-name) ,textfield)
+                                                                                           (list :creatorType creator-type
+                                                                                                 :name full-name))
+                                                                                          (`(,creator-type (,first-name ,last-name) ,textfield)
+                                                                                           (list :creatorType creator-type
+                                                                                                 :firstName first-name
+                                                                                                 :lastName last-name))
                                                                                           (_ (error "Invalid value")))) (widget-value widget)))
                                                               (creators-vector (seq-into creators-list 'vector)))
-                                                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field creators-vector))))
+                                                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy :creators creators-vector))))
                                              :value values
                                              `(group
                                                :format "%v"
