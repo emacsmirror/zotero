@@ -84,7 +84,7 @@
       + a file (read one Lisp expression from the beginning)
       + a string (takes text from string, starting at the beginning).
     - *VERSION* (string or number): the last known version number of the object,
-      as returned by the ="Last-Modified-Version"= response header.
+      as returned by the "Last-Modified-Version" response header.
 
 *** Response
     The request functions return a record of type =zotero-response=, which
@@ -93,9 +93,10 @@
     - =headers=: an alist of extra headers. The CAR of each cons cell is the field
       name and the CDR is the field value. Headers has the form:
       =(("Content-Type" . "application/x-www-form-urlencoded"))=
-    - =version=: current library version, as returned by the ="Last-Modified-Version"=
-      header in the response.
-    - =etag=: attachment item's md5 value, as returned by the ="ETag"= header in the response.
+    - =version=: current library version, as returned by the
+      "Last-Modified-Version" header in the response.
+    - =etag=: attachment item's md5 value, as returned by the "ETag" header in the
+      response.
     - =data=: data returned in the response. The data is returned as a property
       list, converted from JSON. The value =:json-empty= (instead of =nil)= is used
       for an empty object to differentiate an empty value and an empty object.
