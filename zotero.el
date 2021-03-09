@@ -999,7 +999,7 @@ library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key.
 
 Webpage snapshots prior to Zotero 5.0.93 were saved as zip files.
-The downloaded file will be given with a zip extension.
+The downloaded file will be given a zip extension.
 
 See also URL
 `https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_download_the_existing_file'."

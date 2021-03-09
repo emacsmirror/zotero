@@ -313,6 +313,9 @@
      current working directory, and =zotero-item= is called to determine the attachment
      filename.
 
+     Webpage snapshots prior to Zotero 5.0.93 were saved as zip files. The
+     downloaded file will be given a zip extension.
+
 *** Recognize files
     PDFs are recognized using an undocumented Zotero web service that
     operates on the first few pages of text using extraction
