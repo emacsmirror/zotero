@@ -70,15 +70,17 @@
 
 ;;;; Mode
 
-;; (defvar zotero-edit-keymap
-;;   (let ((map (copy-keymap widget-global-map)))
-;;     (define-key map "\C-c\C-k" #'zotero-edit-reset)
-;;     (define-key map "\C-x\C-s" #'zotero-edit-save)
-;;     (define-key map (kbd "q") #'quit-window)
-;;     map))
+(defvar zotero-edit-keymap
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map widget-global-map)
+    (define-key map "\C-c\C-k" #'zotero-edit-reset)
+    (define-key map "\C-x\C-s" #'zotero-edit-save)
+    (define-key map (kbd "q") #'quit-window)
+    map))
 
 (defvar zotero-edit-text-keymap
-  (let ((map (copy-keymap widget-text-keymap)))
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map widget-text-keymap)
     (define-key map (kbd "C-c '") #'zotero-edit-text)
     map))
 
