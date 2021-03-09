@@ -48,9 +48,10 @@
 (defvar-local zotero-edit-widget nil)
 (defvar-local zotero-edit-creators-widget nil)
 
-(defconst zotero-edit-usage-message "Type
-\\[zotero-edit-text-exit] to finish, \\[zotero-edit-text-save] to
-save, or \\[zotero-edit-text-abort] to abort.")
+(defconst zotero-edit-usage-message
+  "Type \\[zotero-edit-text-exit] to finish, \
+\\[zotero-edit-text-save] to save, or \
+\\[zotero-edit-text-abort] to abort.")
 
 ;;;; Keymap
 
