@@ -650,15 +650,9 @@ application is found, Emacs simply visits the file."
          (key (zotero-lib-plist-get* entry :object :data :key))
          (filename (zotero-lib-plist-get* entry :object :data :filename))
          (dir (concat temporary-file-directory key)))
-    (if (equal contenttype "application/pdf")
-        (zotero-browser--open-file path)
-      (let* ((unzip (or (executable-find "unzip")
-                        (error "Unable to find executable \"unzip\"")))
-             (exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
-        (if (eq exit-status 0)
-            (let ((path (concat (file-name-as-directory dir) filename)))
-              (browse-url-file-url path))
-          (error "Error extracting snapshot"))))))
+    (if (equal contenttype "text/html")
+        (browse-url-of-file path)
+      (zotero-browser--open-file path))))
 
 (defun zotero-browser--open-linked-file (entry)
   "Open attachment ENTRY."
