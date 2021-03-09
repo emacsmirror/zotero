@@ -479,11 +479,12 @@ Zotero API key."
 Return the updated table when success or nil when failed.
 
 VERSION is the \"Last-Modified-Version\"."
-  (seq-doseq (object objects)
-    (let* ((key (plist-get object :key))
-           (type (zotero-lib-plist-get* object :library :type))
-           (id (number-to-string (zotero-lib-plist-get* object :library :id)))
+  (seq-doseq (remote-object objects)
+    (let* ((key (plist-get remote-object :key))
+           (type (zotero-lib-plist-get* remote-object :library :type))
+           (id (number-to-string (zotero-lib-plist-get* remote-object :library :id)))
            (value (ht-get table key))
+           (local-object (plist-get value :object))
            default)
       ;; FIXME: when resolving a conflict between a locally deleted object and a
       ;; remotely modified object in favor of the remote object, remove it from
@@ -492,24 +493,34 @@ VERSION is the \"Last-Modified-Version\"."
         ;; if object doesn't exist locally:
         ;; create local object with version = Last-Modified-Version and set synced = true
         ((pred null)
-         (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
+         (ht-set! table key (thread-first value
+                              (plist-put :synced t)
+                              (plist-put :version version)
+                              (plist-put :object remote-object))))
         ;; if object hasn't been modified locally (synced == true):
         ;; overwrite with synced = true and version = Last-Modified-Version
         ((guard (eq (plist-get value :synced) t))
-         (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
+         (ht-set! table key (thread-first value
+                              (plist-put :synced t)
+                              (plist-put :version version))))
         ;; if object hasn't changed:
         ;; set synced = true and version = Last-Modified-Version
-        ((guard (equal (plist-get value :object) object))
-         (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
+        ((guard (equal (plist-get value :object) remote-object))
+         (ht-set! table key (thread-first value
+                              (plist-put :synced t)
+                              (plist-put :version version))))
         ;; if changes can be automatically merged:
         ;; apply changes from each side and set synced = true and version = Last-Modified-Version
-        ((guard (zotero-lib-mergable-plist-p (plist-get value :object) object))
-         (let ((merged (zotero-lib-merge-plist (plist-get value :object) object)))
-           (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,merged))))
+        ((guard (zotero-lib-mergable-plist-p local-object remote-object))
+         (let ((merged (zotero-lib-merge-plist local-object remote-object)))
+           (ht-set! table key (thread-first value
+                                (plist-put :synced t)
+                                (plist-put :version version)
+                                (plist-put :object merged)))))
         ;; else:
         ;; prompt user to choose a side or merge conflicts
         ;; TODO: global variable to set default action: 'ask 'keep-local 'keep-remote 'manual
-        (value
+        (_
          (let ((choice (or default
                            (read-multiple-choice
                             "Conflict between local and remote object cannot be automatically resolved. How should this be resolved? "
@@ -521,35 +532,53 @@ VERSION is the \"Last-Modified-Version\"."
                               (?q "quit"))))))
            (pcase (car choice)
              (?d
-              (let* ((local-data (zotero-lib-plist-get* value :object :data))
-                     (remote-data (plist-get object :data))
+              (let* ((local-data (plist-get local-object :data))
+                     (remote-data (plist-get remote-object :data))
                      (choice (zotero-diff local-data remote-data)))
                 (pcase (car choice)
                   ;; if user chooses local copy:
                   ;; synced = false and set a flag to restart the sync when finished
                   ;; REVIEW: flag to restart the sync when finished?
                   (?l
-                   (ht-set! table key `(:synced nil :version ,version :type ,type :id ,id :object ,(plist-get value :object))))
+                   (ht-set! table key (thread-first value
+                                        (plist-put :synced nil)
+                                        (plist-put :version version)
+                                        (plist-put :object (plist-put local-object :data (plist-put local-data :version version))))))
                   ;; if user chooses remote copy:
                   ;; overwrite with synced = true and version = Last-Modified-Version
                   (?r
-                   (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
+                   (ht-set! table key (thread-first value
+                                        (plist-put :synced t)
+                                        (plist-put :version version)
+                                        (plist-put :object remote-object))))
                   (?q
                    (throw 'sync 'quit)))))
              ;; if user chooses local copy:
              ;; synced = false and set a flag to restart the sync when finished
              ;; REVIEW: flag to restart the sync when finished?
              (?l
-              (ht-set! table key `(:type ,type :id ,id :synced nil :object ,(plist-get value :object))))
+              (ht-set! table key (thread-first value
+                                   (plist-put :synced nil)
+                                   (plist-put :version version)
+                                   (plist-put :object (plist-put local-object :data (plist-put local-data :version version))))))
              ;; if user chooses remote copy:
              ;; overwrite with synced = true and version = Last-Modified-Version
              (?r
-              (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
+              (ht-set! table key (thread-first value
+                                   (plist-put :synced t)
+                                   (plist-put :version version)
+                                   (plist-put :object remote-object))))
              (?L
-              (ht-set! table key `(:type ,type :id ,id :synced nil :object ,(plist-get value :object)))
+              (ht-set! table key (thread-first value
+                                   (plist-put :synced nil)
+                                   (plist-put :version version)
+                                   (plist-put :object (plist-put local-object :data (plist-put local-data :version version)))))
               (setq default ?l))
              (?R
-              (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object))
+              (ht-set! table key (thread-first value
+                                   (plist-put :synced t)
+                                   (plist-put :version version)
+                                   (plist-put :object remote-object)))
               (setq default ?r))
              (?q
               (throw 'sync 'quit))))))))
