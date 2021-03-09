@@ -686,26 +686,45 @@ Zotero API key."
     (cl-loop for key being the hash-keys of attachments
              using (hash-values value) do
              (let* ((data (zotero-lib-plist-get* value :object :data))
+                    (linkmode (plist-get data :linkMode))
                     (filename (plist-get data :filename))
                     (content-type (plist-get data :contentType))
                     (md5 (plist-get data :md5))
-                    (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
-                    (file (expand-file-name (concat (file-name-as-directory dir) filename))))
+                    (dir (expand-file-name (concat (file-name-as-directory zotero-cache-storage-dir) key)))
+                    (file (concat (file-name-as-directory dir) filename)))
                (unless (file-exists-p dir)
                  (make-directory dir t))
                (cond
                 ((string-empty-p filename)
-                 (message "Attachment %s in %s %s has an empty filename." key type id))
+                 (message "attachment %s in %s %s has an empty filename." key type id))
                 ((file-exists-p file)
                  (let ((attributes (zotero-file-attributes file)))
-                   (when (and (equal content-type "application/pdf") ; non-pdf snapshots don't have matching md5sums
-                              (not (equal md5 (plist-get attributes :md5)))
-                              (y-or-n-p (format "File \"%s\" is changed. Overwrite? " filename)))
-                     (with-demoted-errors "Error downloading file: %S"
+                   (when (and (not (equal md5 (plist-get attributes :md5)))
+                              (y-or-n-p (format "file \"%s\" is changed. overwrite? " filename)))
+                     (if (equal linkmode "imported_url")
+                         (let* ((unzip (or (executable-find "unzip")
+                                           (error "unable to find executable \"unzip\"")))
+                                (path (zotero-download-file key filename dir nil :type type :id id :api-key api-key))
+                                (zip-file-p (equal (file-name-extension path) "zip")))
+                           (when zip-file-p
+                             (let ((exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
+                               (delete-file path)
+                               (unless (eq exit-status 0)
+                                 (error "Error extracting snapshot")))))
                        (zotero-download-file key filename dir nil :type type :id id :api-key api-key)))))
                 (t
-                 (with-demoted-errors "Error downloading file: %S"
-                   (zotero-download-file key filename dir nil :type type :id id :api-key api-key))))))))
+                 (with-demoted-errors "error downloading file: %s"
+                   (if (equal linkmode "imported_url")
+                       (let* ((unzip (or (executable-find "unzip")
+                                         (error "unable to find executable \"unzip\"")))
+                              (path (zotero-download-file key filename dir nil :type type :id id :api-key api-key))
+                              (zip-file-p (equal (file-name-extension path) "zip")))
+                         (when zip-file-p
+                           (let ((exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
+                             (delete-file path)
+                             (when (eq exit-status 0)
+                               (error "Error extracting snapshot")))))
+                     (zotero-download-file key filename dir nil :type type :id id :api-key api-key)))))))))
 
 (defun zotero-sync--delete-attachments (cache)
   "Sync the deleted attachments to storage.
