@@ -634,7 +634,7 @@ in the source buffer, and replace it with the edited version.
 
 When optional argument BUFFER-NAME is non-nil, use it as the
 name of the sub-editing buffer."
-  (interactive "d")
+  (interactive)
   (let* ((widget (widget-at (point)))
          (value (widget-value widget))
          (buffer (generate-new-buffer "*Zotero Edit Text*")))
