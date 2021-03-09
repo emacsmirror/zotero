@@ -998,24 +998,45 @@ for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key.
 
+Webpage snapshots prior to Zotero 5.0.93 were saved as zip files.
+The downloaded file will be given with a zip extension.
+
 See also URL
 `https://www.zotero.org/support/dev/web_api/v3/file_upload#ii_download_the_existing_file'."
   (let* ((result (zotero-file key :type type :id id :api-key api-key))
          (contents (zotero-response-data result))
-         (coding-system-for-write 'binary)
-         (filename (or file
-                       (let* ((result (zotero-items key :type type :id id :api-key api-key))
-                              (item (zotero-response-data result)))
-                         (zotero-lib-plist-get* item :data :filename))))
-         (full-filename (expand-file-name filename dir)))
-    (write-region contents nil full-filename nil nil nil confirm)
-    ;; Check the ETag header of the response to make sure it matches
-    ;; the attachment item's md5 value. If it doesn't, offer to
-    ;; download the attachment item again.
-    (let* ((attributes (zotero-file-attributes full-filename))
-           (etag (zotero-response-etag result)))
+         (etag (zotero-response-etag result))
+         ;; Prior to Zotero 5.0.93, webpage snapshots were saved as zip files.
+         ;; Since then, snapshots are saved as single self-extracting HTML
+         ;; files. Because there is no way to see the difference using headers
+         ;; or metadata, the file signature has to be inspected. A zip file will
+         ;; always start with magic bytes 50 4B.
+         (zip-file-p (string-match-p "^\x50\x4B" contents))
+         (filename (cond
+                    ;; If the attachment is a zip file and a webpage snapshot,
+                    ;; replace the extension with ".zip"
+                    (zip-file-p
+                     (let* ((item (zotero-response-data (zotero-item key :type type :id id :api-key api-key)))
+                            (filename (zotero-lib-plist-get* item :data :filename))
+                            (snapshot-p (equal (zotero-lib-plist-get* item :data :linkMode) "imported_url")))
+                       (if snapshot-p
+                           (concat (file-name-sans-extension filename) ".zip")
+                         (or file filename))))
+                    ;; Use FILE if it is non-nil
+                    (file file)
+                    ;; Else determine the attachment filename
+                    (t
+                     (let ((item (zotero-response-data (zotero-item key :type type :id id :api-key api-key))))
+                       (zotero-lib-plist-get* item :data :filename)))))
+         (path (expand-file-name filename dir))
+         (coding-system-for-write 'binary))
+    (write-region contents nil path nil nil nil confirm)
+    (let ((attributes (zotero-file-attributes path)))
+      ;; Check the ETag header of the response to make sure it matches
+      ;; the attachment item's md5 value. If it doesn't, offer to
+      ;; download the attachment item again.
       (if (equal etag (plist-get attributes :md5))
-          full-filename
+          path
         (if (y-or-n-p (format "MD5 value doesn't match the response header. Retry? "))
             (zotero-download-file key file dir confirm :type type :id id :api-key api-key)
           (warn "Item has the wrong hash. The latest version of
