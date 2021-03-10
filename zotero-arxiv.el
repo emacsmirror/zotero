@@ -26,6 +26,7 @@
 ;;;; Requirements
 (require 's)
 (require 'seq)
+(require 'iso8601)
 (require 'zotero)
 (require 'zotero-cache)
 
