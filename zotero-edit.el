@@ -281,10 +281,10 @@ ID."
                                              :notify (lambda (widget &rest _ignore)
                                                        (let* ((creators-list (seq-map (lambda (elt)
                                                                                         (pcase elt
-                                                                                          (`(,creator-type (,full-name) ,textfield)
+                                                                                          (`(,creator-type (,full-name) ,_fieldmode)
                                                                                            (list :creatorType creator-type
                                                                                                  :name full-name))
-                                                                                          (`(,creator-type (,first-name ,last-name) ,textfield)
+                                                                                          (`(,creator-type (,first-name ,last-name) ,_fieldmode)
                                                                                            (list :creatorType creator-type
                                                                                                  :firstName first-name
                                                                                                  :lastName last-name))
