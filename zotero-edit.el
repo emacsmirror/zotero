@@ -213,7 +213,7 @@ ID."
           (cl-loop for key in template by #'cddr do
                    (pcase key
                      ;; Itemtype
-                     ((and :itemType field)
+                     (:itemType
                       (let* ((fieldname "Item Type")
                              (value (plist-get data key))
                              (choices (seq-map (lambda (elt) `(item :value ,elt :tag ,(zotero-cache-itemtype-locale elt))) itemtypes)))
@@ -231,19 +231,19 @@ ID."
                                                      (if
                                                          (y-or-n-p (format "Are you sure you want to change the item type?\nThe following fields will be lost:\n%s" fields))
                                                          (let* ((props-to-delete (seq-map (lambda (elt) (zotero-lib-string->keyword elt)) missing-fields))
-                                                                (data (plist-put zotero-edit-data-copy field new-itemtype))
+                                                                (data (plist-put zotero-edit-data-copy key new-itemtype))
                                                                 (data (apply #'zotero-lib-plist-delete data props-to-delete))
                                                                 (template (zotero-cache-item-template new-itemtype))
                                                                 (merged (zotero-lib-merge-plist template data)))
                                                            (zotero-edit-item merged type id))
-                                                       (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field current-itemtype))
+                                                       (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key current-itemtype))
                                                        (widget-value-set widget current-itemtype)
                                                        (widget-setup)))))
                                        :button-prefix "▾"
                                        :value value
                                        :args choices)))
                      ;; Title
-                     ((and :title field)
+                     (:title
                       (let ((fieldname (zotero-cache-itemfield-locale key))
                             (value (or (plist-get data key) "")))
                         (widget-insert (concat fieldname ":"))
@@ -251,11 +251,11 @@ ID."
                                        :size 10
                                        :format " %v "
                                        :notify (lambda (widget &rest _ignore)
-			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
+			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key (widget-value widget))))
                                        :value value)
                         (widget-insert "\n")))
                      ;; Creators
-                     ((and :creators field)
+                     (:creators
                       (let* ((fieldname "Creators")
                              (value (plist-get data key))
                              (values (seq-map (lambda (elt)
@@ -312,30 +312,30 @@ ID."
                                                 :off "Single field"
                                                 :notify zotero-edit--toggle-notify))))))
                      ;; Abstract
-                     ((and :abstractNote field)
+                     (:abstractNote
                       (let* ((fieldname (zotero-cache-itemfield-locale key))
                              (value (or (plist-get data key) "")))
                         (widget-insert (concat fieldname ":\n"))
                         (widget-create 'text
                                        :size 10
                                        :format " %v "
-                                       :help-echo "M-TAB: complete field; RET: enter value; C-c ': edit in buffer"
+                                       :help-echo (substitute-command-keys zotero-edit-help-echo)
                                        :notify (lambda (widget &rest _ignore)
-			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
+			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key (widget-value widget))))
                                        :value value
                                        :keymap zotero-edit-text-keymap)
                         (widget-insert "\n")))
                      ;; Note
-                     ((and :note field)
+                     (:note
                       (let* ((fieldname "Note")
                              (value (or (plist-get data key) "")))
                         (widget-insert (concat fieldname ":\n"))
                         (widget-create 'text
                                        :size 10
                                        :format " %v "
-                                       :help-echo "M-TAB: complete field; RET: enter value; C-c ': edit in buffer"
+                                       :help-echo (substitute-command-keys zotero-edit-help-echo)
                                        :notify (lambda (widget &rest _ignore)
-			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
+			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key (widget-value widget))))
                                        :value value
                                        :keymap zotero-edit-text-keymap)
                         (widget-insert "\n")))
@@ -351,7 +351,7 @@ ID."
                         (unless (eq value :json-false)
                           (widget-insert (concat fieldname ": "))
                           (widget-insert (format "%s\n" value)))))
-                     ((and :tags field)
+                     (:tags
                       (let* ((fieldname "Tags")
                              (value (plist-get data key))
                              (values (unless (eq value :json-empty) (seq-map (lambda (elt) elt) value))))
@@ -362,11 +362,11 @@ ID."
                                                  (let* ((value (if-let ((values (widget-value widget)))
                                                                    (seq-into values'vector)
                                                                  :json-empty)))
-                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field value))))
+                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key value))))
                                        :value values
                                        '(editable-field ""))))
                      ;; Collections
-                     ((and :collections field)
+                     (:collections
                       (let* ((key :collections)
                              (fieldname "Collections")
                              (value (plist-get data key))
@@ -378,7 +378,7 @@ ID."
                                        :entry-format "%i %d %v\n"
                                        :notify (lambda (widget &rest _ignore)
                                                  (let* ((value (seq-into (widget-value widget) 'vector)))
-                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field value))))
+                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key value))))
 
                                        :value values
                                        `(menu-choice
@@ -388,7 +388,7 @@ ID."
                                          :void (item :format "%t" :value "" :tag "None")
                                          :args ,choices))))
                      ;; Relations
-                     ((and :relations field)
+                     (:relations
                       (let* ((fieldname "Related")
                              (value (plist-get data key))
                              (values (unless value :json-empty (seq-map (lambda (elt) elt) value))))
@@ -399,11 +399,11 @@ ID."
                                                  (let* ((value (if-let ((values (widget-value widget)))
                                                                    (seq-into values'vector)
                                                                  :json-empty)))
-                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field value))))
+                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key value))))
                                        :value values
                                        '(editable-field ""))))
                      ;; Rest
-                     ((and _ field)
+                     (_
                       (let* ((fieldname (or (zotero-cache-itemfield-locale key) (capitalize (zotero-lib-keyword->string key))))
                              (value (or (plist-get data key) "")))
                         (widget-insert (concat fieldname ":"))
@@ -411,7 +411,7 @@ ID."
                                        :size 10
                                        :format " %v "
                                        :notify (lambda (widget &rest _ignore)
-			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
+			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key (widget-value widget))))
                                        :value value)
                         (widget-insert "\n")))))
           ;; Date Added
@@ -484,7 +484,7 @@ ID."
           (cl-loop for key in template by #'cddr do
                    (pcase key
                      ;; Name
-                     ((and :name field)
+                     (:name
                       (let ((fieldname "Name")
                             (value (or (plist-get data key) "")))
                         (widget-insert (concat fieldname ":"))
@@ -492,11 +492,11 @@ ID."
                                        :size 10
                                        :format " %v "
                                        :notify (lambda (widget &rest _ignore)
-			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
+			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key (widget-value widget))))
                                        :value value)
                         (widget-insert "\n")))
                      ;; Parent Collection
-                     ((and :parentCollection field)
+                     (:parentCollection
                       (let* ((fieldname "Parent Collection" )
                              (value (plist-get data key))
                              (table (zotero-cache-synccache "collections" nil type id))
@@ -505,12 +505,12 @@ ID."
                         (widget-create 'menu-choice
                                        :format (concat fieldname ": %[%v%]\n")
                                        :notify (lambda (widget &rest _ignore)
-                                                 (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
+                                                 (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key (widget-value widget))))
                                        :button-prefix "▾"
                                        :value value
                                        :args choices)))
                      ;; Relations
-                     ((and :relations field)
+                     (:relations
                       (let* ((fieldname "Related")
                              (value (plist-get data key))
                              (values (unless value :json-empty (seq-map (lambda (elt) elt) value))))
@@ -521,7 +521,7 @@ ID."
                                                  (let* ((value (if-let ((values (widget-value widget)))
                                                                    (seq-into values'vector)
                                                                  :json-empty)))
-                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field value))))
+                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy key value))))
                                        :value values
                                        '(editable-field ""))))))
           ;; Save button
