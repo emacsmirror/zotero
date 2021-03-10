@@ -94,9 +94,9 @@
   "Menu for `zotero-edit-text-mode'."
   `("Zotero-Edit"
     "--"
-    ["Abort" zotero-edit-text-abort] :help "Discard current text and exit"
-    ["Save" zotero-edit-text-save :help "Save current text"]
     ["Exit" zotero-edit-text-exit :help "Save current text and exit"]
+    ["Save" zotero-edit-text-save :help "Save current text"]
+    ["Abort" zotero-edit-text-abort :help "Discard current text and exit"]
     "--"
     ["Quit" quit-window]
     ["Customize" (customize-group 'zotero-browser)]))
