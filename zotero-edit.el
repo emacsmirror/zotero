@@ -177,8 +177,8 @@ ID."
     (with-current-buffer buffer
       (zotero-edit-mode)
       (let ((inhibit-read-only t))
-        (erase-buffer))
-      (remove-overlays)
+        (erase-buffer)
+        (remove-overlays))
       (save-excursion
         (let* ((itemtype (plist-get data :itemType))
                (linkmode (plist-get data :linkMode))
@@ -461,8 +461,6 @@ ID."
     (with-current-buffer buffer
       (zotero-edit-mode)
       (let ((inhibit-read-only t))
-        (erase-buffer))
-      (remove-overlays)
       (let ((template (zotero-collection-template)))
         (setq zotero-edit-resource "collections"
               zotero-edit-type type
@@ -543,6 +541,8 @@ ID."
 		       "Reset")
         (use-local-map widget-keymap)
         (widget-setup)))
+        (erase-buffer)
+        (remove-overlays))
     buffer))
 
 (defun zotero-edit-create-item (itemtype type id collection)
