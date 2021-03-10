@@ -654,18 +654,18 @@ When optional argument BUFFER-NAME is non-nil, use it as the
 name of the sub-editing buffer."
   (interactive)
   (let* ((widget (widget-at (point)))
-         (value (widget-value widget))
-         (buffer (generate-new-buffer "*Zotero Edit Text*")))
+         (value (widget-value widget)))
     (when (eq (widget-type widget) 'text)
-      (with-current-buffer buffer
-        (insert value)
-        (set-buffer-modified-p nil))
-      ;; Switch to edit buffer.
-      (pop-to-buffer buffer zotero-edit-text-buffer-action)
-      (zotero-edit-text-mode 1)
-      (visual-line-mode 1)
-      (setq zotero-edit-widget widget)
-      (message (substitute-command-keys zotero-edit-usage-message)))))
+      (let ((buffer (generate-new-buffer "*Zotero Edit Text*")))
+        (with-current-buffer buffer
+          (insert value)
+          (set-buffer-modified-p nil))
+        ;; Switch to edit buffer.
+        (pop-to-buffer buffer zotero-edit-text-buffer-action)
+        (zotero-edit-text-mode 1)
+        (visual-line-mode 1)
+        (setq zotero-edit-widget widget)
+        (message (substitute-command-keys zotero-edit-usage-message))))))
 
 (defun zotero-edit-text-save ()
   "Save source buffer with current state sub-editing buffer."
