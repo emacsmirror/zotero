@@ -55,33 +55,28 @@
 
 ;;;; Keymap
 
-(defvar zotero-edit-keymap
+(defvar zotero-edit-mode-map
   (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map widget-global-map)
-    (define-key map "\C-c\C-k" #'zotero-edit-reset)
-    (define-key map "\C-x\C-s" #'zotero-edit-save)
-    (define-key map (kbd "q") #'quit-window)
-    map))
+    (set-keymap-parent map widget-keymap)
+    (define-key map (kbd "C-x C-s") #'zotero-edit-save)
+    (define-key map (kbd "C-c C-k") #'zotero-edit-reset)
+    map)
+  "Local keymap for `zotero-edit-mode'.")
+
+(defvar zotero-edit-text-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-c") #'zotero-edit-text-exit)
+    (define-key map (kbd "C-x C-s") #'zotero-edit-text-save)
+    (define-key map (kbd "C-c C-k") #'zotero-edit-text-abort)
+    map)
+  "Local keymap for `zotero-edit-text-mode'.")
 
 (defvar zotero-edit-text-keymap
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map widget-text-keymap)
-    (define-key map (kbd "C-c '") #'zotero-edit-text)
-    map))
-
-(defvar zotero-edit-text-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c '") #'zotero-edit-text-exit)
-    (define-key map (kbd "C-c C-k") #'zotero-edit-text-abort)
-    (define-key map (kbd "C-x C-s") #'zotero-edit-text-save)
-    map))
-
-(defvar zotero-edit-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-k") #'zotero-edit-reset)
-    (define-key map (kbd "C-c C-s") #'zotero-edit-save)
+    (define-key map (kbd "C-c C-c") #'zotero-edit-text)
     map)
-  "Local keymap for `zotero-edit-mode'.")
+  "Keymap for multiline text fields in `zotero-edit-mode'.")
 
 ;;;; Menu
 
