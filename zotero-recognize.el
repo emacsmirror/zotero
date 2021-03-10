@@ -112,18 +112,17 @@ Return JSON with metadata, layout and rich text of FILE."
     (error "Executable %s not found" zotero-recognize-pdftotext)))
 
 (defun zotero-recognize--parse-creators (authors)
-  "Parse the creators."
+  "Parse the creators in AUTHORS."
   (let (result)
     (seq-doseq (author authors)
       (push `(:creatorType "author" :firstName ,(plist-get author :firstName) :lastName ,(plist-get author :lastName)) result))
     (seq-into (nreverse result) 'vector)))
 
 (defun zotero-recognize-parse-metadata (data)
-  "Parse bibliographic metadata DATA from the Zotero lookup
-service to a Zotero item.
-Return plist that could be saved to the
-library by passing it to `zotero-cache-save' or uploaded by
-passing it to `zotero-create-item'."
+  "Parse bibliographic metadata DATA from the Zotero lookup service to a Zotero item.
+Return plist that could be saved to the library by passing it to
+`zotero-cache-save' or uploaded by passing it to
+`zotero-create-item'."
   (let (result)
     (pcase (plist-get data :type)
       ("journal-article"

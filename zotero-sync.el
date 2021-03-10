@@ -481,8 +481,6 @@ Return the updated table when success or nil when failed.
 VERSION is the \"Last-Modified-Version\"."
   (seq-doseq (remote-object objects)
     (let* ((key (plist-get remote-object :key))
-           (type (zotero-lib-plist-get* remote-object :library :type))
-           (id (number-to-string (zotero-lib-plist-get* remote-object :library :id)))
            (value (ht-get table key))
            (local-object (plist-get value :object))
            default)
@@ -521,7 +519,9 @@ VERSION is the \"Last-Modified-Version\"."
         ;; prompt user to choose a side or merge conflicts
         ;; TODO: global variable to set default action: 'ask 'keep-local 'keep-remote 'manual
         (_
-         (let ((choice (or default
+         (let ((local-data (plist-get local-object :data))
+               (remote-data (plist-get remote-object :data))
+               (choice (or default
                            (read-multiple-choice
                             "Conflict between local and remote object cannot be automatically resolved. How should this be resolved? "
                             '((?d "see the difference side by side")
@@ -532,9 +532,7 @@ VERSION is the \"Last-Modified-Version\"."
                               (?q "quit"))))))
            (pcase (car choice)
              (?d
-              (let* ((local-data (plist-get local-object :data))
-                     (remote-data (plist-get remote-object :data))
-                     (choice (zotero-diff local-data remote-data)))
+              (let ((choice (zotero-diff local-data remote-data)))
                 (pcase (car choice)
                   ;; if user chooses local copy:
                   ;; synced = false and set a flag to restart the sync when finished
@@ -717,7 +715,6 @@ Zotero API key."
              (let* ((data (zotero-lib-plist-get* value :object :data))
                     (linkmode (plist-get data :linkMode))
                     (filename (plist-get data :filename))
-                    (content-type (plist-get data :contentType))
                     (md5 (plist-get data :md5))
                     (dir (expand-file-name (concat (file-name-as-directory zotero-cache-storage-dir) key)))
                     (file (concat (file-name-as-directory dir) filename)))
@@ -729,10 +726,10 @@ Zotero API key."
                 ((file-exists-p file)
                  (let ((attributes (zotero-file-attributes file)))
                    (when (and (not (equal md5 (plist-get attributes :md5)))
-                              (y-or-n-p (format "file \"%s\" is changed. overwrite? " filename)))
+                              (y-or-n-p (format "File \"%s\" is changed. overwrite? " filename)))
                      (if (equal linkmode "imported_url")
                          (let* ((unzip (or (executable-find "unzip")
-                                           (error "unable to find executable \"unzip\"")))
+                                           (error "Unable to find executable \"unzip\"")))
                                 (path (zotero-download-file key filename dir nil :type type :id id :api-key api-key))
                                 (zip-file-p (equal (file-name-extension path) "zip")))
                            (when zip-file-p
@@ -745,7 +742,7 @@ Zotero API key."
                  (with-demoted-errors "error downloading file: %s"
                    (if (equal linkmode "imported_url")
                        (let* ((unzip (or (executable-find "unzip")
-                                         (error "unable to find executable \"unzip\"")))
+                                         (error "Unable to find executable \"unzip\"")))
                               (path (zotero-download-file key filename dir nil :type type :id id :api-key api-key))
                               (zip-file-p (equal (file-name-extension path) "zip")))
                          (when zip-file-p

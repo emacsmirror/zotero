@@ -646,10 +646,7 @@ application is found, Emacs simply visits the file."
 (defun zotero-browser--open-imported-url (entry)
   "Open attachment ENTRY."
   (let* ((path (expand-file-name (zotero-browser-find-attachment)))
-         (contenttype (zotero-lib-plist-get* entry :object :data :contentType))
-         (key (zotero-lib-plist-get* entry :object :data :key))
-         (filename (zotero-lib-plist-get* entry :object :data :filename))
-         (dir (concat temporary-file-directory key)))
+         (contenttype (zotero-lib-plist-get* entry :object :data :contentType)))
     (if (equal contenttype "text/html")
         (browse-url-of-file path)
       (zotero-browser--open-file path))))
@@ -899,30 +896,30 @@ The format can be changed by customizing
                                             (names (when (seq-some (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators)
                                                      (seq-map (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators))))
                                    (pcase (length names)
-                                     (1 (setq string (seq-elt names 0)))
-                                     (2 (setq string (concat (seq-elt names 0)
-                                                             " and "
-                                                             (seq-elt names 1))))
+                                     (1 (seq-elt names 0))
+                                     (2 (concat (seq-elt names 0)
+                                                " and "
+                                                (seq-elt names 1)))
                                      ((pred (< 2))
                                       (let* ((selection (seq-take names 1)))
-                                        (setq string (concat (string-join selection ", ") " et al.")))))))
+                                        (concat (string-join selection ", ") " et al."))))))
                                 (:version
                                  (when-let ((value (zotero-lib-plist-get* entry :object :data :version)))
-                                   (setq string (number-to-string value))))
+                                   (number-to-string value)))
                                 (:year
                                  (when-let ((date (zotero-lib-plist-get* entry :object :data :date))
                                             (match (string-match "[[:digit:]]\\{4\\}" date))
                                             (year (match-string 0 date)))
-                                   (setq string year)))
+                                   year))
                                 (:note
                                  (when-let ((note (zotero-lib-plist-get* entry :object :data :note))
                                             (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
                                             (match (string-match "^.+$" text)) ; Match first non-empty line
                                             (first-line (match-string-no-properties 0 text)))
-                                   (setq string first-line)))
+                                   first-line))
                                 ((pred keywordp)
                                  (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
-                                   (setq string value))))))
+                                   value)))))
              (insert string)
              ;; Don't put a separator after the last key
              (when keys

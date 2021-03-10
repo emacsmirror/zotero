@@ -24,6 +24,7 @@
 
 ;;;; Requirements
 
+(require 'cl-lib)
 (require 's)
 (require 'seq)
 (require 'xml)
@@ -49,9 +50,9 @@
                                       (repeat 7 digit) ; two-digit year and month number, and three-digit sequence number
                                       (zero-or-one (and ?v (one-or-more digit)))))) ; a literal v followed by a version number of 1 or more digits
                                    string-end)
-  "A regular expression probably matching the arXiv identifier
-  format. A leading \"arXiv\" identifier is allowed. See URL
-  `https://arxiv.org/help/arxiv_identifier'")
+  "A regular expression matching the arXiv identifier format.
+A leading \"arXiv\" identifier is allowed. See URL
+`https://arxiv.org/help/arxiv_identifier'")
 
 (defconst zotero-lib-doi-regexp
   (rx string-start
@@ -71,8 +72,9 @@
          "10.002/"
          (one-or-more (not space)))))
       string-end)
-  "A regular expression probably matching a modern Crossref DOI.
-See URL `https://www.doi.org/doi_handbook/2_Numbering.html' and URL
+  "A regular expression matching the modern Crossref DOI format.
+See URL `https://www.doi.org/doi_handbook/2_Numbering.html' and
+URL
 `https://www.crossref.org/blog/dois-and-matching-regular-expressions/'.")
 
 (defconst zotero-lib-isbn10-regexp (rx
@@ -91,9 +93,9 @@ See URL `https://www.doi.org/doi_handbook/2_Numbering.html' and URL
                                       (zero-or-one (any space ?-))
                                       (or digit ?X))) ; Check digit
                                     string-end)
-  "A regular expression probably matching the ISBN-10 format. A leading
-  \"ISBN\" identifier is allowed, and ISBN parts can optionally
-  be separated by hyphens or spaces.")
+  "A regular expression matching the ISBN-10 format.
+A leading \"ISBN\" identifier is allowed, and ISBN parts can
+optionally be separated by hyphens or spaces.")
 
 (defconst zotero-lib-isbn13-regexp (rx
                                     string-start
@@ -113,10 +115,10 @@ See URL `https://www.doi.org/doi_handbook/2_Numbering.html' and URL
                                       (zero-or-one (any space ?-))
                                       digit))  ; Check digit
                                     string-end)
-  "A regular expression probably matching the ISBN-13 format. The
-  ISBN can be in either the older ISBN-10 or the current ISBN-13
-  format. A leading \"ISBN\" identifier is allowed, and ISBN
-  parts can optionally be separated by hyphens or spaces.")
+  "A regular expression matching the ISBN-13 format.
+The ISBN can be in either the older ISBN-10 or the current
+ISBN-13 format. A leading \"ISBN\" identifier is allowed, and
+ISBN parts can optionally be separated by hyphens or spaces.")
 
 (defconst zotero-lib-pmid-regexp
   (rx string-start
