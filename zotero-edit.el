@@ -461,88 +461,88 @@ ID."
     (with-current-buffer buffer
       (zotero-edit-mode)
       (let ((inhibit-read-only t))
-      (let ((template (zotero-collection-template)))
-        (setq zotero-edit-resource "collections"
-              zotero-edit-type type
-              zotero-edit-id id
-              zotero-edit-data data
-              zotero-edit-data-copy (copy-tree data))
-        ;; Key
-        (when-let ((value (plist-get data :key))
-                   (fieldname "Key"))
-          (widget-insert (concat fieldname ": "))
-          (widget-insert (concat value "\n")))
-        ;; Version
-        (when-let ((value (plist-get data :version))
-                   (fieldname "Version"))
-          (widget-insert (concat fieldname ": "))
-          (widget-insert (format "%d\n" value)))
-        (cl-loop for key in template by #'cddr do
-                 (pcase key
-                   ;; Name
-                   ((and :name field)
-                    (let ((fieldname "Name")
-                          (value (or (plist-get data key) "")))
-                      (widget-insert (concat fieldname ":"))
-                      (widget-create 'editable-field
-                                     :size 10
-                                     :format " %v "
-                                     :notify (lambda (widget &rest _ignore)
-			                       (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
-                                     :value value)
-                      (widget-insert "\n")))
-                   ;; Parent Collection
-                   ((and :parentCollection field)
-                    (let* ((fieldname "Parent Collection" )
-                           (value (plist-get data key))
-                           (table (zotero-cache-synccache "collections" nil type id))
-                           (collections (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table))
-                           (choices (cons `(item :format "%t" :value :json-false :tag "None") collections)))
-                      (widget-create 'menu-choice
-                                     :format (concat fieldname ": %[%v%]\n")
-                                     :notify (lambda (widget &rest _ignore)
-                                               (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
-                                     :button-prefix "▾"
-                                     :value value
-                                     :args choices)))
-                   ;; Relations
-                   ((and :relations field)
-                    (let* ((fieldname "Related")
-                           (value (plist-get data key))
-                           (values (unless value :json-empty (seq-map (lambda (elt) elt) value))))
-                      (widget-insert (format "%d %s:\n" (length values) fieldname))
-                      (widget-create 'editable-list
-                                     :entry-format "%d %v"
-                                     :notify (lambda (widget &rest _ignore)
-                                               (let* ((value (if-let ((values (widget-value widget)))
-                                                                 (seq-into values'vector)
-                                                               :json-empty)))
-                                                 (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field value))))
-                                     :value values
-                                     '(editable-field ""))))))
-        ;; Save button
-        (widget-insert "\n")
-        (widget-create 'push-button
-		       :notify (lambda (&rest _ignore)
-	                         (message "Saving...")
-                                 (if-let ((object (zotero-cache-save zotero-edit-data-copy "collections" type id)))
-                                     (progn
-                                       (message "Saving...done.")
-                                       (with-current-buffer zotero-browser-collections-buffer-name
-                                         (zotero-browser-revert))
-                                       (zotero-edit-collection (plist-get object :data) type id))
-                                   (message "Saving...failed.")))
-                       "Save")
-        (widget-insert " ")
-        ;; Reset button
-        (widget-create 'push-button
-		       :notify (lambda (&rest _ignore)
-                                 (zotero-edit-collection data type id))
-		       "Reset")
-        (use-local-map widget-keymap)
-        (widget-setup)))
         (erase-buffer)
         (remove-overlays))
+      (save-excursion
+        (let ((template (zotero-collection-template)))
+          (setq zotero-edit-resource "collections"
+                zotero-edit-type type
+                zotero-edit-id id
+                zotero-edit-data data
+                zotero-edit-data-copy (copy-tree data))
+          ;; Key
+          (when-let ((value (plist-get data :key))
+                     (fieldname "Key"))
+            (widget-insert (concat fieldname ": "))
+            (widget-insert (concat value "\n")))
+          ;; Version
+          (when-let ((value (plist-get data :version))
+                     (fieldname "Version"))
+            (widget-insert (concat fieldname ": "))
+            (widget-insert (format "%d\n" value)))
+          (cl-loop for key in template by #'cddr do
+                   (pcase key
+                     ;; Name
+                     ((and :name field)
+                      (let ((fieldname "Name")
+                            (value (or (plist-get data key) "")))
+                        (widget-insert (concat fieldname ":"))
+                        (widget-create 'editable-field
+                                       :size 10
+                                       :format " %v "
+                                       :notify (lambda (widget &rest _ignore)
+			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
+                                       :value value)
+                        (widget-insert "\n")))
+                     ;; Parent Collection
+                     ((and :parentCollection field)
+                      (let* ((fieldname "Parent Collection" )
+                             (value (plist-get data key))
+                             (table (zotero-cache-synccache "collections" nil type id))
+                             (collections (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table))
+                             (choices (cons `(item :format "%t" :value :json-false :tag "None") collections)))
+                        (widget-create 'menu-choice
+                                       :format (concat fieldname ": %[%v%]\n")
+                                       :notify (lambda (widget &rest _ignore)
+                                                 (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
+                                       :button-prefix "▾"
+                                       :value value
+                                       :args choices)))
+                     ;; Relations
+                     ((and :relations field)
+                      (let* ((fieldname "Related")
+                             (value (plist-get data key))
+                             (values (unless value :json-empty (seq-map (lambda (elt) elt) value))))
+                        (widget-insert (format "%d %s:\n" (length values) fieldname))
+                        (widget-create 'editable-list
+                                       :entry-format "%d %v"
+                                       :notify (lambda (widget &rest _ignore)
+                                                 (let* ((value (if-let ((values (widget-value widget)))
+                                                                   (seq-into values'vector)
+                                                                 :json-empty)))
+                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field value))))
+                                       :value values
+                                       '(editable-field ""))))))
+          ;; Save button
+          (widget-insert "\n")
+          (widget-create 'push-button
+		         :notify (lambda (&rest _ignore)
+	                           (message "Saving...")
+                                   (if-let ((object (zotero-cache-save zotero-edit-data-copy "collections" type id)))
+                                       (progn
+                                         (message "Saving...done.")
+                                         (with-current-buffer zotero-browser-collections-buffer-name
+                                           (zotero-browser-revert))
+                                         (zotero-edit-collection (plist-get object :data) type id))
+                                     (message "Saving...failed.")))
+                         "Save")
+          (widget-insert " ")
+          ;; Reset button
+          (widget-create 'push-button
+		         :notify (lambda (&rest _ignore)
+                                   (zotero-edit-collection data type id))
+		         "Reset")
+          (widget-setup))))
     buffer))
 
 (defun zotero-edit-create-item (itemtype type id collection)
