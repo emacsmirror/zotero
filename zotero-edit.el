@@ -676,17 +676,12 @@ name of the sub-editing buffer."
   "Save source buffer with current state sub-editing buffer."
   (interactive)
   (zotero-edit-ensure-edit-buffer)
-  (let* ((edit-buffer (current-buffer))
-         (edit-window (get-buffer-window edit-buffer))
-         (widget zotero-edit-widget)
+  (let* ((widget zotero-edit-widget)
          (src-buffer (widget-field-buffer widget))
          (contents (save-excursion (widen) (buffer-string))))
     (set-buffer-modified-p nil)
     (if (buffer-live-p src-buffer)
-        (progn
-          (delete-window edit-window)
-          (kill-buffer edit-buffer)
-          (pop-to-buffer src-buffer)
+        (with-current-buffer src-buffer
           (widget-value-set widget contents)
           (widget-setup))
       (error "Source buffer disappeared. Aborting"))))
@@ -702,9 +697,9 @@ name of the sub-editing buffer."
     (set-buffer-modified-p nil)
     (if (buffer-live-p src-buffer)
         (progn
+          (switch-to-buffer src-buffer)
           (delete-window edit-window)
-          (kill-buffer edit-buffer)
-          (pop-to-buffer src-buffer))
+          (kill-buffer edit-buffer))
       (error "Source buffer disappeared. Aborting"))))
 
 (defun zotero-edit-text-exit ()
