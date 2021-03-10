@@ -644,7 +644,6 @@ Optional argument PARENT is the key of the parent item."
 
 (defun zotero-edit-text ()
   "Edit the text at point.
-\\<zotero-edit-text-mode-map>
 
 The text is copied to a separate buffer. When done, exit with
 `\\[zotero-edit-text-exit]'. This will remove the original text
