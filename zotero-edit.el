@@ -64,6 +64,7 @@ enter value; \\[zotero-edit-text]: edit in buffer")
     (set-keymap-parent map widget-keymap)
     (define-key map (kbd "C-x C-s") #'zotero-edit-save)
     (define-key map (kbd "C-c C-k") #'zotero-edit-reset)
+    (define-key map (kbd "q") #'quit-window)
     map)
   "Local keymap for `zotero-edit-mode'.")
 
