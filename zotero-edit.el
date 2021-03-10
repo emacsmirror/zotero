@@ -272,7 +272,7 @@ ID."
                              (choices (seq-map (lambda (elt)
                                                  `(item :format "%t" :value ,elt :tag ,(zotero-cache-creatortype-locale elt)))
                                                creatortypes)))
-                        (widget-insert (concat fieldname "\n"))
+                        (widget-insert (concat fieldname ":\n"))
                         (setq zotero-edit-creators-widget
                               (widget-create 'editable-list
                                              :entry-format "%i %d %v\n"
