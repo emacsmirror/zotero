@@ -55,21 +55,6 @@
 
 ;;;; Keymap
 
-;;;; Menu
-
-;;;; Customization
-
-(defgroup zotero-edit nil
-  "Interface to Zotero-Edit."
-  :group 'zotero)
-
-(defcustom zotero-edit-buffer-name "*Zotero Edit*"
-  "The default buffer name."
-  :group 'zotero-edit
-  :type 'string)
-
-;;;; Mode
-
 (defvar zotero-edit-keymap
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map widget-global-map)
@@ -97,6 +82,42 @@
     (define-key map (kbd "C-c C-s") #'zotero-edit-save)
     map)
   "Local keymap for `zotero-edit-mode'.")
+
+;;;; Menu
+
+(easy-menu-define zotero-edit-mode-menu zotero-edit-mode-map
+  "Menu for `zotero-edit-mode'."
+  `("Zotero-Edit"
+    "--"
+    ["Save" zotero-edit-save]
+    ["Reset" zotero-edit-reset]
+    "--"
+    ["Quit" quit-window]
+    ["Customize" (customize-group 'zotero-browser)]))
+
+(easy-menu-define zotero-edit-text-mode-menu zotero-edit-text-mode-map
+  "Menu for `zotero-edit-text-mode'."
+  `("Zotero-Edit"
+    "--"
+    ["Abort" zotero-edit-text-abort] :help "Discard current text and exit"
+    ["Save" zotero-edit-text-save :help "Save current text"]
+    ["Exit" zotero-edit-text-exit :help "Save current text and exit"]
+    "--"
+    ["Quit" quit-window]
+    ["Customize" (customize-group 'zotero-browser)]))
+
+;;;; Customization
+
+(defgroup zotero-edit nil
+  "Interface to Zotero-Edit."
+  :group 'zotero)
+
+(defcustom zotero-edit-buffer-name "*Zotero Edit*"
+  "The default buffer name."
+  :group 'zotero-edit
+  :type 'string)
+
+;;;; Mode
 
 ;;;###autoload
 (define-derived-mode zotero-edit-mode text-mode "Zotero edit"
