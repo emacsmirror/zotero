@@ -144,9 +144,6 @@ All currently available key bindings:
 
 ;;;; Commands
 
-(eval-when-compile
-  (require 'wid-edit))
-
 (defun zotero-edit--toggle-notify (widget &rest _ignore)
   (let* ((parent (widget-get widget :parent))
          (siblings (widget-get parent :children))
