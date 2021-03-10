@@ -48,6 +48,10 @@
 (defvar-local zotero-edit-widget nil)
 (defvar-local zotero-edit-creators-widget nil)
 
+(defconst zotero-edit-help-echo
+  "\\[widget-complete]: complete field; \\[widget-button-press]: \
+enter value; \\[zotero-edit-text]: edit in buffer")
+
 (defconst zotero-edit-usage-message
   "Type \\[zotero-edit-text-exit] to finish, \
 \\[zotero-edit-text-save] to save, or \
