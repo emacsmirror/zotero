@@ -142,7 +142,7 @@ All currently available key bindings:
 \\{zotero-edit-text-mode-map}"
   nil "ZotEdit" nil)
 
-;;;; Commands
+;;;; Functions
 
 (defun zotero-edit--toggle-notify (widget &rest _ignore)
   (let* ((parent (widget-get widget :parent))
@@ -616,6 +616,8 @@ Optional argument PARENT is the key of the parent item."
          (new-template (copy-tree template)))
     (when parent (plist-put new-template :parentItem parent))
     (zotero-edit-item new-template type id)))
+
+;;;; Commands
 
 (defun zotero-edit-reset ()
   "Reset current item."
