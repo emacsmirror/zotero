@@ -158,7 +158,7 @@
 ;;;; Menu
 
 (easy-menu-define zotero-browser-libraries-mode-menu zotero-browser-libraries-mode-map
-  "Menu for `zotero-browser-libraries-mod'."
+  "Menu for `zotero-browser-libraries-mode'."
   `("Zotero-Browser"
     ["Edit" zotero-browser-edit :help "Change the group settings"]
     ["Create" zotero-create-group :help "Create a new group"]
