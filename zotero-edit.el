@@ -115,7 +115,7 @@
 ;;;; Mode
 
 ;;;###autoload
-(define-derived-mode zotero-edit-mode text-mode "Zotero edit"
+(define-derived-mode zotero-edit-mode fundamental-mode "Zotero edit"
   "Major mode for Zotero Edit buffers.
 
 All currently available key bindings:
