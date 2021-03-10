@@ -140,6 +140,8 @@ All currently available key bindings:
 ;;;; Functions
 
 (defun zotero-edit--toggle-notify (widget &rest _ignore)
+  "Toggle textfields between single-field mode and dual-field
+mode."
   (let* ((parent (widget-get widget :parent))
          (siblings (widget-get parent :children))
          (single-field-p (widget-value widget))
