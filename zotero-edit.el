@@ -446,7 +446,6 @@ ID."
                                    (message "Item reset.")
                                    (zotero-edit-item data type id))
 		         "Reset")
-          (use-local-map widget-keymap)
           (widget-setup))))
     buffer))
 
