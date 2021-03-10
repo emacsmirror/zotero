@@ -475,14 +475,15 @@
     | =g=       | Reload the current buffer                           |
 
 *** Zotero edit mode
-    | key            | binding                                                   |
-    | TAB            | Forward                                                   |
-    | S-TAB          | Backward                                                  |
-    | RET            | Invoke button                                             |
-    | C-x C-s        | Save item                                                 |
-    | C-c C-k        | Reset item                                                |
-    | C-c C-c        | Edit text for the current text field in a separate buffer |
-    | M-TAB or C-M-i | Complete field                                            |
+    | Key            | Binding                                                   |
+    |----------------+-----------------------------------------------------------|
+    | =TAB=            | Forward                                                   |
+    | =S-TAB=          | Backward                                                  |
+    | =RET=            | Invoke button                                             |
+    | =C-x C-s=        | Save item                                                 |
+    | =C-c C-k=        | Reset item                                                |
+    | =C-c C-c=        | Edit text for the current text field in a separate buffer |
+    | =M-TAB= or =C-M-i= | Complete field                                            |
     | =q=              | Quit current window                                       |
 
 *** Cache
