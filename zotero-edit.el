@@ -28,10 +28,7 @@
 (require 'zotero-sync)
 (require 's)
 (require 'seq)
-(require 'widget)
-
-(eval-when-compile
-  (require 'wid-edit))
+(require 'wid-edit)
 
 ;;;; Variables
 
