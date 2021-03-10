@@ -400,11 +400,8 @@
 
 ** The Browser
    Zotero provides a user interface to the Zotero library with =zotero-browser=.
-   The browser allows you to interact with the cache.
-
-   [[file:screenshot.png]]
-
-   You can add the browser to your setup by loading it with:
+   The browser allows you to interact with the cache. You can add the browser to
+   your setup by loading it with:
 
    #+BEGIN_SRC emacs-lisp
    (require 'zotero-browser)
@@ -412,6 +409,12 @@
 
    To use the browser, you should do =M-x zotero-browser-sync= to synchronize the
    cache with the Zotero server.
+
+   The default layout is shown in the screenshot below. It can be changed by
+   using window parameters as explained in the Elisp reference manual accessible
+   from [[info:elisp#Frame Layouts with Side Windows][Emacs]] or [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Frame-Layouts-with-Side-Windows.html#Frame-Layouts-with-Side-Windows][online]].
+
+   [[file:screenshot.png]]
 
    The browser is interactive an has its own keybindings.
 
@@ -466,7 +469,17 @@
     | =C=       | Copy item to a collection                           |
     | =M=       | Move item to a parent item                          |
     | =g=       | Reload the current buffer                           |
-    | =q=       | Quit current window                                 |
+
+*** Zotero edit mode
+    | key            | binding                                                   |
+    | TAB            | Forward                                                   |
+    | S-TAB          | Backward                                                  |
+    | RET            | Invoke button                                             |
+    | C-x C-s        | Save item                                                 |
+    | C-c C-k        | Reset item                                                |
+    | C-c C-c        | Edit text for the current text field in a separate buffer |
+    | M-TAB or C-M-i | Complete field                                            |
+    | =q=              | Quit current window                                       |
 
 *** Cache
 
