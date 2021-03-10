@@ -86,8 +86,8 @@ enter value; \\[zotero-edit-text]: edit in buffer")
   "Menu for `zotero-edit-mode'."
   `("Zotero-Edit"
     "--"
-    ["Save" zotero-edit-save]
-    ["Reset" zotero-edit-reset]
+    ["Save" zotero-edit-save :help "Save item"]
+    ["Reset" zotero-edit-reset :help "Reset item"]
     "--"
     ["Quit" quit-window]
     ["Customize" (customize-group 'zotero-browser)]))
