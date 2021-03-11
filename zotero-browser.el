@@ -1380,7 +1380,7 @@ If region is active, delete entries in active region instead."
       ('zotero-browser-libraries-mode
        (user-error "Creating new groups or libraries is not supported"))
       ('zotero-browser-collections-mode
-       (display-buffer (zotero-edit-create-collection type id) zotero-browser-edit-buffer-action))
+       (pop-to-buffer (zotero-edit-create-collection type id) zotero-browser-edit-buffer-action))
       ('zotero-browser-items-mode
        (let ((itemtype (completing-read "Select an item type: " (zotero-cache-itemtypes) nil t nil nil zotero-browser-default-itemtypes )))
          (cl-pushnew itemtype zotero-browser-default-itemtypes :test #'equal)
