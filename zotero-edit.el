@@ -547,17 +547,6 @@ ID."
           (widget-setup))))
     buffer))
 
-(defun zotero-edit-create-item (itemtype type id collection)
-  "Create an empty item edit buffer of ITEMTYPE.
-
-Argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, that is the user ID or group
-ID. COLLECTION is the collection key."
-  (let* ((template (zotero-cache-item-template itemtype))
-         (data (if collection (plist-put template :collections (vector collection)) template)))
-    (zotero-edit-item data type id)))
-
 (defun zotero-edit-create-note (type id &optional parent)
   "Create an empty note edit buffer.
 
