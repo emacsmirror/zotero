@@ -547,20 +547,6 @@ ID."
           (widget-setup))))
     buffer))
 
-(defun zotero-edit-create-note (type id &optional parent)
-  "Create an empty note edit buffer.
-
-Argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, that is the user ID or group
-ID.
-
-Optional argument PARENT is the key of the parent item."
-  (let* ((template (zotero-cache-item-template "note"))
-         (new-template (copy-tree template)))
-    (when parent (plist-put new-template :parentItem parent))
-    (zotero-edit-item new-template type id)))
-
 ;;;; Commands
 
 (defun zotero-edit-reset ()
