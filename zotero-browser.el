@@ -105,7 +105,7 @@
     (define-key map (kbd "p") #'zotero-browser-prev)
     (define-key map (kbd "C-c C-n") #'zotero-browser-next-collection)
     (define-key map (kbd "C-c C-p") #'zotero-browser-prev-collection)
-    (define-key map (kbd "+") #'zotero-create-group)
+    (define-key map (kbd "+") #'zotero-browser-create)
     (define-key map (kbd "e") #'zotero-browser-edit)
     (define-key map (kbd "q") #'quit-window)
     map)
@@ -1378,7 +1378,7 @@ If region is active, delete entries in active region instead."
          (id zotero-browser-id))
     (pcase major-mode
       ('zotero-browser-libraries-mode
-       (user-error "Creating new groups or libraries is not supported"))
+       (zotero-create-group))
       ('zotero-browser-collections-mode
        (let ((template (copy-tree (zotero-collection-template))))
          (pop-to-buffer (zotero-edit-collection template type id) zotero-browser-edit-buffer-action)))
