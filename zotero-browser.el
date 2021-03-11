@@ -1398,6 +1398,7 @@ With a `C-u' prefix, create a new top level note."
   (zotero-browser-ensure-write-access)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
+         (collection zotero-browser-collection)
          (ewoc zotero-browser-ewoc)
          (node (ewoc-locate ewoc))
          ;; Top-level notes can be created by excluding the parentItem property
@@ -1405,8 +1406,11 @@ With a `C-u' prefix, create a new top level note."
          (parent (cond
                   ((equal arg '(4)) nil)
                   ((null node) nil)
-                  (t (ewoc-data node)))))
-    (pop-to-buffer (zotero-edit-create-note type id parent) zotero-browser-edit-buffer-action)))
+                  (t (ewoc-data node))))
+         (data (zotero-cache-item-template "note"))
+         (data (if parent (plist-put data :parentItem parent) data))
+         (data (if collection (plist-put data :collections (vector collection)) data)))
+    (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)))
 
 (defun zotero-browser-create-attachment (&optional arg)
   "Create a new attachment with the current entry as parent.
