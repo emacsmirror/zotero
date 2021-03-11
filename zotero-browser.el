@@ -1386,7 +1386,7 @@ If region is active, delete entries in active region instead."
        (let* ((itemtype (completing-read "Select an item type: " (zotero-cache-itemtypes) nil t nil nil zotero-browser-default-itemtypes ))
               (template (copy-tree (zotero-cache-item-template itemtype)))
               (collection zotero-browser-collection)
-              (data (if collection (plist-put template :collections (vector collection)) template)))
+              (data (if (stringp collection) (plist-put template :collections (vector collection)) template)))
          (cl-pushnew itemtype zotero-browser-default-itemtypes :test #'equal)
          (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))))
 
@@ -1631,7 +1631,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
                        (plist-member metadata :language))
               (setq result (plist-put result :language (plist-get metadata :language))))
 	    ;; Put the parent item in the same collections as the attachment
-            (when collection
+            (when (stringp collection)
               (setq result (plist-put result :collections (vector collection))))
             ;; Save the parent item
             (when-let ((object (zotero-cache-save result "items" type id))
