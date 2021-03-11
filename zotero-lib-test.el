@@ -1,3 +1,22 @@
+(require 'zotero-lib)
+
+(ert-deftest zotero-lib-mergable-plist-p ()
+  (should (zotero-lib-mergable-plist-p '(:a 1 :b 2) '(:c 3)))
+  (should (zotero-lib-mergable-plist-p '(:a 1 :b 2) '(:a 1 :c 3)))
+  (should (zotero-lib-mergable-plist-p '(:a :json-false :c 3) '(:a 1 :b 2)))
+  (should (zotero-lib-mergable-plist-p '(:a :json-empty :c 3) '(:a 1 :b 2)))
+  (should (zotero-lib-mergable-plist-p '(:a 1 :b 2) '(:a :json-false :c 3)))
+  (should (zotero-lib-mergable-plist-p '(:a 1 :b 2) '(:a :json-empty :c 3)))
+  (should (not (zotero-lib-mergable-plist-p '(:a 1 :b 2) '(:a 2 :c 3)))))
+
+(ert-deftest zotero-lib-merge-plist ()
+  (should (equal (zotero-lib-merge-plist '(:a 1 :b 2) '(:c 3)) '(:a 1 :b 2 :c 3)))
+  (should (equal (zotero-lib-merge-plist '(:a 1 :b 2) '(:a 1 :c 3)) '(:a 1 :b 2 :c 3)))
+  (should (equal (zotero-lib-merge-plist '(:a :json-false :b 2) '(:a 1 :c 3)) '(:a 1 :b 2 :c 3)))
+  (should (equal (zotero-lib-merge-plist '(:a :json-empty :b 2) '(:a 1 :c 3)) '(:a 1 :b 2 :c 3)))
+  (should (equal (zotero-lib-merge-plist '(:a 1 :b 2) '(:a :json-false :c 3)) '(:a 1 :b 2 :c 3)))
+  (should (equal (zotero-lib-merge-plist '(:a 1 :b 2) '(:a :json-empty :c 3)) '(:a 1 :b 2 :c 3))))
+
 (ert-deftest zotero-lib-validate-isbn ()
   (should (zotero-lib-validate-isbn "ISBN 978-0-596-52068-7"))
   (should (zotero-lib-validate-isbn "ISBN-13: 978-0-596-52068-7"))

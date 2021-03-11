@@ -28,7 +28,8 @@
 (require 'seq)
 (require 'iso8601)
 (require 'zotero)
-(require 'zotero-cache)
+
+(declare-function zotero-cache-item-template "zotero-cache")
 
 ;;;; Variables
 (defconst zotero-arxiv-url "http://export.arxiv.org/api/query")

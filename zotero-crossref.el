@@ -27,7 +27,8 @@
 (require 's)
 (require 'seq)
 (require 'zotero)
-(require 'zotero-cache)
+
+(declare-function zotero-cache-item-template "zotero-cache")
 
 ;;;; Variables
 (defconst zotero-crossref-url "https://api.crossref.org/works/")

@@ -1,3 +1,5 @@
+(require 'zotero-json)
+
 (ert-deftest zotero-json-read ()
   "Tests JSON reading."
   (should (equal (zotero-json-read "{\"key\":\"value\"}") '(:key "value")))
@@ -12,7 +14,7 @@
                  '(:key "value")))
   (should (equal (zotero-json-read (lambda () "{\"key\":\"value\"}")) '(:key "value"))))
 
-(ert-deftest zotero-json-encode-object ()
+(ert-deftest zotero-json-encode-to-array ()
   "Tests JSON encoding."
   (should (equal (zotero-json-encode-to-array '(:key :value)) "[{\"key\":\"value\"}]"))
   (should (equal (zotero-json-encode-to-array '(:key nil)) "[{\"key\":null}]"))

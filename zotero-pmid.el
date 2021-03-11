@@ -27,9 +27,11 @@
 (require 's)
 (require 'seq)
 (require 'zotero)
-(require 'zotero-cache)
+
+(declare-function zotero-cache-item-template "zotero-cache")
 
 ;;;; Variables
+
 (defconst zotero-pmid-url "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi")
 
 (defun zotero-pmid--parse-creators (authors)

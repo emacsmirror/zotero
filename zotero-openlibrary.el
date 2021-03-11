@@ -27,9 +27,11 @@
 (require 's)
 (require 'seq)
 (require 'zotero)
-(require 'zotero-cache)
+
+(declare-function zotero-cache-item-template "zotero-cache")
 
 ;;;; Variables
+
 (defconst zotero-openlibrary-url "https://openlibrary.org/api/books")
 
 (defun zotero-openlibrary--parse-creators (authors)

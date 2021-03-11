@@ -23,21 +23,22 @@
 
 ;;;; Requirements
 
-(require 'zotero-arxiv)
-(require 'zotero-cache)
-(require 'zotero-crossref)
-(require 'zotero-edit)
-(require 'zotero-fulltext)
-(require 'zotero-lib)
-(require 'zotero-openlibrary)
-(require 'zotero-pmid)
-(require 'zotero-recognize)
 (require 'cl-lib)
 (require 'ewoc)
 (require 'ht)
 (require 'mailcap)
 (require 'seq)
 (require 'subr-x)
+(require 'zotero-lib)
+(require 'zotero-cache)
+(require 'zotero-sync)
+(require 'zotero-edit)
+(require 'zotero-fulltext)
+(require 'zotero-recognize)
+(require 'zotero-arxiv)
+(require 'zotero-crossref)
+(require 'zotero-openlibrary)
+(require 'zotero-pmid)
 
 ;;;; Variables
 

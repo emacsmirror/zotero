@@ -23,12 +23,16 @@
 
 ;;;; Requirements
 
-(require 'zotero-lib)
-(require 'zotero-cache)
-(require 'zotero-sync)
+(require 'ht)
+(require 'iso8601)
 (require 's)
 (require 'seq)
 (require 'wid-edit)
+(require 'zotero)
+(require 'zotero-cache)
+(require 'zotero-lib)
+
+(declare-function zotero-browser-revert "zotero-browser")
 
 ;;;; Variables
 
@@ -437,8 +441,6 @@ ID."
                                    (if-let ((object (zotero-cache-save zotero-edit-data-copy "items" type id)))
                                        (progn
                                          (message "Saving...done.")
-                                         (with-current-buffer zotero-browser-items-buffer-name
-                                           (zotero-browser-revert))
                                          (zotero-edit-item (plist-get object :data) type id))
                                      (message "Saving...failed.")))
                          "Save")
@@ -533,8 +535,6 @@ ID."
                                    (if-let ((object (zotero-cache-save zotero-edit-data-copy "collections" type id)))
                                        (progn
                                          (message "Saving...done.")
-                                         (with-current-buffer zotero-browser-collections-buffer-name
-                                           (zotero-browser-revert))
                                          (zotero-edit-collection (plist-get object :data) type id))
                                      (message "Saving...failed.")))
                          "Save")

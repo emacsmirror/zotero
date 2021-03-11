@@ -33,6 +33,10 @@
 (require 'widget)
 (require 'zotero-lib)
 
+(declare-function zotero-cache-item-template "zotero-cache")
+(declare-function zotero-cache-attachment-template "zotero-cache")
+(declare-function zotero-cache-itemfield-locale "zotero-cache")
+
 ;;;; Mode
 
 ;;;###autoload

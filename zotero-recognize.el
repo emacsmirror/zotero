@@ -32,6 +32,8 @@
 (require 'zotero)
 (require 'zotero-json)
 
+(declare-function zotero-cache-item-template "zotero-cache")
+
 ;;;; Variables
 
 (defconst zotero-recognize-base-url "https://recognize.zotero.org")

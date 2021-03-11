@@ -1,20 +1,4 @@
-(ert-deftest zotero-lib-mergable-plist-p ()
-  "Test"
-  (should (zotero-lib-mergable-plist-p '(:a 1 :b 2) '(:c 3)))
-  (should (zotero-lib-mergable-plist-p '(:a 1 :b 2) '(:a 1 :c 3)))
-  (should (zotero-lib-mergable-plist-p '(:a :json-false :c 3) '(:a 1 :b 2)))
-  (should (zotero-lib-mergable-plist-p '(:a :json-empty :c 3) '(:a 1 :b 2)))
-  (should (zotero-lib-mergable-plist-p '(:a 1 :b 2) '(:a :json-false :c 3)))
-  (should (zotero-lib-mergable-plist-p '(:a 1 :b 2) '(:a :json-empty :c 3)))
-  (should (not (zotero-lib-mergable-plist-p '(:a 1 :b 2) '(:a 2 :c 3)))))
-
-(ert-deftest zotero-lib-merge-plist ()
-  (should (equal (zotero-lib-merge-plist '(:a 1 :b 2) '(:c 3)) '(:a 1 :b 2 :c 3)))
-  (should (equal (zotero-lib-merge-plist '(:a 1 :b 2) '(:a 1 :c 3)) '(:a 1 :b 2 :c 3)))
-  (should (equal (zotero-lib-merge-plist '(:a :json-false :b 2) '(:a 1 :c 3)) '(:a 1 :b 2 :c 3)))
-  (should (equal (zotero-lib-merge-plist '(:a :json-empty :b 2) '(:a 1 :c 3)) '(:a 1 :b 2 :c 3)))
-  (should (equal (zotero-lib-merge-plist '(:a 1 :b 2) '(:a :json-false :c 3)) '(:a 1 :b 2 :c 3)))
-  (should (equal (zotero-lib-merge-plist '(:a 1 :b 2) '(:a :json-empty :c 3)) '(:a 1 :b 2 :c 3))))
+(require 'zotero-cache)
 
 (ert-deftest zotero-cache-read-access-p ()
   (should (zotero-cache-read-access-p '(:library t)))
