@@ -558,48 +558,6 @@ ID. COLLECTION is the collection key."
          (data (if collection (plist-put template :collections (vector collection)) template)))
     (zotero-edit-item data type id)))
 
-(defun zotero-edit-create-collection (type id)
-  "Create an empty collection edit buffer.
-
-Argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, that is the user ID or group
-ID."
-  (zotero-edit-collection (zotero-collection-template) type id))
-
-(cl-defun zotero-edit-create-attachment (linkmode type id &optional parent &key content-type charset filename md5 mtime accessdate)
-  "Create an empty attachment edit buffer of LINKMODE.
-
-LINKMODE is one of:
-  - \"imported_file\"
-  - \"imported_url\"
-  - \"linked_file\"
-  - \"linked_url\"
-
-Argument TYPE is \"user\" for your personal library, and
-\"group\" for the group libraries. ID is the ID of the personal
-or group library you want to access, that is the user ID or group
-ID.
-
-Optional argument PARENT is the key of the parent item.
-
-Keyword arguments CONTENT-TYPE, CHARSET FILENAME, FILESIZE, MD5,
-MTIME, and ACCESSDATE are attributes of the file and can be
-obtained by `zotero-file-attributes', except for the charset that
-cannot be determined without external tools."
-  (let* ((template (zotero-cache-attachment-template linkmode))
-         (new-template (copy-tree template)))
-    (when parent (plist-put new-template :parentItem parent))
-    (when content-type (plist-put new-template :contentType content-type))
-    (when charset (plist-put new-template :charset charset))
-    (when filename
-      (plist-put new-template :title filename)
-      (plist-put new-template :filename filename))
-    (when md5 (plist-put new-template :md5 md5))
-    (when mtime (plist-put new-template :mtime mtime))
-    (when accessdate (plist-put new-template :accessDate accessdate))
-    (zotero-edit-item new-template type id)))
-
 (defun zotero-edit-create-note (type id &optional parent)
   "Create an empty note edit buffer.
 
