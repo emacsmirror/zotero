@@ -344,6 +344,25 @@ ID."
                                        :value value
                                        :keymap zotero-edit-text-keymap)
                         (widget-insert "\n")))
+                     (:contentType
+                      (when-let ((fieldname "Content type")
+                                 (value (plist-get data key)))
+                        (unless (eq value :json-false)
+                          (widget-insert (concat fieldname ": "))
+                          (widget-insert (format "%s\n" value)))))
+                     (:charset
+                      (when-let ((fieldname "Charset")
+                                 (value (plist-get data key)))
+                        (unless (eq value :json-false)
+                          (widget-insert (concat fieldname ": "))
+                          (widget-insert (format "%s\n" value)))))
+                     (:filename
+                      (when-let
+                          ((fieldname "Filename")
+                           (value (plist-get data key)))
+                        (unless (eq value :json-false)
+                          (widget-insert (concat fieldname ": "))
+                          (widget-insert (format "%s\n" value)))))
                      (:md5
                       (when-let ((fieldname "MD5")
                                  (value (plist-get data key)))
