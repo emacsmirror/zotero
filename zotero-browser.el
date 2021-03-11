@@ -1760,8 +1760,8 @@ ID."
                  (keys (zotero-cache-sort-by :name 'asc table)))
             (setq zotero-browser-ewoc ewoc
                   zotero-browser-type type
-                  zotero-browser-resource resource
-                  zotero-browser-id id)
+                  zotero-browser-id id
+                  zotero-browser-resource resource)
             (dolist (key keys)
               ;; Create a new node if key is not a child
               (unless (zotero-cache-parentitem key table)
