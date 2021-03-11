@@ -220,7 +220,7 @@ ID."
                      ;; Itemtype
                      ((and :itemType field)
                       (let* ((fieldname "Item Type")
-                             (value (plist-get data key))
+                             (value (plist-get data field))
                              (choices (seq-map (lambda (elt) `(item :value ,elt :tag ,(zotero-cache-itemtype-locale elt))) itemtypes)))
                         (widget-create 'menu-choice
                                        :format (concat fieldname ": %[%v%]")
@@ -249,8 +249,8 @@ ID."
                                        :args choices)))
                      ;; Title
                      ((and :title field)
-                      (let ((fieldname (zotero-cache-itemfield-locale key))
-                            (value (or (plist-get data key) "")))
+                      (let ((fieldname (zotero-cache-itemfield-locale field))
+                            (value (or (plist-get data field) "")))
                         (widget-insert (concat fieldname ":"))
                         (widget-create 'editable-field
                                        :size 10
@@ -262,7 +262,7 @@ ID."
                      ;; Creators
                      ((and :creators field)
                       (let* ((fieldname "Creators")
-                             (value (plist-get data key))
+                             (value (plist-get data field))
                              (values (seq-map (lambda (elt)
                                                 (let ((type (plist-get elt :creatorType))
                                                       (single-field-p (plist-member elt :name)))
@@ -318,8 +318,8 @@ ID."
                                                 :notify zotero-edit--toggle-notify))))))
                      ;; Abstract
                      ((and :abstractNote field)
-                      (let* ((fieldname (zotero-cache-itemfield-locale key))
-                             (value (or (plist-get data key) "")))
+                      (let* ((fieldname (zotero-cache-itemfield-locale field))
+                             (value (or (plist-get data field) "")))
                         (widget-insert (concat fieldname ":\n"))
                         (widget-create 'text
                                        :size 10
@@ -333,7 +333,7 @@ ID."
                      ;; Note
                      ((and :note field)
                       (let* ((fieldname "Note")
-                             (value (or (plist-get data key) "")))
+                             (value (or (plist-get data field) "")))
                         (widget-insert (concat fieldname ":\n"))
                         (widget-create 'text
                                        :size 10
@@ -344,40 +344,40 @@ ID."
                                        :value value
                                        :keymap zotero-edit-text-keymap)
                         (widget-insert "\n")))
-                     (:contentType
+                     ((and :contentType field)
                       (when-let ((fieldname "Content type")
-                                 (value (plist-get data key)))
+                                 (value (plist-get data field)))
                         (unless (eq value :json-false)
                           (widget-insert (concat fieldname ": "))
                           (widget-insert (format "%s\n" value)))))
-                     (:charset
+                     ((and :charset field)
                       (when-let ((fieldname "Charset")
-                                 (value (plist-get data key)))
+                                 (value (plist-get data field)))
                         (unless (eq value :json-false)
                           (widget-insert (concat fieldname ": "))
                           (widget-insert (format "%s\n" value)))))
-                     (:filename
+                     ((and :filename field)
                       (when-let
                           ((fieldname "Filename")
-                           (value (plist-get data key)))
+                           (value (plist-get data field)))
                         (unless (eq value :json-false)
                           (widget-insert (concat fieldname ": "))
                           (widget-insert (format "%s\n" value)))))
-                     (:md5
+                     ((and :md5 field)
                       (when-let ((fieldname "MD5")
-                                 (value (plist-get data key)))
+                                 (value (plist-get data field)))
                         (unless (eq value :json-false)
                           (widget-insert (concat fieldname ": "))
                           (widget-insert (format "%s\n" value)))))
-                     (:mtime
+                     ((and :mtime field)
                       (when-let ((fieldname "Mtime")
-                                 (value (plist-get data key)))
+                                 (value (plist-get data field)))
                         (unless (eq value :json-false)
                           (widget-insert (concat fieldname ": "))
                           (widget-insert (format "%s\n" value)))))
                      ((and :tags field)
                       (let* ((fieldname "Tags")
-                             (value (plist-get data key))
+                             (value (plist-get data field))
                              (values (unless (eq value :json-empty) (seq-map (lambda (elt) elt) value))))
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
@@ -391,9 +391,8 @@ ID."
                                        '(editable-field ""))))
                      ;; Collections
                      ((and :collections field)
-                      (let* ((key :collections)
-                             (fieldname "Collections")
-                             (value (plist-get data key))
+                      (let* ((fieldname "Collections")
+                             (value (plist-get data field))
                              (values (seq-into value 'list))
                              (table (zotero-cache-synccache "collections" nil type id))
                              (choices (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table)))
@@ -414,7 +413,7 @@ ID."
                      ;; Relations
                      ((and :relations field)
                       (let* ((fieldname "Related")
-                             (value (plist-get data key))
+                             (value (plist-get data field))
                              (values (unless value :json-empty (seq-map (lambda (elt) elt) value))))
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
@@ -427,9 +426,9 @@ ID."
                                        :value values
                                        '(editable-field ""))))
                      ;; Rest
-                     ((and _ field)
-                      (let* ((fieldname (or (zotero-cache-itemfield-locale key) (capitalize (zotero-lib-keyword->string key))))
-                             (value (or (plist-get data key) "")))
+                     (field
+                      (let* ((fieldname (or (zotero-cache-itemfield-locale field) (capitalize (zotero-lib-keyword->string field))))
+                             (value (or (plist-get data field) "")))
                         (widget-insert (concat fieldname ":"))
                         (widget-create 'editable-field
                                        :size 10
@@ -508,7 +507,7 @@ ID."
                      ;; Name
                      ((and :name field)
                       (let ((fieldname "Name")
-                            (value (or (plist-get data key) "")))
+                            (value (or (plist-get data field) "")))
                         (widget-insert (concat fieldname ":"))
                         (widget-create 'editable-field
                                        :size 10
@@ -520,7 +519,7 @@ ID."
                      ;; Parent Collection
                      ((and :parentCollection field)
                       (let* ((fieldname "Parent Collection" )
-                             (value (plist-get data key))
+                             (value (plist-get data field))
                              (table (zotero-cache-synccache "collections" nil type id))
                              (collections (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table))
                              (choices (cons `(item :format "%t" :value :json-false :tag "None") collections)))
@@ -534,7 +533,7 @@ ID."
                      ;; Relations
                      ((and :relations field)
                       (let* ((fieldname "Related")
-                             (value (plist-get data key))
+                             (value (plist-get data field))
                              (values (unless value :json-empty (seq-map (lambda (elt) elt) value))))
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
