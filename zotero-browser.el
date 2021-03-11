@@ -1407,10 +1407,11 @@ With a `C-u' prefix, create a new top level note."
                   ((equal arg '(4)) nil)
                   ((null node) nil)
                   (t (ewoc-data node))))
-         (data (zotero-cache-item-template "note"))
-         (data (if parent (plist-put data :parentItem parent) data))
-         (data (if collection (plist-put data :collections (vector collection)) data)))
          (template (copy-tree (zotero-cache-item-template "note")))
+         (data (cond
+                (parent (plist-put template :parentItem parent))
+                ((stringp collection) (plist-put template :collections (vector collection)))
+                (t template))))
     (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)))
 
 (defun zotero-browser-create-attachment (&optional arg)
@@ -1459,8 +1460,10 @@ client."
                       ;; along with the corresponding file.
                       (plist-put :md5 nil)
                       (plist-put :mtime nil)))
-              (data (if parent (plist-put data :parentItem parent) data))
-              (data (if collection (plist-put data :collections (vector collection)) data)))
+              (data (cond
+                     (parent (plist-put data :parentItem parent))
+                     ((stringp collection) (plist-put data :collections (vector collection)))
+                     (t data))))
          (when-let ((object (zotero-cache-save data "items" type id))
                     (key (plist-get object :key)))
            (if parent
@@ -1488,8 +1491,10 @@ client."
                       (plist-put :contentType content-type)
                       ;; (plist-put :charset charset) ; charset cannot be determined without external tools
                       (plist-put :path file)))
-              (data (if parent (plist-put data :parentItem parent) data))
-              (data (if collection (plist-put data :collections (vector collection)) data)))
+              (data (cond
+                     (parent (plist-put data :parentItem parent))
+                     ((stringp collection) (plist-put data :collections (vector collection)))
+                     (t data))))
          (when-let ((object (zotero-cache-save data "items" type id))
                     (key (plist-get object :key)))
            (if parent
@@ -1501,8 +1506,10 @@ client."
       ("linked_url"
        (if parent
            (let* ((template (copy-tree (zotero-cache-attachment-template "linked_url")))
-                  (data (if parent (plist-put data :parentItem template) template))
-                  (data (if collection (plist-put data :collections (vector collection)) data)))
+                  (data (cond
+                         (parent (plist-put template :parentItem parent))
+                         ((stringp collection) (plist-put template :collections (vector collection)))
+                         (t template))))
              (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))
          (user-error "Links to URLs are not allowed as top-level items"))))))
 
