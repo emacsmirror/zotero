@@ -1410,6 +1410,7 @@ With a `C-u' prefix, create a new top level note."
          (data (zotero-cache-item-template "note"))
          (data (if parent (plist-put data :parentItem parent) data))
          (data (if collection (plist-put data :collections (vector collection)) data)))
+         (template (copy-tree (zotero-cache-item-template "note")))
     (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)))
 
 (defun zotero-browser-create-attachment (&optional arg)
