@@ -1606,6 +1606,8 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
           (let* ((response (zotero-recognize file))
                  (metadata (zotero-response-data response))
                  (result (cond
+                          ((not (plist-member metadata :title))
+                           (user-error "The attachment was not recognized"))
                           ((plist-member metadata :arxiv)
                            (zotero-arxiv (plist-get metadata :arxiv)))
                           ((plist-member metadata :doi)
