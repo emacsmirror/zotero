@@ -324,7 +324,7 @@ ID."
                         (widget-create 'text
                                        :size 10
                                        :format " %v "
-                                       :help-echo "M-TAB: complete field; RET: enter value; C-c ': edit in buffer"
+                                       :help-echo "M-TAB: complete field; RET: enter value; C-c C-c: edit in buffer"
                                        :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                        :value value
@@ -338,7 +338,7 @@ ID."
                         (widget-create 'text
                                        :size 10
                                        :format " %v "
-                                       :help-echo "M-TAB: complete field; RET: enter value; C-c ': edit in buffer"
+                                       :help-echo "M-TAB: complete field; RET: enter value; C-c C-c: edit in buffer"
                                        :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
                                        :value value
