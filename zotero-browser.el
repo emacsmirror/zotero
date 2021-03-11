@@ -1383,9 +1383,12 @@ If region is active, delete entries in active region instead."
        (let ((template (copy-tree (zotero-collection-template))))
          (pop-to-buffer (zotero-edit-collection template type id) zotero-browser-edit-buffer-action)))
       ('zotero-browser-items-mode
-       (let ((itemtype (completing-read "Select an item type: " (zotero-cache-itemtypes) nil t nil nil zotero-browser-default-itemtypes )))
+       (let* ((itemtype (completing-read "Select an item type: " (zotero-cache-itemtypes) nil t nil nil zotero-browser-default-itemtypes ))
+              (template (copy-tree (zotero-cache-item-template itemtype)))
+              (collection zotero-browser-collection)
+              (data (if collection (plist-put template :collections (vector collection)) template)))
          (cl-pushnew itemtype zotero-browser-default-itemtypes :test #'equal)
-         (pop-to-buffer (zotero-edit-create-item itemtype type id zotero-browser-collection) zotero-browser-edit-buffer-action))))))
+         (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))))
 
 (defun zotero-browser-create-note (&optional arg)
   "Create a new note.
@@ -1419,6 +1422,7 @@ client."
   (let* ((inhibit-read-only t)
          (type zotero-browser-type)
          (id zotero-browser-id)
+         (collection zotero-browser-collection)
          (ewoc zotero-browser-ewoc)
          (node (ewoc-locate ewoc))
          ;; Top-level attachments can be created by excluding the parentItem
@@ -1427,8 +1431,7 @@ client."
                   ((equal arg '(4)) nil)
                   ((null node) nil)
                   (t (ewoc-data node))))
-         (linkmode (completing-read "Select a linkmode: " (zotero-attachment-linkmodes) nil t nil nil zotero-browser-default-linkmodes))
-         (template (copy-tree (zotero-cache-attachment-template linkmode))))
+         (linkmode (completing-read "Select a linkmode: " (zotero-attachment-linkmodes) nil t nil nil zotero-browser-default-linkmodes)))
     (cl-pushnew linkmode zotero-browser-default-linkmodes :test #'equal)
     (pcase linkmode
       ("imported_file"
@@ -1437,7 +1440,7 @@ client."
               (filename (file-name-nondirectory file))
               (content-type (plist-get attributes :content-type))
               (accessdate (plist-get attributes :accessdate))
-              ;; REVIEW: charset cannot be determined without external tools
+              (template (copy-tree (zotero-cache-attachment-template "imported_file")))
               (data (thread-first template
                       (plist-put :title filename)
                       (plist-put :accessDate accessdate)
@@ -1451,7 +1454,8 @@ client."
                       ;; along with the corresponding file.
                       (plist-put :md5 nil)
                       (plist-put :mtime nil)))
-              (data (if parent (plist-put data :parentItem parent) data)))
+              (data (if parent (plist-put data :parentItem parent) data))
+              (data (if collection (plist-put data :collections (vector collection)) data)))
          (when-let ((object (zotero-cache-save data "items" type id))
                     (key (plist-get object :key)))
            (if parent
@@ -1472,13 +1476,15 @@ client."
               (filename (file-name-nondirectory file))
               (content-type (plist-get attributes :content-type))
               (accessdate (plist-get attributes :accessdate))
+              (template (copy-tree (zotero-cache-attachment-template "linked_file")))
               (data (thread-first template
                       (plist-put :title filename)
                       (plist-put :accessDate accessdate)
                       (plist-put :contentType content-type)
                       ;; (plist-put :charset charset) ; charset cannot be determined without external tools
                       (plist-put :path file)))
-              (data (if parent (plist-put data :parentItem parent) data)))
+              (data (if parent (plist-put data :parentItem parent) data))
+              (data (if collection (plist-put data :collections (vector collection)) data)))
          (when-let ((object (zotero-cache-save data "items" type id))
                     (key (plist-get object :key)))
            (if parent
@@ -1489,7 +1495,10 @@ client."
            (display-buffer (zotero-edit-item (plist-get object :data) type id) zotero-browser-edit-buffer-action))))
       ("linked_url"
        (if parent
-           (pop-to-buffer (zotero-edit-item template type id) zotero-browser-edit-buffer-action)
+           (let* ((template (copy-tree (zotero-cache-attachment-template "linked_url")))
+                  (data (if parent (plist-put data :parentItem template) template))
+                  (data (if collection (plist-put data :collections (vector collection)) data)))
+             (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))
          (user-error "Links to URLs are not allowed as top-level items"))))))
 
 (defun zotero-browser-update-attachment ()
