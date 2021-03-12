@@ -613,7 +613,7 @@ stead of `zotero-base-url'."
                             ("schema" nil)
                             (_ t)))
          (type (when library-request (or type "user")))
-         (id (when library-request (or id (zotero-auth-token-userid zotero-auth-token))))
+         (id (when library-request (or id (zotero-auth-userid))))
          (prefix (when library-request
                    (pcase type
                      ("user"
@@ -796,7 +796,7 @@ sessions."
                         ("template" t)
                         ("schema" t)
                         (_ nil))))
-         (api-key (unless no-auth (or api-key (zotero-auth-api-key zotero-auth-token))))
+         (api-key (unless no-auth (or api-key (zotero-auth-api-key))))
          (headers (nconc headers
                          `(("Zotero-API-Version" . ,api-version))
                          (unless no-auth `(("Zotero-API-Key" . ,api-key))))))
@@ -814,12 +814,12 @@ Together with `zotero-groups', this allows all accessible
 resources to be determined.
 
 Optional argument API-KEY is the Zotero API key."
-  (let ((api-key (or api-key (zotero-auth-api-key zotero-auth-token))))
+  (let ((api-key (or api-key (zotero-auth-api-key))))
     (zotero-request "GET" "keys" api-key :no-auth t)))
 
 (defun zotero-delete-key (&optional api-key)
   "Delete the API-KEY."
-  (let ((api-key (or api-key (zotero-auth-api-key zotero-auth-token))))
+  (let ((api-key (or api-key (zotero-auth-api-key))))
     (zotero-request "DELETE" "keys" api-key :no-auth t)))
 
 (cl-defun zotero-groups (&key type id api-key)

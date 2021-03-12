@@ -107,19 +107,25 @@ key)."
 In Zotero's case the token and secret are just the same Zotero
 API key."
   (interactive)
-  (let ((token (or token zotero-auth-token)))
+  (let ((token (or token
+                   zotero-auth-token
+                   (zotero-auth-authorize))))
     (zotero-auth-token-token-secret token)))
 
 (defun zotero-auth-userid (&optional token)
   "Return the Zotero user ID in TOKEN."
   (interactive)
-  (let ((token (or token zotero-auth-token)))
+  (let ((token (or token
+                   zotero-auth-token
+                   (zotero-auth-authorize))))
     (zotero-auth-token-userid token)))
 
 (defun zotero-auth-username (&optional token)
   "Return the Zotero username in TOKEN."
   (interactive)
-  (let ((token (or token zotero-auth-token)))
+  (let ((token (or token
+                   zotero-auth-token
+                   (zotero-auth-authorize))))
     (zotero-auth-token-username token)))
 
 ;;;; Functions

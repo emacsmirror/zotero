@@ -844,8 +844,8 @@ performed."
 
 When optional argument FULL-SYNC is non-nil, force a full sync.
 Argument RETRIES is used to count the number of retries."
-  (let ((id (zotero-auth-token-userid zotero-auth-token))
-        (api-key (zotero-auth-api-key zotero-auth-token)))
+  (let ((id (zotero-auth-userid))
+        (api-key (zotero-auth-api-key)))
     (message "Syncing cache...")
     (zotero-cache-maybe-initialize-cache)
     (let* ((cache (copy-tree zotero-cache))
