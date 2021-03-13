@@ -68,6 +68,11 @@
                                                                    (preserve-size . (t . nil))
                                                                    (reusable-frames . nil))))
 
+(defvar zotero-browser-note-buffer-action '((display-buffer-reuse-window display-buffer-in-side-window)
+                                            (side . bottom)
+                                            (window-height . 0.5)
+                                            (preserve-size . (nil . t))))
+
 (defvar zotero-browser-padding 1
   "Set the number of characters preceding each entry.")
 
@@ -103,6 +108,9 @@ tree.")
 
 (defvar-local zotero-browser-id nil
   "ID of the current buffer.")
+
+(defvar-local zotero-browser-key nil
+  "Key of the current buffer.")
 
 (defvar-local zotero-browser-resource nil
   "Resource of the current buffer.")
@@ -174,6 +182,14 @@ tree.")
     map)
   "Local keymap for `zotero-items-mode'.")
 
+(defvar zotero-browser-note-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-c") #'zotero-browser-note-exit)
+    (define-key map (kbd "C-x C-s") #'zotero-browser-note-save)
+    (define-key map (kbd "C-c C-k") #'zotero-browser-note-abort)
+    map)
+  "Local keymap for `zotero-browser-note-mode'.")
+
 (defvar zotero-browser-toggle-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map [mouse-1] #'zotero-browser-toggle)
@@ -226,6 +242,11 @@ tree.")
     (define-key map [mouse-3] #'zotero-browser-note-popup-menu)
     map)
   "Keymap for mouse events on notes.")
+
+(defconst zotero-browser-note-usage-message
+  "Type \\[zotero-browser-note-exit] to finish, \
+\\[zotero-browser-note-save] to save, or \
+\\[zotero-browser-note-abort] to abort.")
 
 ;;;; Menu
 
@@ -282,6 +303,14 @@ tree.")
     ["Revert" zotero-browser-revert]
     ["Quit" quit-window]
     ["Customize" (customize-group 'zotero-browser)]))
+
+(easy-menu-define zotero-browser-note-mode-menu zotero-browser-note-mode-map
+  "Menu for `zotero-browser-note-mode'."
+  `("Zotero-Browser"
+    "--"
+    ["Exit" zotero-browser-note-exit :help "Save note and kill buffer"]
+    ["Save" zotero-browser-note-save :help "Save note"]
+    ["Abort" zotero-browser-note-abort :help "Abort editing note and kill buffer"]))
 
 (easy-menu-define zotero-browser-item-menu zotero-browser-item-keymap
   "Popup menu for items."
@@ -359,6 +388,11 @@ tree.")
 
 (defcustom zotero-browser-items-buffer-name "*Zotero Items*"
   "The default name of the items buffer."
+  :group 'zotero-browser
+  :type 'string)
+
+(defcustom zotero-browser-note-buffer-name "*Zotero Note*"
+  "The default name of the note buffer."
   :group 'zotero-browser
   :type 'string)
 
@@ -526,6 +560,15 @@ All currently available key bindings:
   (font-lock-mode 1)
   ;; Turn on word wrap
   (visual-line-mode 1))
+
+;;;###autoload
+(define-minor-mode zotero-browser-note-mode
+  "Minor mode for Zotero note buffers.
+
+All currently available key bindings:
+
+\\{zotero-browser-note-mode-map}"
+  nil "ZotNote" nil)
 
 ;;;; Functions
 
@@ -843,6 +886,29 @@ application is found, Emacs simply visits the file."
       ("imported_url" (zotero-browser--open-imported-url entry))
       ("linked_file" (zotero-browser--open-linked-file entry))
       ("linked_url" (zotero-browser--open-linked-url entry)))))
+
+(defun zotero-browser--open-note (entry)
+  "Edit note ENTRY.
+
+The text is copied to a separate buffer. When done, exit with
+`\\[zotero-edit-text-exit]'. This will remove the original text
+in the source buffer, and replace it with the edited version."
+  (when-let ((type zotero-browser-type)
+             (id zotero-browser-id)
+             (key (zotero-lib-plist-get* entry :object :data :key))
+             (note (zotero-lib-plist-get* entry :object :data :note)))
+    (let ((buffer (generate-new-buffer zotero-browser-note-buffer-name)))
+      (with-current-buffer buffer
+        (setq zotero-browser-type type
+              zotero-browser-id id
+              zotero-browser-key key)
+        (insert note)
+        (set-buffer-modified-p nil))
+      ;; Switch to note buffer.
+      (pop-to-buffer buffer zotero-browser-note-buffer-action)
+      (zotero-browser-note-mode 1)
+      (visual-line-mode 1)
+      (message (substitute-command-keys zotero-browser-note-usage-message)))))
 
 (defun zotero-browser--filename-base (data)
   "Return a base filename to match DATA.
@@ -1180,6 +1246,8 @@ The format can be changed by customizing
          (entry (zotero-cache-synccache "item" key type id))
          (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
     (cond
+     ((equal itemtype "note")
+      (zotero-browser--open-note entry))
      ((equal itemtype "attachment")
       (zotero-browser--open-attachment entry))
      (t
@@ -1227,6 +1295,15 @@ The format can be changed by customizing
   "Check if the current buffer is a Zotero items buffer."
   (unless (eq major-mode 'zotero-browser-items-mode)
     (user-error "Current buffer is not a Zotero items buffer")))
+
+(defun zotero-browser-ensure-note-buffer ()
+  "Check if the current buffer is a Zotero note buffer."
+  (let* ((mode 'zotero-browser-note-mode)
+         (fmode (or (get mode :minor-mode-function) mode)))
+    (unless (and (boundp mode)
+                 (symbol-value mode)
+                 (fboundp fmode))
+      (user-error "Current buffer is not a Zotero note buffer"))))
 
 (defun zotero-browser-ensure-write-access ()
   "Check if the library in the current buffer has write access."
@@ -2065,6 +2142,42 @@ is the user ID or group ID."
                   (ewoc-enter-last ewoc child))))
             (zotero-browser-expand-level zotero-browser-default-item-level)))))
     buffer))
+
+(defun zotero-browser-note-exit ()
+  "Save note and kill buffer."
+  (interactive)
+  (zotero-browser-ensure-note-buffer)
+  (when-let ((entry (zotero-cache-synccache "item" zotero-browser-key zotero-browser-type zotero-browser-id t))
+             (data (zotero-lib-plist-get* entry :object :data))
+             (contents (save-excursion (widen) (buffer-string))))
+    (zotero-cache-save (plist-put data :note contents) "items" zotero-browser-type zotero-browser-id)
+    (when-let ((buffer (get-buffer zotero-browser-items-buffer-name))
+               (key zotero-browser-key))
+      (with-current-buffer buffer
+        (ewoc-map (lambda (elt) (equal elt key)) zotero-browser-ewoc)))
+    (set-buffer-modified-p nil)
+    (kill-buffer-and-window)))
+
+(defun zotero-browser-note-save ()
+  "Save note."
+  (interactive)
+  (zotero-browser-ensure-note-buffer)
+  (when-let ((entry (zotero-cache-synccache "item" zotero-browser-key zotero-browser-type zotero-browser-id t))
+             (data (zotero-lib-plist-get* entry :object :data))
+             (contents (save-excursion (widen) (buffer-string))))
+    (zotero-cache-save (plist-put data :note contents) "items" zotero-browser-type zotero-browser-id)
+    (when-let ((buffer (get-buffer zotero-browser-items-buffer-name))
+               (key zotero-browser-key))
+      (with-current-buffer buffer
+        (ewoc-map (lambda (elt) (equal elt key)) zotero-browser-ewoc)))
+    (set-buffer-modified-p nil)))
+
+(defun zotero-browser-note-abort ()
+  "Abort editing note and kill buffer."
+  (interactive)
+  (zotero-browser-ensure-note-buffer)
+  (set-buffer-modified-p nil)
+  (kill-buffer-and-window))
 
 (defun zotero-browser-display ()
   "Display current library or collection."
