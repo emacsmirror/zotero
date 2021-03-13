@@ -73,7 +73,7 @@
 
 (defvar zotero-browser-expand-symbol (propertize "▾"
                                                  'mouse-face 'highlight
-                                                 'help-echo "mouse-1: Collapse"
+                                                 'help-echo "mouse-1: collapse"
                                                  'keymap zotero-browser-toggle-keymap)
   "Expand symbol.
 The symbol appears next to items that contains children and means
@@ -82,7 +82,7 @@ item tree.")
 
 (defvar zotero-browser-collapse-symbol (propertize "▸"
                                                    'mouse-face 'highlight
-                                                   'help-echo "mouse-1: Expand"
+                                                   'help-echo "mouse-1: expand"
                                                    'keymap zotero-browser-toggle-keymap)
   "Collapse symbol.
 The symbol appears next to items that contains children and means
@@ -195,8 +195,37 @@ tree.")
 (defvar zotero-browser-item-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map [mouse-1] #'zotero-browser-edit)
+    (define-key map [mouse-3] #'zotero-browser-item-popup-menu)
     map)
   "Keymap for mouse events on items.")
+
+(defvar zotero-browser-trash-item-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'zotero-browser-edit)
+    (define-key map [mouse-3] #'zotero-browser-trash-item-popup-menu)
+    map)
+  "Keymap for mouse events on items.")
+
+(defvar zotero-browser-top-attachment-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'zotero-browser-edit)
+    (define-key map [mouse-3] #'zotero-browser-top-attachment-popup-menu)
+    map)
+  "Keymap for mouse events on top-level attachments.")
+
+(defvar zotero-browser-child-attachment-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'zotero-browser-edit)
+    (define-key map [mouse-3] #'zotero-browser-child-attachment-popup-menu)
+    map)
+  "Keymap for mouse events on child attachments.")
+
+(defvar zotero-browser-note-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'zotero-browser-edit)
+    (define-key map [mouse-3] #'zotero-browser-note-popup-menu)
+    map)
+  "Keymap for mouse events on notes.")
 
 ;;;; Menu
 
@@ -240,17 +269,77 @@ tree.")
     ["Update attachment" zotero-browser-update-attachment :help "Update current attachment"]
     ["Add by identifier" zotero-browser-add-by-identifier :help "Add a new item by ISBN, DOI, PMID, or arXiv ID"]
     "--"
+    ["Move to trash" zotero-browser-move-to-trash :help "Move current entry or entries in active region to trash"]
     ["Delete" zotero-browser-delete :help "Delete current entry or entries in active region"]
     ["Restore" zotero-browser-restore :help "Restore current entry or entries in active region"]
     ["Remove from collection" zotero-browser-remove-from-collection :help "Remove current entry from a collection"]
     ["Copy to collection" zotero-browser-copy-to-collection :help "Copy current entry to a collection"]
     ["Move to parent" zotero-browser-move-to-parent :help "Move current entry to a parent item"]
     "--"
-    ["Open attachment" zotero-browser-open-attachment]
+    ["Open attachment" zotero-browser-open]
+    ["Open attachment directory" zotero-browser-open-directory]
     "--"
     ["Revert" zotero-browser-revert]
     ["Quit" quit-window]
     ["Customize" (customize-group 'zotero-browser)]))
+
+(easy-menu-define zotero-browser-item-menu zotero-browser-item-keymap
+  "Popup menu for items."
+  `("Zotero item"
+    "--"
+    ["Open attachment" zotero-browser-open]
+    ["Open attachment directory" zotero-browser-open-directory]
+    "--"
+    ["Add note" zotero-browser-create-note :help "Add a new note"]
+    ["Add attachment" zotero-browser-create-attachment :help "Add a new attachment"]
+    ["Update attachment" zotero-browser-update-attachment :help "Update current attachment"]
+    "--"
+    ["Move to trash" zotero-browser-move-to-trash :help "Move current entry to trash"]
+    ["Remove from collection" zotero-browser-remove-from-collection :help "Remove current entry from a collection"]
+    ["Copy to collection" zotero-browser-copy-to-collection :help "Copy current entry to a collection"]))
+
+(easy-menu-define zotero-browser-trash-item-menu zotero-browser-trash-item-keymap
+  "Popup menu for trashed items."
+  `("Zotero item"
+    "--"
+    ["Open attachment" zotero-browser-open]
+    ["Open attachment directory" zotero-browser-open-directory]
+    "--"
+    ["Restore from trash" zotero-browser-restore-from-trash :help "Restore current entry from trash"]
+    ["Delete" zotero-browser-delete :help "Delete current entry"]))
+
+(easy-menu-define zotero-browser-top-attachment-menu zotero-browser-top-attachment-keymap
+  "Popup menu for top-level attachments."
+  `("Zotero item"
+    "--"
+    ["Open attachment" zotero-browser-open]
+    ["Open attachment directory" zotero-browser-open-directory]
+    "--"
+    ["Recognize content" zotero-browser-recognize-attachment]
+    "--"
+    ["Move to trash" zotero-browser-move-to-trash :help "Move current entry to trash"]
+    ["Delete" zotero-browser-delete :help "Delete current entry"]
+    ["Remove from collection" zotero-browser-remove-from-collection :help "Remove current entry from a collection"]
+    ["Copy to collection" zotero-browser-copy-to-collection :help "Copy current entry to a collection"]))
+
+(easy-menu-define zotero-browser-child-attachment-menu zotero-browser-child-attachment-keymap
+  "Popup menu for child attachments."
+  `("Zotero item"
+    "--"
+    ["Open attachment" zotero-browser-open]
+    ["Open attachment directory" zotero-browser-open-directory]
+    "--"
+    ["Move to trash" zotero-browser-move-to-trash :help "Move current entry to trash"]
+    ["Remove from collection" zotero-browser-remove-from-collection :help "Remove current entry from a collection"]
+    ["Copy to collection" zotero-browser-copy-to-collection :help "Copy current entry to a collection"]))
+
+(easy-menu-define zotero-browser-note-menu zotero-browser-note-keymap
+  "Popup menu for notes."
+  `("Zotero item"
+    "--"
+    ["Move to trash" zotero-browser-move-to-trash :help "Move current entry to trash"]
+    ["Remove from collection" zotero-browser-remove-from-collection :help "Remove current entry from a collection"]
+    ["Copy to collection" zotero-browser-copy-to-collection :help "Copy current entry to a collection"]))
 
 ;;;; Customization
 
@@ -439,6 +528,31 @@ All currently available key bindings:
   (visual-line-mode 1))
 
 ;;;; Functions
+
+(defun zotero-browser-item-popup-menu (event)
+  "Pop up a menu."
+  (interactive "@e")
+  (popup-menu zotero-browser-item-menu event))
+
+(defun zotero-browser-trash-item-popup-menu (event)
+  "Pop up a menu."
+  (interactive "@e")
+  (popup-menu zotero-browser-trash-item-menu event))
+
+(defun zotero-browser-top-attachment-popup-menu (event)
+  "Pop up a menu."
+  (interactive "@e")
+  (popup-menu zotero-browser-top-attachment-menu event))
+
+(defun zotero-browser-child-attachment-popup-menu (event)
+  "Pop up a menu."
+  (interactive "@e")
+  (popup-menu zotero-browser-child-attachment-menu event))
+
+(defun zotero-browser-note-popup-menu (event)
+  "Pop up a menu."
+  (interactive "@e")
+  (popup-menu zotero-browser-note-menu event))
 
 (defun zotero-browser--nodes (ewoc)
   "Return a list with the EWOC node at point.
@@ -815,7 +929,7 @@ The format can be changed by customizing
             (insert (s-right num separator))))))
     (add-text-properties beg (point)
                          `(mouse-face highlight
-                                      help-echo "mouse-1: Open library"
+                                      help-echo "mouse-1: open library; mouse-3: popup menu"
                                       keymap ,zotero-browser-library-keymap))))
 
 (defun zotero-browser--collection-pp (key)
@@ -838,7 +952,7 @@ The format can be changed by customizing
                             `(line-prefix ,prefix
                                           wrap-prefix ,prefix
                                           mouse-face highlight
-                                          help-echo "mouse-1: Open collection"
+                                          help-echo "mouse-1: open collection; mouse-3: popup menu"
                                           keymap ,zotero-browser-collection-keymap))))
     ('trash
      (let* ((level 1)
@@ -857,7 +971,7 @@ The format can be changed by customizing
                             `(line-prefix ,prefix
                                           wrap-prefix ,prefix
                                           mouse-face highlight
-                                          help-echo "mouse-1: Open collection"
+                                          help-echo "mouse-1: open collection; mouse-3: popup menu"
                                           keymap ,zotero-browser-collection-keymap))))
     (_
      (let* ((entry (zotero-cache-synccache "collection" key zotero-browser-type zotero-browser-id))
@@ -892,7 +1006,7 @@ The format can be changed by customizing
                             `(line-prefix ,prefix
                                           wrap-prefix ,prefix
                                           mouse-face highlight
-                                          help-echo "mouse-1: Open collection"
+                                          help-echo "mouse-1: open collection; mouse-3: popup menu"
                                           keymap ,zotero-browser-collection-keymap))))))
 
 (defun zotero-browser--item-pp (key)
@@ -902,6 +1016,7 @@ The format can be changed by customizing
          (level (zotero-browser--level key))
          (indentation (+ zotero-browser-padding level))
          (prefix (make-string indentation ?\s))
+         (deleted-p (zotero-lib-plist-get* entry :object :data :deleted))
          (beg (point)))
     (pcase itemtype
       ("attachment"
@@ -932,7 +1047,24 @@ The format can be changed by customizing
                  (while (or (eq num length)
                             (not (s-ends-with-p (substring separator 0 (- length num)) string)))
                    (setq num (1+ num)))
-                 (insert (s-right num separator))))))))
+                 (insert (s-right num separator))))))
+         (pcase level
+           ;; Top-level
+           (1
+            (add-text-properties beg (point)
+                                 `(line-prefix ,prefix
+                                               wrap-prefix ,prefix
+                                               mouse-face highlight
+                                               help-echo "mouse-1: edit current entry; mouse-3: popup menu"
+                                               keymap ,zotero-browser-top-attachment-keymap)))
+           ;; Child
+           (2
+            (add-text-properties beg (point)
+                                 `(line-prefix ,prefix
+                                               wrap-prefix ,prefix
+                                               mouse-face highlight
+                                               help-echo "mouse-1: edit current entry; mouse-3: popup menu"
+                                               keymap ,zotero-browser-child-attachment-keymap))))))
       ("note"
        (let ((separator (car zotero-browser-note-keys))
              (keys (cdr zotero-browser-note-keys)))
@@ -967,7 +1099,13 @@ The format can be changed by customizing
                  (while (or (eq num length)
                             (not (s-ends-with-p (substring separator 0 (- length num)) string)))
                    (setq num (1+ num)))
-                 (insert (s-right num separator))))))))
+                 (insert (s-right num separator))))))
+         (add-text-properties beg (point)
+                              `(line-prefix ,prefix
+                                            wrap-prefix ,prefix
+                                            mouse-face highlight
+                                            help-echo "mouse-1: edit current entry; mouse-3: popup menu"
+                                            keymap ,zotero-browser-note-keymap))))
       (_
        (let ((separator (car zotero-browser-item-keys))
              (keys (cdr zotero-browser-item-keys)))
