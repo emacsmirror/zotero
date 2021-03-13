@@ -152,7 +152,7 @@ tree.")
 
 (defvar zotero-browser-items-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") #'zotero-browser-open-attachment)
+    (define-key map (kbd "RET") #'zotero-browser-open)
     (define-key map (kbd "TAB") #'zotero-browser-toggle)
     (define-key map (kbd "<backtab>") #'zotero-browser-cycle)
     (define-key map (kbd "$") #'zotero-browser-expand-all)
@@ -721,7 +721,7 @@ application is found, Emacs simply visits the file."
   (let ((url (zotero-lib-plist-get* entry :object :data :url)))
     (browse-url url)))
 
-(defun zotero-browser--open (entry)
+(defun zotero-browser--open-attachment (entry)
   "Open attachment ENTRY."
   (when-let ((linkmode (zotero-lib-plist-get* entry :object :data :linkMode)))
     (pcase linkmode
@@ -1019,17 +1019,19 @@ The format can be changed by customizing
                  (while (or (eq num length)
                             (not (s-ends-with-p (substring separator 0 (- length num)) string)))
                    (setq num (1+ num)))
-                 (insert (s-right num separator)))))))))
-    (add-text-properties beg (point)
-                         `(line-prefix ,prefix
-                                       wrap-prefix ,prefix
-                                       mouse-face highlight
-                                       help-echo "mouse-1: Edit current entry"
-                                       keymap ,zotero-browser-item-keymap))))
+                 (insert (s-right num separator))))))
+         (add-text-properties beg (point)
+                              `(line-prefix ,prefix
+                                            wrap-prefix ,prefix
+                                            mouse-face highlight
+                                            help-echo "mouse-1: edit current entry; mouse-3: popup menu"
+                                            keymap ,(if deleted-p
+                                                        zotero-browser-trash-item-keymap
+                                                      zotero-browser-item-keymap))))))))
 
 ;;;; Commands
 
-(defun zotero-browser-open-attachment ()
+(defun zotero-browser-open ()
   "Open attachment at point."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
@@ -1041,10 +1043,10 @@ The format can be changed by customizing
          (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
     (cond
      ((equal itemtype "attachment")
-      (zotero-browser--open entry))
+      (zotero-browser--open-attachment entry))
      (t
       (let ((children (zotero-browser--children key)))
-        (ht-each (lambda (_key value) (zotero-browser--open value)) children))))))
+        (ht-each (lambda (_key value) (zotero-browser--open-attachment value)) children))))))
 
 (defun zotero-browser-open-directory ()
   "Open directory of the attachment of the current entry."
