@@ -2044,7 +2044,7 @@ key."
 
 (defun zotero-browser-libraries ()
   "Create a libraries browser buffer."
-  (let ((buffer (get-buffer-create "*Zotero Libraries*")))
+  (let ((buffer (get-buffer-create zotero-browser-libraries-buffer-name)))
     (with-current-buffer buffer
       (zotero-browser-libraries-mode)
       (let* ((user (zotero-cache-library "user"))
