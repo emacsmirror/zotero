@@ -71,6 +71,24 @@
 (defvar zotero-browser-padding 1
   "Set the number of characters preceding each entry.")
 
+(defvar zotero-browser-expand-symbol (propertize "▾"
+                                                 'mouse-face 'highlight
+                                                 'help-echo "mouse-1: Collapse"
+                                                 'keymap zotero-browser-toggle-keymap)
+  "Expand symbol.
+The symbol appears next to items that contains children and means
+that the item is collapsed and the children are hidden in the
+item tree.")
+
+(defvar zotero-browser-collapse-symbol (propertize "▸"
+                                                   'mouse-face 'highlight
+                                                   'help-echo "mouse-1: Expand"
+                                                   'keymap zotero-browser-toggle-keymap)
+  "Collapse symbol.
+The symbol appears next to items that contains children and means
+that the item is expanded and the children appear in the item
+tree.")
+
 (defvar zotero-browser-default-itemtypes nil
   "Default itemtypes when creating a new item.")
 
@@ -155,6 +173,30 @@
     (define-key map (kbd "q") #'quit-window)
     map)
   "Local keymap for `zotero-items-mode'.")
+
+(defvar zotero-browser-toggle-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'zotero-browser-toggle)
+    map)
+  "Keymap for mouse events on expand or collaps symbols.")
+
+(defvar zotero-browser-library-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'zotero-browser-display)
+    map)
+  "Keymap for mouse events on libraries.")
+
+(defvar zotero-browser-collection-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'zotero-browser-display)
+    map)
+  "Keymap for mouse events on collections.")
+
+(defvar zotero-browser-item-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'zotero-browser-edit)
+    map)
+  "Keymap for mouse events on items.")
 
 ;;;; Menu
 
@@ -532,7 +574,7 @@ STRING should contain only one character."
   "Expand the children of NODE in EWOC."
   (let* ((key (ewoc-data node))
          (table (zotero-browser--children key)))
-    (zotero-browser--prefix (ewoc-location node) "▾")
+    (zotero-browser--prefix (ewoc-location node) zotero-browser-collapse-symbol)
     (zotero-browser--add ewoc node table)))
 
 (defun zotero-browser--collapse (ewoc node)
@@ -546,7 +588,7 @@ STRING should contain only one character."
                    (zotero-cache-synccache "items" nil type id))))
          (key (ewoc-data node))
          parents)
-    (zotero-browser--prefix (ewoc-location node) "▸")
+    (zotero-browser--prefix (ewoc-location node) zotero-browser-expand-symbol)
     (while
         (let* ((next-node (ewoc-next ewoc node))
                (next-key (when next-node (ewoc-data next-node)))
@@ -699,7 +741,8 @@ The format can be changed by customizing
          ;; Set icon height (in pixels) to 1 characters
          (height (window-font-height))
          (separator (car zotero-browser-library-keys))
-         (keys (cdr zotero-browser-library-keys)))
+         (keys (cdr zotero-browser-library-keys))
+         (beg (point)))
     (when-let ((_ zotero-browser-icons)
                (icon (pcase type
                        ("user" "treesource-library.png")
@@ -743,7 +786,11 @@ The format can be changed by customizing
             (while (or (eq num length)
                        (not (s-ends-with-p (substring separator 0 (- length num)) string)))
               (setq num (1+ num)))
-            (insert (s-right num separator))))))))
+            (insert (s-right num separator))))))
+    (add-text-properties beg (point)
+                         `(mouse-face highlight
+                                      help-echo "mouse-1: Open library"
+                                      keymap ,zotero-browser-library-keymap))))
 
 (defun zotero-browser--collection-pp (key)
   "Pretty print collection KEY."
@@ -761,7 +808,12 @@ The format can be changed by customizing
          (insert (propertize "unfiled" 'display image 'rear-nonsticky t))
          (insert (string ?\s)))
        (insert "Unfiled")
-       (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))
+       (add-text-properties beg (point)
+                            `(line-prefix ,prefix
+                                          wrap-prefix ,prefix
+                                          mouse-face highlight
+                                          help-echo "mouse-1: Open collection"
+                                          keymap ,zotero-browser-collection-keymap))))
     ('trash
      (let* ((level 1)
             (indentation (+ zotero-browser-padding level))
@@ -775,7 +827,12 @@ The format can be changed by customizing
          (insert (propertize "trash" 'display image 'rear-nonsticky t))
          (insert (string ?\s)))
        (insert "Trash")
-       (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))
+       (add-text-properties beg (point)
+                            `(line-prefix ,prefix
+                                          wrap-prefix ,prefix
+                                          mouse-face highlight
+                                          help-echo "mouse-1: Open collection"
+                                          keymap ,zotero-browser-collection-keymap))))
     (_
      (let* ((entry (zotero-cache-synccache "collection" key zotero-browser-type zotero-browser-id))
             (level (zotero-browser--level key))
@@ -805,7 +862,12 @@ The format can be changed by customizing
                           (not (s-ends-with-p (substring separator 0 (- length num)) string)))
                  (setq num (1+ num)))
                (insert (s-right num separator))))))
-       (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))))
+       (add-text-properties beg (point)
+                            `(line-prefix ,prefix
+                                          wrap-prefix ,prefix
+                                          mouse-face highlight
+                                          help-echo "mouse-1: Open collection"
+                                          keymap ,zotero-browser-collection-keymap))))))
 
 (defun zotero-browser--item-pp (key)
   "Pretty print item KEY."
@@ -932,7 +994,12 @@ The format can be changed by customizing
                             (not (s-ends-with-p (substring separator 0 (- length num)) string)))
                    (setq num (1+ num)))
                  (insert (s-right num separator)))))))))
-    (add-text-properties beg (point) `(line-prefix ,prefix wrap-prefix ,prefix))))
+    (add-text-properties beg (point)
+                         `(line-prefix ,prefix
+                                       wrap-prefix ,prefix
+                                       mouse-face highlight
+                                       help-echo "mouse-1: Edit current entry"
+                                       keymap ,zotero-browser-item-keymap))))
 
 ;;;; Commands
 
@@ -1171,7 +1238,7 @@ If NUM is omitted or nil, expand till level 1."
                        (or (< level num) (eq num 0)))
                   (zotero-browser--expand ewoc node))
                  (t
-                  (zotero-browser--prefix (ewoc-location node) "▸"))))
+                  (zotero-browser--prefix (ewoc-location node) zotero-browser-expand-symbol))))
               (prog1
                   ;; End-test of while loop
                   (ewoc-next ewoc node)
@@ -1468,7 +1535,7 @@ client."
                     (key (plist-get object :key)))
            (if parent
                (progn
-                 (zotero-browser--prefix (ewoc-location node) "▾")
+                 (zotero-browser--prefix (ewoc-location node) zotero-browser-collapse-symbol)
                  (ewoc-enter-after ewoc node key))
              (ewoc-enter-last ewoc key))
            (unless (zotero-upload-attachment key file nil :type type :id id)
@@ -1499,7 +1566,7 @@ client."
                     (key (plist-get object :key)))
            (if parent
                (progn
-                 (zotero-browser--prefix (ewoc-location node) "▾")
+                 (zotero-browser--prefix (ewoc-location node) zotero-browser-collapse-symbol)
                  (ewoc-enter-after ewoc node key))
              (ewoc-enter-last ewoc key))
            (display-buffer (zotero-edit-item (plist-get object :data) type id) zotero-browser-edit-buffer-action))))
@@ -1657,7 +1724,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
                 (rename-file file newname t)
                 (zotero-cache-save data "items" type id)
                 (ewoc-enter-before ewoc node key)
-                (zotero-browser--prefix (ewoc-location (ewoc-prev ewoc node)) "▾")
+                (zotero-browser--prefix (ewoc-location (ewoc-prev ewoc node)) zotero-browser-collapse-symbol)
                 (ewoc-invalidate ewoc node))))))))))
 
 (defun zotero-browser-index-attachment ()
