@@ -667,7 +667,7 @@ application is found, Emacs simply visits the file."
 	     (setq cmd command)
 	   (setq cmd 'emacs))
          (cond
-          ((and (stringp cmd) (not (string-match "^[[:space:]]*$" cmd)))
+          ((and (stringp cmd) (not (string-match-p "^[[:space:]]*$" cmd)))
            ;; Remove quotes around the file name - we'll use shell-quote-argument.
            (while (string-match "['\"]%s['\"]" cmd)
              (setq cmd (replace-match "%s" t t cmd)))
