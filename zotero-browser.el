@@ -1046,6 +1046,36 @@ The format can be changed by customizing
       (let ((children (zotero-browser--children key)))
         (ht-each (lambda (_key value) (zotero-browser--open value)) children))))))
 
+(defun zotero-browser-open-directory ()
+  "Open directory of the attachment of the current entry."
+  (interactive)
+  (zotero-browser-ensure-items-mode)
+  (if-let ((ewoc zotero-browser-ewoc)
+           (type zotero-browser-type)
+           (id zotero-browser-id)
+           (key (ewoc-data (ewoc-locate ewoc)))
+           (entry (zotero-cache-synccache "item" key type id))
+           (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
+      (cond
+       ((equal itemtype "attachment")
+        (when-let ((file (zotero-browser--find-attachment entry))
+                   (dir (file-name-directory file)))
+          (if (file-exists-p dir)
+              (dired dir)
+            (user-error "Directory doesn't exist"))))
+       (t
+        (when-let ((children (zotero-browser--children key))
+                   ;; Find the first child that is an attachment
+                   (child (ht-find (lambda (_key value)
+                                     (let ((itemtype (zotero-lib-plist-get* value :object :data :itemType)))
+                                       (equal itemtype "attachment")))
+                                   children))
+                   (file (zotero-browser--find-attachment (cadr child)))
+                   (dir (file-name-directory file)))
+          (if (file-exists-p dir)
+              (dired dir)
+            (user-error "Directory doesn't exist")))))))
+
 (defun zotero-browser-ensure-browser-buffer ()
   "Check if the current buffer is a Zotero browser buffer."
   (unless (or (eq major-mode 'zotero-browser-libraries-mode)
