@@ -628,6 +628,23 @@ STRING should contain only one character."
          (filename (expand-file-name (concat dir icon) zotero-directory)))
     (if (file-readable-p filename) filename nil)))
 
+(defun zotero-browser--find-attachment (entry)
+  "Return the path of the attachment of the current entry."
+  (when-let ((key (zotero-lib-plist-get* entry :object :data :key))
+             (filename (zotero-lib-plist-get* entry :object :data :filename))
+             (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
+             (file (concat (file-name-as-directory dir) filename)))
+    (cond
+     ;; If the file exists, return path
+     ((file-exists-p file)
+      file)
+     ;; If storage is enabled, download to storage
+     (zotero-cache-enable-storage
+      (zotero-browser-download-attachment))
+     ;; If storage is disabled, download to temp directory
+     (t
+      (zotero-browser-download-attachment temporary-file-directory)))))
+
 (defun zotero-browser--open-externally (path)
   "Open PATH in an external program.
 
@@ -681,14 +698,14 @@ application is found, Emacs simply visits the file."
 	       (eq cmd 'emacs))
            (find-file-other-frame file))))))))
 
-(defun zotero-browser--open-imported-file ()
+(defun zotero-browser--open-imported-file (entry)
   "Open attachment."
-  (let ((path (expand-file-name (zotero-browser-find-attachment))))
+  (let ((path (expand-file-name (zotero-browser--find-attachment entry))))
     (zotero-browser--open-file path)))
 
 (defun zotero-browser--open-imported-url (entry)
   "Open attachment ENTRY."
-  (let* ((path (expand-file-name (zotero-browser-find-attachment)))
+  (let* ((path (expand-file-name (zotero-browser--find-attachment entry)))
          (contenttype (zotero-lib-plist-get* entry :object :data :contentType)))
     (if (equal contenttype "text/html")
         (browse-url-of-file path)
@@ -703,6 +720,15 @@ application is found, Emacs simply visits the file."
   "Open attachment ENTRY."
   (let ((url (zotero-lib-plist-get* entry :object :data :url)))
     (browse-url url)))
+
+(defun zotero-browser--open (entry)
+  "Open attachment ENTRY."
+  (when-let ((linkmode (zotero-lib-plist-get* entry :object :data :linkMode)))
+    (pcase linkmode
+      ("imported_file" (zotero-browser--open-imported-file entry))
+      ("imported_url" (zotero-browser--open-imported-url entry))
+      ("linked_file" (zotero-browser--open-linked-file entry))
+      ("linked_url" (zotero-browser--open-linked-url entry)))))
 
 (defun zotero-browser--filename-base (data)
   "Return a base filename to match DATA.
@@ -1013,13 +1039,12 @@ The format can be changed by customizing
          (key (ewoc-data (ewoc-locate ewoc)))
          (entry (zotero-cache-synccache "item" key type id))
          (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
-    (when (equal itemtype "attachment")
-      (let ((linkmode (zotero-lib-plist-get* entry :object :data :linkMode)))
-        (pcase linkmode
-          ("imported_file" (zotero-browser--open-imported-file))
-          ("imported_url" (zotero-browser--open-imported-url entry))
-          ("linked_file" (zotero-browser--open-linked-file entry))
-          ("linked_url" (zotero-browser--open-linked-url entry)))))))
+    (cond
+     ((equal itemtype "attachment")
+      (zotero-browser--open entry))
+     (t
+      (let ((children (zotero-browser--children key)))
+        (ht-each (lambda (_key value) (zotero-browser--open value)) children))))))
 
 (defun zotero-browser-ensure-browser-buffer ()
   "Check if the current buffer is a Zotero browser buffer."
@@ -1668,7 +1693,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
          (linkmode (plist-get attachment-data :linkMode)))
     (when (and (equal itemtype "attachment")
                (equal linkmode "imported_file"))
-      (let* ((file (zotero-browser-find-attachment))
+      (let* ((file (zotero-browser--find-attachment entry))
              (attributes (zotero-file-attributes file))
              (content-type (plist-get attributes :content-type)))
 	;; Check whether a given PDF could theoretically be recognized
@@ -1744,7 +1769,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
     (when (and (equal itemtype "attachment")
                (or (equal linkmode "imported_file")
                    (equal linkmode "linked_file")))
-      (let* ((file (zotero-browser-find-attachment))
+      (let* ((file (zotero-browser--find-attachment entry))
              (attributes (zotero-file-attributes file))
              (content-type (plist-get attributes :content-type)))
         (zotero-fulltext-index-item key file content-type :type type :id id)))))
@@ -1769,30 +1794,6 @@ key."
     (unless (file-exists-p dir)
       (make-directory dir t))
     (zotero-download-file key filename dir t :type type :id id)))
-
-(defun zotero-browser-find-attachment ()
-  "Return the path of the attachment of the current entry."
-  (zotero-browser-ensure-items-mode)
-  (zotero-browser-ensure-item-at-point)
-  (when-let ((ewoc zotero-browser-ewoc)
-             (type zotero-browser-type)
-             (id zotero-browser-id)
-             (node (ewoc-locate ewoc))
-             (key (ewoc-data node))
-             (entry (zotero-cache-synccache "item" key type id))
-             (filename (zotero-lib-plist-get* entry :object :data :filename))
-             (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
-             (file (concat (file-name-as-directory dir) filename)))
-    (cond
-     ;; If the file exists, return path
-     ((file-exists-p file)
-      file)
-     ;; If storage is enabled, download to storage
-     (zotero-cache-enable-storage
-      (zotero-browser-download-attachment))
-     ;; If storage is disabled, download to temp directory
-     (t
-      (zotero-browser-download-attachment temporary-file-directory)))))
 
 (defun zotero-browser-libraries ()
   "Create a libraries browser buffer."
