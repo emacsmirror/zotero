@@ -64,7 +64,7 @@ enter value; \\[zotero-edit-text]: edit in buffer")
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map widget-keymap)
     (define-key map (kbd "C-x C-s") #'zotero-edit-save)
-    (define-key map (kbd "C-c C-k") #'zotero-edit-reset)
+    (define-key map (kbd "C-c C-k") #'zotero-edit-revert)
     (define-key map (kbd "q") #'quit-window)
     map)
   "Local keymap for `zotero-edit-mode'.")
@@ -91,7 +91,7 @@ enter value; \\[zotero-edit-text]: edit in buffer")
   `("Zotero-Edit"
     "--"
     ["Save" zotero-edit-save :help "Save item"]
-    ["Reset" zotero-edit-reset :help "Reset item"]
+    ["Revert" zotero-edit-revert :help "Revert item"]
     "--"
     ["Quit" quit-window]
     ["Customize" (customize-group 'zotero-browser)]))
@@ -463,12 +463,12 @@ ID."
                                      (message "Saving...failed.")))
                          "Save")
           (widget-insert " ")
-          ;; Reset button
+          ;; Revert button
           (widget-create 'push-button
 		         :notify (lambda (&rest _ignore)
                                    (message "Item reset.")
                                    (zotero-edit-item data type id))
-		         "Reset")
+		         "Revert")
           (widget-setup))))
     buffer))
 
@@ -557,18 +557,18 @@ ID."
                                      (message "Saving...failed.")))
                          "Save")
           (widget-insert " ")
-          ;; Reset button
+          ;; Revert button
           (widget-create 'push-button
 		         :notify (lambda (&rest _ignore)
                                    (zotero-edit-collection data type id))
-		         "Reset")
+		         "Revert")
           (widget-setup))))
     buffer))
 
 ;;;; Commands
 
-(defun zotero-edit-reset ()
-  "Reset current item."
+(defun zotero-edit-revert ()
+  "Revert current item."
   (interactive)
   (pcase zotero-edit-resource
     ("items" (zotero-edit-item zotero-edit-data zotero-edit-type zotero-edit-id))
