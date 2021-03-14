@@ -1298,11 +1298,9 @@ The format can be changed by customizing
 
 (defun zotero-browser-ensure-note-buffer ()
   "Check if the current buffer is a Zotero note buffer."
-  (let* ((mode 'zotero-browser-note-mode)
-         (fmode (or (get mode :minor-mode-function) mode)))
-    (unless (and (boundp mode)
-                 (symbol-value mode)
-                 (fboundp fmode))
+  (let ((mode 'zotero-browser-note-mode))
+    (unless (and (fboundp mode)
+                 (symbol-value mode))
       (user-error "Current buffer is not a Zotero note buffer"))))
 
 (defun zotero-browser-ensure-write-access ()
