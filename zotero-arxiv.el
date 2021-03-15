@@ -33,7 +33,7 @@
 (declare-function zotero-cache-item-template "zotero-cache")
 
 ;;;; Variables
-(defconst zotero-arxiv-url "http://export.arxiv.org/api/query")
+(defconst zotero-arxiv-url "https://export.arxiv.org/api/query")
 
 (defun zotero-arxiv--parse-creators (authors)
   "Parse the creators in AUTHORS."
