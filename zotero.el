@@ -502,7 +502,7 @@ and passed as optional argument RESULT."
                      (api-key (alist-get "Zotero-API-Key" headers nil nil #'equal))
                      (url (concat "https://www.zotero.org/settings/keys/edit/" api-key)))
                 (browse-url url)
-                (read-string "Press enter when you have changed the privileges:")
+                (read-string "Press enter when you have changed the privileges. ")
                 (zotero-dispatch request))
             (user-error "Insufficient privileges")))
          (message
