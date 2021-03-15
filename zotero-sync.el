@@ -602,13 +602,14 @@ VERSION is the \"Last-Modified-Version\"."
           ;; else:
           ;; perform conflict resolution
           (_
-           (let ((choice (read-multiple-choice
-                          "Deleted object was modified. How should this be resolved? "
-                          '((?d "delete the locally modified object")
-                            (?k "keep the locally modified object")
-                            (?D "always delete the locally modified object")
-                            (?K "always keep the locally modified object")
-                            (?q "quit")))))
+           (let ((choice (or default
+                             (read-multiple-choice
+                              "Deleted object was modified. How should this be resolved? "
+                              '((?d "delete the locally modified object")
+                                (?k "keep the locally modified object")
+                                (?D "always delete the locally modified object")
+                                (?K "always keep the locally modified object")
+                                (?q "quit"))))))
              (pcase (car choice)
                ;; if user chooses deletion, delete local object, skipping delete log
                (?d
