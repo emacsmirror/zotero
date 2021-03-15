@@ -556,27 +556,27 @@ and passed as optional argument RESULT."
 
 RESOURCE is one of:
   - \"collections\": collections in the library
-  - \"collections-top\": top-level collections in the library
+  - \"collections-top\": top level collections in the library
   - \"collection\": a specific collection in the library
   - \"subcollections\": subcollections within a specific collection in the library
   - \"items\": all items in the library, excluding trashed items
-  - \"items-top\": top-level items in the library, excluding trashed items
+  - \"items-top\": top level items in the library, excluding trashed items
   - \"trash-items\": items in the trash
   - \"item\": a specific item in the library
   - \"item-children\": child items under a specific item
   - \"publication-items\": items in My Publications
   - \"collection-items\": items within a specific collection in the library
-  - \"collection-items-top\": top-level items within a specific collection in the library
+  - \"collection-items-top\": top level items within a specific collection in the library
   - \"searches\": all saved searches in the library
   - \"search\": a specific saved search in the library
   - \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
   - \"item-tags\": tags associated with a specific item
   - \"collection-tags\": tags within a specific collection in the library
   - \"items-tags\": all tags in the library, with the ability to filter based on the items
-  - \"items-top-tags\": tags assigned to top-level items
+  - \"items-top-tags\": tags assigned to top level items
   - \"trash-items-tags\": tags assigned to items in the trash
   - \"collection-items-tags\": tags assigned to items in a given collection
-  - \"collection-items-top-tags\": tags assigned to top-level items in a given collection
+  - \"collection-items-top-tags\": tags assigned to top level items in a given collection
   - \"publication-items-tags\": tags assigned to items in My Publications
   - \"keys\": the user id and privileges of the given API key
   - \"groups\": all groups the current API key has access to, including public groups the key owner belongs to even if the key doesn't have explicit permissions for them
@@ -716,27 +716,27 @@ METHOD is the method to use for the request, i.e. \"GET\",
 \"HEAD\" \"POST\", \"PUT\", \"PATCH\", or \"DELETE\". RESOURCE is
 one of:
 - \"collections\": collections in the library
-- \"collections-top\": top-level collections in the library
+- \"collections-top\": top level collections in the library
 - \"collection\": a specific collection in the library
 - \"subcollections\": subcollections within a specific collection in the library
 - \"items\": all items in the library, excluding trashed items
-- \"items-top\": top-level items in the library, excluding trashed items
+- \"items-top\": top level items in the library, excluding trashed items
 - \"trash-items\": items in the trash
 - \"item\": a specific item in the library
 - \"item-children\": child items under a specific item
 - \"publication-items\": items in My Publications
 - \"collection-items\": items within a specific collection in the library
-- \"collection-items-top\": top-level items within a specific collection in the library
+- \"collection-items-top\": top level items within a specific collection in the library
 - \"searches\": all saved searches in the library
 - \"search\": a specific saved search in the library
 - \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
 - \"item-tags\": tags associated with a specific item
 - \"collection-tags\": tags within a specific collection in the library
 - \"items-tags\": all tags in the library, with the ability to filter based on the items
-- \"items-top-tags\": tags assigned to top-level items
+- \"items-top-tags\": tags assigned to top level items
 - \"trash-items-tags\": tags assigned to items in the trash
 - \"collection-items-tags\": tags assigned to items in a given collection
-- \"collection-items-top-tags\": tags assigned to top-level items in a given collection
+- \"collection-items-top-tags\": tags assigned to top level items in a given collection
 - \"publication-items-tags\": tags assigned to items in My Publications
 - \"keys\": the user id and privileges of the given API key
 - \"groups\": all groups the current API key has access to, including public groups the key owner belongs to even if the key doesn't have explicit permissions for them
@@ -851,7 +851,7 @@ ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "items" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-top (&key type id api-key)
-  "Return top-level items, excluding trashed items.
+  "Return top level items, excluding trashed items.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
@@ -913,7 +913,7 @@ ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "collection-items" key :type type :id id :api-key api-key))
 
 (cl-defun zotero-collection-items-top (key &key type id api-key)
-  "Return top-level items in collection KEY.
+  "Return top level items in collection KEY.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
@@ -931,7 +931,7 @@ ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "collections" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-collections-top (&key type id api-key)
-  "Return top-level collections.
+  "Return top level collections.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group

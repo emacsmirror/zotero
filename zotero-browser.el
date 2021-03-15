@@ -1403,7 +1403,7 @@ With a `C-u' prefix, create a new top level note."
          (collection zotero-browser-collection)
          (ewoc zotero-browser-ewoc)
          (node (ewoc-locate ewoc))
-         ;; Top-level notes can be created by excluding the parentItem property
+         ;; top level notes can be created by excluding the parentItem property
          ;; or setting it to false.
          (parent (cond
                   ((equal arg '(4)) nil)
@@ -1422,7 +1422,7 @@ With a `C-u' prefix, create a new top level attachment.
 
 Only file attachments (imported_file/linked_file) and PDF
 imported web attachments (imported_url with content type
-application/pdf) are allowed as top-level items, as in the Zotero
+application/pdf) are allowed as top level items, as in the Zotero
 client."
   (interactive "P")
   (zotero-browser-ensure-items-mode)
@@ -1433,7 +1433,7 @@ client."
          (collection zotero-browser-collection)
          (ewoc zotero-browser-ewoc)
          (node (ewoc-locate ewoc))
-         ;; Top-level attachments can be created by excluding the parentItem
+         ;; top level attachments can be created by excluding the parentItem
          ;; property or setting it to false.
          (parent (cond
                   ((equal arg '(4)) nil)
@@ -1513,7 +1513,7 @@ client."
                          ((stringp collection) (plist-put template :collections (vector collection)))
                          (t template))))
              (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))
-         (user-error "Links to URLs are not allowed as top-level items"))))))
+         (user-error "Links to URLs are not allowed as top level items"))))))
 
 (defun zotero-browser-update-attachment ()
   "Update the attachment of the current entry."
