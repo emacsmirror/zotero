@@ -77,23 +77,7 @@ user manually, so keys should be considered sensitive."
     (zotero-auth--after-authorize-function)
     (zotero-auth--save-token token)))
 
-(defun zotero-auth-token (&optional force)
-  "Return the access token.
-If optional argument FORCE is non-nil, authorize Zotero and
-obtain new token info."
-  (cond
-   ((or (null zotero-auth-token) force)
-    ;; Not authorized or forcing: authorize Zotero
-    (zotero-auth-authorize))
-   ((not (zotero-auth-token-valid-p zotero-auth-token))
-    ;; Invalid token: authorize Zotero
-    (message "Invalid token. Forcing authorization...")
-    (zotero-auth-authorize))
-   (t
-    ;; Already authorized: return access token
-    zotero-auth-token)))
-
-(defun zotero-auth-token-valid-p (token)
+(defun zotero-auth--token-valid-p (token)
   "Return t if TOKEN is valid, else return nil.
 
 An access token is considered valid if it is a struct type called
@@ -102,31 +86,41 @@ An access token is considered valid if it is a struct type called
 key)."
   (when (and (zotero-auth-token-p token) (zotero-auth-token-token-secret token) (zotero-auth-token-userid token)) t))
 
+(defun zotero-auth--token (&optional force)
+  "Return the access token.
+If optional argument FORCE is non-nil, authorize Zotero and
+obtain new token info."
+  (cond
+   ((or (null zotero-auth-token) force)
+    ;; Not authorized or forcing: authorize Zotero
+    (zotero-auth-authorize))
+   ((not (zotero-auth--token-valid-p zotero-auth-token))
+    ;; Invalid token: authorize Zotero
+    (message "Invalid token. Forcing authorization...")
+    (zotero-auth-authorize))
+   (t
+    ;; Already authorized: return access token
+    zotero-auth-token)))
+
 (defun zotero-auth-api-key (&optional token)
   "Return the Zotero API key in TOKEN.
 
 In Zotero's case the token and secret are just the same Zotero
 API key."
   (interactive)
-  (let ((token (or token
-                   zotero-auth-token
-                   (zotero-auth-authorize))))
+  (let ((token (or token (zotero-auth--token))))
     (zotero-auth-token-token-secret token)))
 
 (defun zotero-auth-userid (&optional token)
   "Return the Zotero user ID in TOKEN."
   (interactive)
-  (let ((token (or token
-                   zotero-auth-token
-                   (zotero-auth-authorize))))
+  (let ((token (or token (zotero-auth--token))))
     (zotero-auth-token-userid token)))
 
 (defun zotero-auth-username (&optional token)
   "Return the Zotero username in TOKEN."
   (interactive)
-  (let ((token (or token
-                   zotero-auth-token
-                   (zotero-auth-authorize))))
+  (let ((token (or token (zotero-auth-token))))
     (zotero-auth-token-username token)))
 
 ;;;; Functions
