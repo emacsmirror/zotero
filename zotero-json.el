@@ -156,7 +156,7 @@ Each of the OBJECTS may be:
 - a function (call it with no arguments)
 - a file (read one Lisp expression from the beginning)
 - a string (takes text from string, starting at the beginning)."
-  (concat "[" (mapconcat #'zotero-json-encode objects "") "]"))
+  (concat "[" (mapconcat #'zotero-json-encode objects ",") "]"))
 
 (provide 'zotero-json)
 
