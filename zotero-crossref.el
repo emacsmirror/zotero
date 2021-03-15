@@ -187,7 +187,6 @@ Return plist that could be saved to the library by passing it to
                    (_ (string-empty-p extra)))
               (setq result (plist-put result :extra (concat "DOI: " doi)))
             (setq result (plist-put result :extra (concat extra "\nDOI: " doi)))))
-        ;; URL is always http://dx.doi.org/..
         (when-let ((seq (plist-get item :link))
                    (_ (> (length seq) 0))
                    (url (plist-get (elt seq 0) :URL)))
