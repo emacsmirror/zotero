@@ -1473,9 +1473,13 @@ client."
                  (zotero-browser--prefix (ewoc-location node) "▾")
                  (ewoc-enter-after ewoc node key))
              (ewoc-enter-last ewoc key))
-           (unless (zotero-upload-attachment key file nil :type type :id id)
-             (error "Failed to associate attachment with item %s" key))
-           (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))
+           (if-let ((response (zotero-upload-attachment key file nil :type type :id id))
+                    (object (zotero-response-data response))
+                    (data (plist-get object :data)))
+               (progn
+                 (zotero-cache-save data "items" type id)
+                 (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))
+             (error "Failed to associate attachment with item %s" key)))))
       ("imported_url"
        (user-error "Creating a snapshot is not supported"))
       ("linked_file"
