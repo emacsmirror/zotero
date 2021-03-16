@@ -1803,8 +1803,8 @@ client."
                      (parent (plist-put data :parentItem parent))
                      ((stringp collection) (plist-put data :collections (vector collection)))
                      (t data))))
-         (when-let ((object (zotero-cache-save data "items" type id))
-                    (key (plist-get object :key)))
+         (when-let ((data (zotero-cache-save data "items" type id))
+                    (key (plist-get data :key)))
            (if parent
                (progn
                  (zotero-browser--prefix (ewoc-location node) zotero-browser-collapse-symbol)
@@ -1838,14 +1838,14 @@ client."
                      (parent (plist-put data :parentItem parent))
                      ((stringp collection) (plist-put data :collections (vector collection)))
                      (t data))))
-         (when-let ((object (zotero-cache-save data "items" type id))
-                    (key (plist-get object :key)))
+         (when-let ((data (zotero-cache-save data "items" type id))
+                    (key (plist-get data :key)))
            (if parent
                (progn
                  (zotero-browser--prefix (ewoc-location node) zotero-browser-collapse-symbol)
                  (ewoc-enter-after ewoc node key))
              (ewoc-enter-last ewoc key))
-           (display-buffer (zotero-edit-item (plist-get object :data) type id) zotero-browser-edit-buffer-action))))
+           (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))
       ("linked_url"
        (if parent
            (let* ((template (copy-tree (zotero-cache-attachment-template "linked_url")))
@@ -1977,31 +1977,31 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
             (when (stringp collection)
               (setq result (plist-put result :collections (vector collection))))
             ;; Save the parent item
-            (when-let ((object (zotero-cache-save result "items" type id))
-                       (key (plist-get object :key)))
-              ;; Rename the attachment to match new metadata and make it a child
-              (let* ((data (plist-get object :data))
-                     (base (zotero-browser--filename-base data))
-                     (dir (file-name-directory file))
-                     (ext (file-name-extension file t))
-                     (newname (concat dir base ext))
-                     (data (thread-first attachment-data
-                             (plist-put :parentItem key)
-                             (plist-put :title base)
-                             (plist-put :filename (concat base ext))
-                             ;; md5 and mtime can be edited directly in
-                             ;; personal libraries for WebDAV-based file
-                             ;; syncing. They should not be edited directly
-                             ;; when using Zotero File Storage, which provides
-                             ;; an atomic method for setting the properties
-                             ;; along with the corresponding file.
-                             (plist-put :md5 nil)
-                             (plist-put :mtime nil))))
-                (rename-file file newname t)
-                (zotero-cache-save data "items" type id)
-                (ewoc-enter-before ewoc node key)
-                (zotero-browser--prefix (ewoc-location (ewoc-prev ewoc node)) zotero-browser-collapse-symbol)
-                (ewoc-invalidate ewoc node))))))))))
+            (if-let ((data (zotero-cache-save result "items" type id)))
+                ;; Rename the attachment to match new metadata and make it a child
+                (let* ((key (plist-get data :key))
+                       (base (zotero-browser--filename-base data))
+                       (dir (file-name-directory file))
+                       (ext (file-name-extension file t))
+                       (newname (concat dir base ext))
+                       (data (thread-first attachment-data
+                               (plist-put :parentItem key)
+                               (plist-put :title base)
+                               (plist-put :filename (concat base ext))
+                               ;; md5 and mtime can be edited directly in
+                               ;; personal libraries for WebDAV-based file
+                               ;; syncing. They should not be edited directly
+                               ;; when using Zotero File Storage, which provides
+                               ;; an atomic method for setting the properties
+                               ;; along with the corresponding file.
+                               (plist-put :md5 nil)
+                               (plist-put :mtime nil))))
+                  (rename-file file newname t)
+                  (zotero-cache-save data "items" type id)
+                  (ewoc-enter-before ewoc node key)
+                  (zotero-browser--prefix (ewoc-location (ewoc-prev ewoc node)) zotero-browser-collapse-symbol)
+                  (ewoc-invalidate ewoc node))
+              (user-error "Saving parent item failed")))))))))
 
 (defun zotero-browser-index-attachment ()
   "Index the full-text content of the current entry."
