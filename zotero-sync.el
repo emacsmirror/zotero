@@ -288,8 +288,8 @@ performed."
          (version (plist-get library :version)))
     (cl-loop for resource in '("collections" "items" "searches") do
              (let* ((response (zotero-request "GET" resource nil :type type :id id :api-key api-key :params `(("since" ,since)
-                                                                                                            ("format" "versions")
-                                                                                                            ("includeTrashed" 1))))
+                                                                                                              ("format" "versions")
+                                                                                                              ("includeTrashed" 1))))
                     (remote-version (zotero-response-version response))
                     ;; Returns a plist of the form (:key version :key version ...)
                     (data (zotero-response-data response))
