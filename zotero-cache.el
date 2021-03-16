@@ -634,9 +634,10 @@ The template is cached for a period of time (for example one
 hour) without making further requests. Conditional requests are
 not (yet) implemented in the Zotero API."
   (let* ((template (ht-get* zotero-cache "templates" "items" itemtype))
+         (data (plist-get template :data))
          (last-sync (plist-get template :last-sync))
          (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
-    (if (or (null template)
+    (if (or (null data)
             (and zotero-cache-expire (> seconds-since-last-sync zotero-cache-expire)))
         (with-demoted-errors "Error downloading template: %S"
           (zotero-sync-item-template zotero-cache itemtype))
@@ -649,9 +650,10 @@ The template is cached for a period of time (for example one
 hour) without making further requests. Conditional requests are
 not (yet) implemented in the Zotero API."
   (let* ((template (ht-get* zotero-cache "templates" "attachments" linkmode))
+         (data (plist-get template :data))
          (last-sync (plist-get template :last-sync))
          (seconds-since-last-sync (float-time (time-subtract (current-time) last-sync))))
-    (if (or (null template)
+    (if (or (null data)
             (and zotero-cache-expire (> seconds-since-last-sync zotero-cache-expire)))
         (with-demoted-errors "Error downloading template: %S"
           (zotero-sync-attachment-template zotero-cache linkmode))
