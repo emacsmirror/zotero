@@ -307,7 +307,7 @@ performed."
                    (when (and remote-version
                               (not (eq remote-version version)))
                      (throw 'sync 'concurrent-update))
-                   (when-let ((updated-table (zotero-sync--process-updates table objects version)))
+                   (when-let ((updated-table (zotero-sync--process-updates table objects version type id)))
                      (setf table updated-table))))))
     cache))
 
@@ -475,11 +475,14 @@ Zotero API key."
                    (setq number (+ number (length partition)))))))
     cache))
 
-(defun zotero-sync--process-updates (table objects version)
+(defun zotero-sync--process-updates (table objects version type id)
   "Update TABLE with OBJECTS.
 Return the updated table when success or nil when failed.
 
-VERSION is the \"Last-Modified-Version\"."
+VERSION is the \"Last-Modified-Version\". TYPE is \"user\" for
+your personal library, and \"group\" for the group libraries. ID
+is the ID of the personal or group library you want to access,
+that is the \"user ID\" or \"group ID\"."
   (seq-doseq (object objects)
     (let* ((key (plist-get object :key))
            (value (ht-get table key))
@@ -496,6 +499,8 @@ VERSION is the \"Last-Modified-Version\"."
          (ht-set! table key (thread-first value
                               (plist-put :synced t)
                               (plist-put :version version)
+                              (plist-put :type type)
+                              (plist-put :id id)
                               (plist-put :data remote-data))))
         ;; if object hasn't been modified locally (synced == true):
         ;; overwrite with synced = true and version = Last-Modified-Version
