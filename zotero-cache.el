@@ -879,7 +879,7 @@ ID."
              (entry (ht-get table key))
              (version (plist-get entry :version)))
         (progn
-          (ht-set! table key `(:synced nil :version ,version :type ,type :id ,id :data data))
+          (ht-set! table key `(:synced nil :version ,version :type ,type :id ,id :data ,data))
           (zotero-cache-serialize)
           data)
       (if-let ((object (zotero-cache-upload data resource type id)))
