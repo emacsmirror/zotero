@@ -1,21 +1,22 @@
 ;;; zotero-sync.el --- Sync for Zotero -*- lexical-binding: t; -*-
 
 ;; Author: Folkert van der Beek <folkertvanderbeek@gmail.com>
+;; URL: https://gitlab.com/fvdbeek/emacs-zotero
 
-;; This file is NOT part of GNU Emacs.
+;; This file is part of Emacs-zotero.
 
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
+;; Emacs-zotero is free software: you can redistribute it and/or modify it under
+;; the terms of the GNU General Public License as published by the Free Software
+;; Foundation, either version 3 of the License, or (at your option) any later
+;; version.
 
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
+;; Emacs-zotero is distributed in the hope that it will be useful, but WITHOUT
+;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+;; FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+;; details.
 
 ;; You should have received a copy of the GNU General Public License along with
-;; this program. If not, see <http://www.gnu.org/licenses/>.
+;; Emacs-zotero. If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -509,7 +510,7 @@ VERSION is the \"Last-Modified-Version\"."
                               (plist-put :version version))))
         ;; if changes can be automatically merged:
         ;; apply changes from each side and set synced = true and version = Last-Modified-Version
-        ((guard (zotero-lib-mergable-plist-p local-object remote-object))
+        ((guard (zotero-lib-mergable-plist-p (plist-get value :object) remote-object))
          (let ((merged (zotero-lib-merge-plist local-object remote-object)))
            (ht-set! table key (thread-first value
                                 (plist-put :synced t)
@@ -601,13 +602,14 @@ VERSION is the \"Last-Modified-Version\"."
           ;; else:
           ;; perform conflict resolution
           (_
-           (let ((choice (read-multiple-choice
-                          "Deleted object was modified. How should this be resolved? "
-                          '((?d "delete the locally modified object")
-                            (?k "keep the locally modified object")
-                            (?D "always delete the locally modified object")
-                            (?K "always keep the locally modified object")
-                            (?q "quit")))))
+           (let ((choice (or default
+                             (read-multiple-choice
+                              "Deleted object was modified. How should this be resolved? "
+                              '((?d "delete the locally modified object")
+                                (?k "keep the locally modified object")
+                                (?D "always delete the locally modified object")
+                                (?K "always keep the locally modified object")
+                                (?q "quit"))))))
              (pcase (car choice)
                ;; if user chooses deletion, delete local object, skipping delete log
                (?d
@@ -724,7 +726,9 @@ Zotero API key."
                 ((string-empty-p filename)
                  (message "attachment %s in %s %s has an empty filename." key type id))
                 ((file-exists-p file)
-                 (let ((attributes (zotero-file-attributes file)))
+                 (let* ((zipfile (concat (file-name-sans-extension file) ".zip"))
+                        (snapshot-p (file-exists-p zipfile))
+                        (attributes (if snapshot-p (zotero-file-attributes zipfile) (zotero-file-attributes file))))
                    (when (and (not (equal md5 (plist-get attributes :md5)))
                               (y-or-n-p (format "File \"%s\" is changed. overwrite? " filename)))
                      (if (equal linkmode "imported_url")
@@ -734,7 +738,7 @@ Zotero API key."
                                 (zip-file-p (equal (file-name-extension path) "zip")))
                            (when zip-file-p
                              (let ((exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
-                               (delete-file path)
+                               ;; (delete-file path)
                                (unless (eq exit-status 0)
                                  (error "Error extracting snapshot")))))
                        (zotero-download-file key filename dir nil :type type :id id :api-key api-key)))))
@@ -747,7 +751,7 @@ Zotero API key."
                               (zip-file-p (equal (file-name-extension path) "zip")))
                          (when zip-file-p
                            (let ((exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
-                             (delete-file path)
+                             ;; (delete-file path)
                              (when (eq exit-status 0)
                                (error "Error extracting snapshot")))))
                      (zotero-download-file key filename dir nil :type type :id id :api-key api-key)))))))))

@@ -7,20 +7,20 @@
 ;; Package-Requires: ((emacs "27.1") (ht "2.2") (oauth "1.0.4") (s "1.12.0"))
 ;; URL: https://gitlab.com/fvdbeek/emacs-zotero
 
-;; This file is NOT part of GNU Emacs.
+;; This file is part of Emacs-zotero.
 
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
+;; Emacs-zotero is free software: you can redistribute it and/or modify it under
+;; the terms of the GNU General Public License as published by the Free Software
+;; Foundation, either version 3 of the License, or (at your option) any later
+;; version.
 
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
+;; Emacs-zotero is distributed in the hope that it will be useful, but WITHOUT
+;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+;; FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+;; details.
 
 ;; You should have received a copy of the GNU General Public License along with
-;; this program. If not, see <http://www.gnu.org/licenses/>.
+;; Emacs-zotero. If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -502,7 +502,7 @@ and passed as optional argument RESULT."
                      (api-key (alist-get "Zotero-API-Key" headers nil nil #'equal))
                      (url (concat "https://www.zotero.org/settings/keys/edit/" api-key)))
                 (browse-url url)
-                (read-string "Press enter when you have changed the privileges:")
+                (read-string "Press enter when you have changed the privileges. ")
                 (zotero-dispatch request))
             (user-error "Insufficient privileges")))
          (message
@@ -556,27 +556,27 @@ and passed as optional argument RESULT."
 
 RESOURCE is one of:
   - \"collections\": collections in the library
-  - \"collections-top\": top-level collections in the library
+  - \"collections-top\": top level collections in the library
   - \"collection\": a specific collection in the library
   - \"subcollections\": subcollections within a specific collection in the library
   - \"items\": all items in the library, excluding trashed items
-  - \"items-top\": top-level items in the library, excluding trashed items
+  - \"items-top\": top level items in the library, excluding trashed items
   - \"trash-items\": items in the trash
   - \"item\": a specific item in the library
   - \"item-children\": child items under a specific item
   - \"publication-items\": items in My Publications
   - \"collection-items\": items within a specific collection in the library
-  - \"collection-items-top\": top-level items within a specific collection in the library
+  - \"collection-items-top\": top level items within a specific collection in the library
   - \"searches\": all saved searches in the library
   - \"search\": a specific saved search in the library
   - \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
   - \"item-tags\": tags associated with a specific item
   - \"collection-tags\": tags within a specific collection in the library
   - \"items-tags\": all tags in the library, with the ability to filter based on the items
-  - \"items-top-tags\": tags assigned to top-level items
+  - \"items-top-tags\": tags assigned to top level items
   - \"trash-items-tags\": tags assigned to items in the trash
   - \"collection-items-tags\": tags assigned to items in a given collection
-  - \"collection-items-top-tags\": tags assigned to top-level items in a given collection
+  - \"collection-items-top-tags\": tags assigned to top level items in a given collection
   - \"publication-items-tags\": tags assigned to items in My Publications
   - \"keys\": the user id and privileges of the given API key
   - \"groups\": all groups the current API key has access to, including public groups the key owner belongs to even if the key doesn't have explicit permissions for them
@@ -716,27 +716,27 @@ METHOD is the method to use for the request, i.e. \"GET\",
 \"HEAD\" \"POST\", \"PUT\", \"PATCH\", or \"DELETE\". RESOURCE is
 one of:
 - \"collections\": collections in the library
-- \"collections-top\": top-level collections in the library
+- \"collections-top\": top level collections in the library
 - \"collection\": a specific collection in the library
 - \"subcollections\": subcollections within a specific collection in the library
 - \"items\": all items in the library, excluding trashed items
-- \"items-top\": top-level items in the library, excluding trashed items
+- \"items-top\": top level items in the library, excluding trashed items
 - \"trash-items\": items in the trash
 - \"item\": a specific item in the library
 - \"item-children\": child items under a specific item
 - \"publication-items\": items in My Publications
 - \"collection-items\": items within a specific collection in the library
-- \"collection-items-top\": top-level items within a specific collection in the library
+- \"collection-items-top\": top level items within a specific collection in the library
 - \"searches\": all saved searches in the library
 - \"search\": a specific saved search in the library
 - \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
 - \"item-tags\": tags associated with a specific item
 - \"collection-tags\": tags within a specific collection in the library
 - \"items-tags\": all tags in the library, with the ability to filter based on the items
-- \"items-top-tags\": tags assigned to top-level items
+- \"items-top-tags\": tags assigned to top level items
 - \"trash-items-tags\": tags assigned to items in the trash
 - \"collection-items-tags\": tags assigned to items in a given collection
-- \"collection-items-top-tags\": tags assigned to top-level items in a given collection
+- \"collection-items-top-tags\": tags assigned to top level items in a given collection
 - \"publication-items-tags\": tags assigned to items in My Publications
 - \"keys\": the user id and privileges of the given API key
 - \"groups\": all groups the current API key has access to, including public groups the key owner belongs to even if the key doesn't have explicit permissions for them
@@ -851,7 +851,7 @@ ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "items" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-top (&key type id api-key)
-  "Return top-level items, excluding trashed items.
+  "Return top level items, excluding trashed items.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
@@ -913,7 +913,7 @@ ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "collection-items" key :type type :id id :api-key api-key))
 
 (cl-defun zotero-collection-items-top (key &key type id api-key)
-  "Return top-level items in collection KEY.
+  "Return top level items in collection KEY.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
@@ -931,7 +931,7 @@ ID\". API-KEY is the Zotero API key."
   (zotero-request "GET" "collections" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-collections-top (&key type id api-key)
-  "Return top-level collections.
+  "Return top level collections.
 
 Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
@@ -1661,8 +1661,8 @@ passed to `zotero-authorize-upload'.
 Note that mtime is be provided in milliseconds, not seconds."
   (when (file-readable-p file)
     (let* ((md5 (with-temp-buffer
-                  (insert-file-contents file)
-                  (secure-hash 'md5 (current-buffer))))
+                  (insert-file-contents-literally file)
+                  (secure-hash 'md5 (encode-coding-string (buffer-string) 'raw-text))))
            (attributes (file-attributes file))
            ;; (approximate) time of last modification in milliseconds
            (mtime (thread-last
@@ -1788,7 +1788,7 @@ for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key.
 
-Return t if success, or nil if failed."
+Return item KEY if success, or nil if failed."
   (message "Authorizing upload...")
   (let* ((attributes (zotero-file-attributes file))
          (filename (plist-get attributes :filename))
@@ -1804,8 +1804,7 @@ Return t if success, or nil if failed."
         (if (eq (plist-get data :exists) 1)
             (progn
               (message "Authorizing upload...file already exists")
-              ;; Success: return t
-              t)
+              (zotero-item key :type type :id id :api-key api-key))
           (message "Authorizing upload...done")
           (message "Upload file...")
           (let* ((url (plist-get data :url))
@@ -1826,8 +1825,7 @@ Return t if success, or nil if failed."
                     (if (eq status-code 204)
                         (progn
                           (message "Register upload...done")
-                          ;; Success: return t
-                          t)
+                          (zotero-item key :type type :id id :api-key api-key))
                       (message "Register upload...failed")
                       ;; Failed: return nil
                       nil)))

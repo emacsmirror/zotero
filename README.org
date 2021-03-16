@@ -140,7 +140,7 @@
      Return Zotero library items.
 
 **** Function: zotero-top &key TYPE ID API-KEY
-     Return top-level Zotero library items.
+     Return top level Zotero library items.
 
 **** Function: zotero-publications &key TYPE ID API-KEY
      Return the publications from the "My Publications" collection of a user's
@@ -161,13 +161,13 @@
      Return items from the specified collection. This includes sub-collection items.
 
 **** Function: zotero-collection-items-top KEY &key TYPE ID API-KEY
-     Return top-level items from the specified collection.
+     Return top level items from the specified collection.
 
 **** Function: zotero-collections &key TYPE ID API-KEY
      Return a library's collections. This includes subcollections.
 
 **** Function: zotero-collections-top &key TYPE ID API-KEY
-     Return a library's top-level collections.
+     Return a library's top level collections.
 
 **** Function: zotero-collection KEY &key TYPE ID API-KEY
      Return a specific collection.
@@ -638,7 +638,7 @@
 
      Only file attachments (imported_file/linked_file) and PDF
      imported web attachments (imported_url with content type
-     application/pdf) are allowed as top-level items, as in the Zotero
+     application/pdf) are allowed as top level items, as in the Zotero
      client.
 
 **** Command: zotero-browser-update-attachment

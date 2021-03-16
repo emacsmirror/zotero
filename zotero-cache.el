@@ -1,21 +1,22 @@
 ;;; zotero-cache.el --- Cache for Zotero -*- lexical-binding: t; -*-
 
 ;; Author: Folkert van der Beek <folkertvanderbeek@gmail.com>
+;; URL: https://gitlab.com/fvdbeek/emacs-zotero
 
-;; This file is NOT part of GNU Emacs.
+;; This file is part of Emacs-zotero.
 
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
+;; Emacs-zotero is free software: you can redistribute it and/or modify it under
+;; the terms of the GNU General Public License as published by the Free Software
+;; Foundation, either version 3 of the License, or (at your option) any later
+;; version.
 
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
+;; Emacs-zotero is distributed in the hope that it will be useful, but WITHOUT
+;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+;; FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+;; details.
 
 ;; You should have received a copy of the GNU General Public License along with
-;; this program. If not, see <http://www.gnu.org/licenses/>.
+;; Emacs-zotero. If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -302,27 +303,27 @@ request.
 
 RESOURCE is one of:
   - \"collections\": collections in the library
-  - \"collections-top\": top-level collections in the library
+  - \"collections-top\": top level collections in the library
   - \"collection\": a specific collection in the library
   - \"subcollections\": subcollections within a specific collection in the library
   - \"items\": all items in the library, excluding trashed items
-  - \"items-top\": top-level items in the library, excluding trashed items
+  - \"items-top\": top level items in the library, excluding trashed items
   - \"trash-items\": items in the trash
   - \"item\": a specific item in the library
   - \"item-children\": child items under a specific item
   - \"publication-items\": items in My Publications
   - \"collection-items\": items within a specific collection in the library
-  - \"collection-items-top\": top-level items within a specific collection in the library
+  - \"collection-items-top\": top level items within a specific collection in the library
   - \"searches\": all saved searches in the library
   - \"search\": a specific saved search in the library
   - \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
   - \"item-tags\": tags associated with a specific item
   - \"collection-tags\": tags within a specific collection in the library
   - \"items-tags\": all tags in the library, with the ability to filter based on the items
-  - \"items-top-tags\": tags assigned to top-level items
+  - \"items-top-tags\": tags assigned to top level items
   - \"trash-items-tags\": tags assigned to items in the trash
   - \"collection-items-tags\": tags assigned to items in a given collection
-  - \"collection-items-top-tags\": tags assigned to top-level items in a given collection
+  - \"collection-items-top-tags\": tags assigned to top level items in a given collection
   - \"publication-items-tags\": tags assigned to items in My Publications.
 
 Optional argument TYPE is \"user\" for your personal library, and
@@ -453,27 +454,27 @@ request.
 
 RESOURCE is one of:
   - \"collections\": collections in the library
-  - \"collections-top\": top-level collections in the library
+  - \"collections-top\": top level collections in the library
   - \"collection\": a specific collection in the library
   - \"subcollections\": subcollections within a specific collection in the library
   - \"items\": all items in the library, excluding trashed items
-  - \"items-top\": top-level items in the library, excluding trashed items
+  - \"items-top\": top level items in the library, excluding trashed items
   - \"trash-items\": items in the trash
   - \"item\": a specific item in the library
   - \"item-children\": child items under a specific item
   - \"publication-items\": items in My Publications
   - \"collection-items\": items within a specific collection in the library
-  - \"collection-items-top\": top-level items within a specific collection in the library
+  - \"collection-items-top\": top level items within a specific collection in the library
   - \"searches\": all saved searches in the library
   - \"search\": a specific saved search in the library
   - \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
   - \"item-tags\": tags associated with a specific item
   - \"collection-tags\": tags within a specific collection in the library
   - \"items-tags\": all tags in the library, with the ability to filter based on the items
-  - \"items-top-tags\": tags assigned to top-level items
+  - \"items-top-tags\": tags assigned to top level items
   - \"trash-items-tags\": tags assigned to items in the trash
   - \"collection-items-tags\": tags assigned to items in a given collection
-  - \"collection-items-top-tags\": tags assigned to top-level items in a given collection
+  - \"collection-items-top-tags\": tags assigned to top level items in a given collection
   - \"publication-items-tags\": tags assigned to items in My Publications.
 
 Optional argument TYPE is \"user\" for your personal library, and

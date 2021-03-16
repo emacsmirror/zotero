@@ -1,21 +1,22 @@
 ;;; zotero-arxiv.el --- Retrieve and parse Arxiv metadata -*- lexical-binding: t; -*-
 
 ;; Author: Folkert van der Beek <folkertvanderbeek@gmail.com>
+;; URL: https://gitlab.com/fvdbeek/emacs-zotero
 
-;; This file is NOT part of GNU Emacs.
+;; This file is part of Emacs-zotero.
 
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
+;; Emacs-zotero is free software: you can redistribute it and/or modify it under
+;; the terms of the GNU General Public License as published by the Free Software
+;; Foundation, either version 3 of the License, or (at your option) any later
+;; version.
 
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
+;; Emacs-zotero is distributed in the hope that it will be useful, but WITHOUT
+;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+;; FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+;; details.
 
 ;; You should have received a copy of the GNU General Public License along with
-;; this program. If not, see <http://www.gnu.org/licenses/>.
+;; Emacs-zotero. If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;; Functions to retrieve metadata from the Arxiv API. See
@@ -32,7 +33,7 @@
 (declare-function zotero-cache-item-template "zotero-cache")
 
 ;;;; Variables
-(defconst zotero-arxiv-url "http://export.arxiv.org/api/query")
+(defconst zotero-arxiv-url "https://export.arxiv.org/api/query")
 
 (defun zotero-arxiv--parse-creators (authors)
   "Parse the creators in AUTHORS."
@@ -51,13 +52,10 @@ Return plist that could be saved to the library by passing it to
     (let-alist dom
       (when-let ((item .feed.entry))
         (let ((title (xml-node-attributes .feed.entry.title)) ; The title of the article.
-              ;; (arxiv-id (s-chop-prefix "http://arxiv.org/abs/" (xml-node-attributes .feed.entry.id))) ; A url http://arxiv.org/abs/id
-              ;; (published (xml-node-attributes .feed.entry.published)) ; The date that version 1 of the article was submitted.
               (updated (xml-node-attributes .feed.entry.updated)) ; The date that the retrieved version of the article was submitted. Same as <published> if the retrieved version is version 1.
               (summary (xml-node-attributes .feed.entry.summary)) ; The article abstract.
               (authors (xml-get-children .feed.entry 'author)) ; One for each author. Has child element <name> containing the author name.
               (links (xml-get-children .feed.entry 'link)) ; Can be up to 3 given url's associated with this article.
-              ;; (arxiv:comment (xml-node-attributes .feed.entry.arxiv:comment)) ; The authors comment if present.
               (arxiv:journal_ref (xml-node-attributes .feed.entry.arxiv:journal_ref)) ; A journal reference if present.
               (arxiv:doi (xml-node-attributes .feed.entry.arxiv:doi))) ; A url for the resolved DOI to an external resource if present.
           (setq result (copy-tree (zotero-cache-item-template "journalArticle")))

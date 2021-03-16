@@ -1,21 +1,23 @@
 ;;; zotero-browser.el --- Interface to Zotero  -*- lexical-binding: t; -*-
 
 ;; Author: Folkert van der Beek <folkertvanderbeek@gmail.com>
+;; URL: https://gitlab.com/fvdbeek/emacs-zotero
 
-;; This file is NOT part of GNU Emacs.
+;; This file is part of Emacs-zotero.
 
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
+;; Emacs-zotero is free software: you can redistribute it and/or modify it under
+;; the terms of the GNU General Public License as published by the Free Software
+;; Foundation, either version 3 of the License, or (at your option) any later
+;; version.
 
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
+;; Emacs-zotero is distributed in the hope that it will be useful, but WITHOUT
+;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+;; FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+;; details.
 
 ;; You should have received a copy of the GNU General Public License along with
-;; this program. If not, see <http://www.gnu.org/licenses/>.
+;; Emacs-zotero. If not, see <https://www.gnu.org/licenses/>.
+
 
 ;;; Commentary:
 
@@ -1738,7 +1740,7 @@ With a `C-u' prefix, create a new top level note."
          (collection zotero-browser-collection)
          (ewoc zotero-browser-ewoc)
          (node (ewoc-locate ewoc))
-         ;; Top-level notes can be created by excluding the parentItem property
+         ;; top level notes can be created by excluding the parentItem property
          ;; or setting it to false.
          (parent (cond
                   ((equal arg '(4)) nil)
@@ -1757,7 +1759,7 @@ With a `C-u' prefix, create a new top level attachment.
 
 Only file attachments (imported_file/linked_file) and PDF
 imported web attachments (imported_url with content type
-application/pdf) are allowed as top-level items, as in the Zotero
+application/pdf) are allowed as top level items, as in the Zotero
 client."
   (interactive "P")
   (zotero-browser-ensure-items-mode)
@@ -1768,7 +1770,7 @@ client."
          (collection zotero-browser-collection)
          (ewoc zotero-browser-ewoc)
          (node (ewoc-locate ewoc))
-         ;; Top-level attachments can be created by excluding the parentItem
+         ;; top level attachments can be created by excluding the parentItem
          ;; property or setting it to false.
          (parent (cond
                   ((equal arg '(4)) nil)
@@ -1808,9 +1810,13 @@ client."
                  (zotero-browser--prefix (ewoc-location node) zotero-browser-collapse-symbol)
                  (ewoc-enter-after ewoc node key))
              (ewoc-enter-last ewoc key))
-           (unless (zotero-upload-attachment key file nil :type type :id id)
-             (error "Failed to associate attachment with item %s" key))
-           (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))
+           (if-let ((response (zotero-upload-attachment key file nil :type type :id id))
+                    (object (zotero-response-data response))
+                    (data (plist-get object :data)))
+               (progn
+                 (zotero-cache-save data "items" type id)
+                 (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))
+             (error "Failed to associate attachment with item %s" key)))))
       ("imported_url"
        (user-error "Creating a snapshot is not supported"))
       ("linked_file"
@@ -1848,7 +1854,7 @@ client."
                          ((stringp collection) (plist-put template :collections (vector collection)))
                          (t template))))
              (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))
-         (user-error "Links to URLs are not allowed as top-level items"))))))
+         (user-error "Links to URLs are not allowed as top level items"))))))
 
 (defun zotero-browser-update-attachment ()
   "Update the attachment of the current entry."
