@@ -78,24 +78,6 @@
 (defvar zotero-browser-padding 1
   "Set the number of characters preceding each entry.")
 
-(defvar zotero-browser-expand-symbol (propertize "▾"
-                                                 'mouse-face 'highlight
-                                                 'help-echo "mouse-1: collapse"
-                                                 'keymap zotero-browser-toggle-keymap)
-  "Expand symbol.
-The symbol appears next to items that contains children and means
-that the item is collapsed and the children are hidden in the
-item tree.")
-
-(defvar zotero-browser-collapse-symbol (propertize "▸"
-                                                   'mouse-face 'highlight
-                                                   'help-echo "mouse-1: expand"
-                                                   'keymap zotero-browser-toggle-keymap)
-  "Collapse symbol.
-The symbol appears next to items that contains children and means
-that the item is expanded and the children appear in the item
-tree.")
-
 (defvar zotero-browser-default-itemtypes nil
   "Default itemtypes when creating a new item.")
 
@@ -244,6 +226,24 @@ tree.")
     (define-key map [mouse-3] #'zotero-browser-note-popup-menu)
     map)
   "Keymap for mouse events on notes.")
+
+(defvar zotero-browser-expand-symbol (propertize "▾"
+                                                 'mouse-face 'highlight
+                                                 'help-echo "mouse-1: collapse"
+                                                 'keymap zotero-browser-toggle-keymap)
+  "Expand symbol.
+The symbol appears next to items that contains children and means
+that the item is collapsed and the children are hidden in the
+item tree.")
+
+(defvar zotero-browser-collapse-symbol (propertize "▸"
+                                                   'mouse-face 'highlight
+                                                   'help-echo "mouse-1: expand"
+                                                   'keymap zotero-browser-toggle-keymap)
+  "Collapse symbol.
+The symbol appears next to items that contains children and means
+that the item is expanded and the children appear in the item
+tree.")
 
 (defconst zotero-browser-note-usage-message
   "Type \\[zotero-browser-note-exit] to finish, \
