@@ -227,7 +227,7 @@
     map)
   "Keymap for mouse events on notes.")
 
-(defvar zotero-browser-expand-symbol (propertize "▾"
+(defvar zotero-browser-expand-symbol (propertize "▸"
                                                  'mouse-face 'highlight
                                                  'help-echo "mouse-1: collapse"
                                                  'keymap zotero-browser-toggle-keymap)
@@ -236,7 +236,7 @@ The symbol appears next to items that contains children and means
 that the item is collapsed and the children are hidden in the
 item tree.")
 
-(defvar zotero-browser-collapse-symbol (propertize "▸"
+(defvar zotero-browser-collapse-symbol (propertize "▾"
                                                    'mouse-face 'highlight
                                                    'help-echo "mouse-1: expand"
                                                    'keymap zotero-browser-toggle-keymap)
