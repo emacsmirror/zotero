@@ -202,7 +202,7 @@
 **** Function: zotero-create-items OBJECTS &key TYPE ID API-KEY
      Create multiple items.
 
-**** Function: zotero-update-item KEY OBJECT &key TYPE ID API-KEY
+**** Function: zotero-update-item KEY OBJECT VERSION &key TYPE ID API-KEY
      Update an existing item.
 
 **** Function: zotero-update-items OBJECTS &key TYPE ID API-KEY
