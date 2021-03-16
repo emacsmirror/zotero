@@ -1788,7 +1788,7 @@ for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key.
 
-Return t if success, or nil if failed."
+Return item KEY if success, or nil if failed."
   (message "Authorizing upload...")
   (let* ((attributes (zotero-file-attributes file))
          (filename (plist-get attributes :filename))
@@ -1804,8 +1804,7 @@ Return t if success, or nil if failed."
         (if (eq (plist-get data :exists) 1)
             (progn
               (message "Authorizing upload...file already exists")
-              ;; Success: return t
-              t)
+              (zotero-item key :type type :id id :api-key api-key))
           (message "Authorizing upload...done")
           (message "Upload file...")
           (let* ((url (plist-get data :url))
@@ -1826,8 +1825,7 @@ Return t if success, or nil if failed."
                     (if (eq status-code 204)
                         (progn
                           (message "Register upload...done")
-                          ;; Success: return t
-                          t)
+                          (zotero-item key :type type :id id :api-key api-key))
                       (message "Register upload...failed")
                       ;; Failed: return nil
                       nil)))
