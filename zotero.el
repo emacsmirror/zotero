@@ -1661,8 +1661,8 @@ passed to `zotero-authorize-upload'.
 Note that mtime is be provided in milliseconds, not seconds."
   (when (file-readable-p file)
     (let* ((md5 (with-temp-buffer
-                  (insert-file-contents file)
-                  (secure-hash 'md5 (current-buffer))))
+                  (insert-file-contents-literally file)
+                  (secure-hash 'md5 (encode-coding-string (buffer-string) 'raw-text))))
            (attributes (file-attributes file))
            ;; (approximate) time of last modification in milliseconds
            (mtime (thread-last

@@ -510,7 +510,7 @@ VERSION is the \"Last-Modified-Version\"."
                               (plist-put :version version))))
         ;; if changes can be automatically merged:
         ;; apply changes from each side and set synced = true and version = Last-Modified-Version
-        ((guard (zotero-lib-mergable-plist-p local-object remote-object))
+        ((guard (zotero-lib-mergable-plist-p (plist-get value :object) remote-object))
          (let ((merged (zotero-lib-merge-plist local-object remote-object)))
            (ht-set! table key (thread-first value
                                 (plist-put :synced t)
@@ -726,7 +726,9 @@ Zotero API key."
                 ((string-empty-p filename)
                  (message "attachment %s in %s %s has an empty filename." key type id))
                 ((file-exists-p file)
-                 (let ((attributes (zotero-file-attributes file)))
+                 (let* ((zipfile (concat (file-name-sans-extension file) ".zip"))
+                        (snapshot-p (file-exists-p zipfile))
+                        (attributes (if snapshot-p (zotero-file-attributes zipfile) (zotero-file-attributes file))))
                    (when (and (not (equal md5 (plist-get attributes :md5)))
                               (y-or-n-p (format "File \"%s\" is changed. overwrite? " filename)))
                      (if (equal linkmode "imported_url")
@@ -736,7 +738,7 @@ Zotero API key."
                                 (zip-file-p (equal (file-name-extension path) "zip")))
                            (when zip-file-p
                              (let ((exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
-                               (delete-file path)
+                               ;; (delete-file path)
                                (unless (eq exit-status 0)
                                  (error "Error extracting snapshot")))))
                        (zotero-download-file key filename dir nil :type type :id id :api-key api-key)))))
@@ -749,7 +751,7 @@ Zotero API key."
                               (zip-file-p (equal (file-name-extension path) "zip")))
                          (when zip-file-p
                            (let ((exit-status (call-process unzip nil nil nil "-o" "-d" dir path)))
-                             (delete-file path)
+                             ;; (delete-file path)
                              (when (eq exit-status 0)
                                (error "Error extracting snapshot")))))
                      (zotero-download-file key filename dir nil :type type :id id :api-key api-key)))))))))
