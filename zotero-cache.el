@@ -147,7 +147,7 @@ If optional argument NO-CONFIRM is non-nil, don't ask for confirmation."
   "Return non-nil if PRED is satisfied for at least one element of TABLE.
 PRED is a function that takes a data element as its first
 argument."
-  (if (ht-find (lambda (_key value) (funcall pred (zotero-lib-plist-get* value :object :data))) table) t nil))
+  (if (ht-find (lambda (_key value) (funcall pred (plist-get value :data))) table) t nil))
 
 (defun zotero-cache--pred (field direction)
   "Return a predicate function as used by `zotero-cache-sort-by'.
@@ -190,7 +190,7 @@ argument."
   (ht-select (lambda (_key value)
                ;; keep the predicate nil-safe
                (ignore-error wrong-type-argument
-                 (funcall pred (zotero-lib-plist-get* value :object :data)))) table))
+                 (funcall pred (plist-get value :data)))) table))
 
 (defun zotero-cache-read-access-p (plist)
   "Return t if read access is permitted, else return nil.
@@ -230,7 +230,7 @@ returned by `zotero-key'."
 (defun zotero-cache-parentitem (key table)
   "Return the parent of KEY in TABLE, or nil."
   (let* ((value (ht-get table key))
-         (parent (zotero-lib-plist-get* value :object :data :parentItem)))
+         (parent (zotero-lib-plist-get* value :data :parentItem)))
     (unless (or (null parent)
                 (eq parent :json-false))
       parent)))
@@ -238,7 +238,7 @@ returned by `zotero-key'."
 (defun zotero-cache-parentcollection (key table)
   "Return the parent of KEY in TABLE, or nil."
   (let* ((value (ht-get table key))
-         (parent (zotero-lib-plist-get* value :object :data :parentCollection)))
+         (parent (zotero-lib-plist-get* value :data :parentCollection)))
     (unless (or (null parent)
                 (eq parent :json-false))
       parent)))
@@ -640,7 +640,7 @@ not (yet) implemented in the Zotero API."
             (and zotero-cache-expire (> seconds-since-last-sync zotero-cache-expire)))
         (with-demoted-errors "Error downloading template: %S"
           (zotero-sync-item-template zotero-cache itemtype))
-      (plist-get template :object))))
+      (plist-get template :data))))
 
 (defun zotero-cache-attachment-template (linkmode)
   "Return the attachment template for LINKMODE from CACHE.
@@ -655,7 +655,7 @@ not (yet) implemented in the Zotero API."
             (and zotero-cache-expire (> seconds-since-last-sync zotero-cache-expire)))
         (with-demoted-errors "Error downloading template: %S"
           (zotero-sync-attachment-template zotero-cache linkmode))
-      (plist-get template :object))))
+      (plist-get template :data))))
 
 (defun zotero-cache-schema ()
   "Return the schema with item types, fields, and creator types.
@@ -736,7 +736,7 @@ the sorting order: 'asc for ascending or 'desc for descending."
     (thread-last
         (ht->alist table)
       (seq-sort-by (lambda (elt)
-                     (zotero-lib-plist-get* (cdr elt) :object :data field))
+                     (zotero-lib-plist-get* (cdr elt) :data field))
                    (lambda (a b)
                      ;; keep the predicate nil-safe
                      (ignore-error wrong-type-argument
@@ -746,7 +746,7 @@ the sorting order: 'asc for ascending or 'desc for descending."
 (defun zotero-cache-field (field table)
   "Get FIELD from entries in TABLE.
 Return a list of the field values."
-  (ht-map (lambda (key value) (cons (zotero-lib-plist-get* value :object :data field) key)) table))
+  (ht-map (lambda (key value) (cons (zotero-lib-plist-get* value :data field) key)) table))
 
 (defun zotero-cache-add-to-collection (key collection type id)
   "Add item KEY to COLLECTION.
@@ -756,8 +756,8 @@ Argument TYPE is \"user\" for your personal library, and
 or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
-         (data (zotero-lib-plist-get* entry :object :data))
-         (collections (zotero-lib-plist-get* entry :object :data :collections))
+         (data (plist-get entry :data))
+         (collections (zotero-lib-plist-get* entry :data :collections))
          (updated-collections (unless (seq-contains-p collections collection) (vconcat collections (vector collection)))))
     (zotero-cache-save (plist-put data :collections updated-collections) "items" type id)))
 
@@ -769,8 +769,8 @@ Argument TYPE is \"user\" for your personal library, and
 or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
-         (data (zotero-lib-plist-get* entry :object :data))
-         (collections (zotero-lib-plist-get* entry :object :data :collections))
+         (data (plist-get entry :data))
+         (collections (zotero-lib-plist-get* entry :data :collections))
          (updated-collections (seq-into (seq-remove (lambda (elt) (equal elt collection)) collections) 'vector)))
     (zotero-cache-save (plist-put data :collections updated-collections) "items" type id)))
 
@@ -782,8 +782,8 @@ Argument TYPE is \"user\" for your personal library, and
 or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
-         (data (zotero-lib-plist-get* entry :object :data))
-         (collections (zotero-lib-plist-get* entry :object :data :collections))
+         (data (plist-get entry :data))
+         (collections (zotero-lib-plist-get* entry :data :collections))
          (updated-collections (cl-substitute new old collections :test #'equal)))
     (zotero-cache-save (plist-put data :collections updated-collections) "items" type id)))
 
@@ -795,7 +795,7 @@ Argument TYPE is \"user\" for your personal library, and
 or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
-         (data (zotero-lib-plist-get* entry :object :data))
+         (data (plist-get entry :data))
          (updated-data (zotero-lib-plist-delete data :parentItem)))
     (zotero-cache-save updated-data "items" type id)))
 
@@ -841,7 +841,7 @@ Argument TYPE is \"user\" for your personal library, and
 or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
-         (data (zotero-lib-plist-get* entry :object :data))
+         (data (plist-get entry :data))
          (updated-data (plist-put data :deleted 1)))
     (zotero-cache-save updated-data "items" type id)))
 
@@ -853,7 +853,7 @@ Argument TYPE is \"user\" for your personal library, and
 or group library you want to access, that is the user ID or group
 ID."
   (let* ((entry (zotero-cache-synccache "item" key type id t))
-         (data (zotero-lib-plist-get* entry :object :data))
+         (data (plist-get entry :data))
          (updated-data (zotero-lib-plist-delete data :deleted)))
     (zotero-cache-save updated-data "items" type id)))
 
@@ -861,7 +861,7 @@ ID."
   "Save DATA to cache.
 If DATA contains a prop `:key', it already exists in cache and is
 updated, else it is uploaded and a new entry is created. Return
-the object if successful, or nil.
+the updated data if successful, or nil.
 
 RESOURCE is one of:
   - \"collections\": collections in the library
@@ -875,14 +875,13 @@ ID."
   (let ((table (ht-get* zotero-cache "synccache" resource)))
     (if-let ((key (plist-get data :key))
              (entry (ht-get table key))
-             (version (plist-get entry :version))
-             (object (plist-get entry :object))
-             (updated-object (plist-put object :data data)))
+             (version (plist-get entry :version)))
         (progn
-          (ht-set! table key `(:synced nil :version ,version :type ,type :id ,id :object ,updated-object))
+          (ht-set! table key `(:synced nil :version ,version :type ,type :id ,id :data data))
           (zotero-cache-serialize)
-          updated-object)
-      (if-let ((object (zotero-cache-upload data resource type id))) object nil))))
+          data)
+      (if-let ((object (zotero-cache-upload data resource type id)))
+          (plist-get object :data) nil))))
 
 (defun zotero-cache-upload (object resource type id)
   "Upload OBJECT.
@@ -913,7 +912,7 @@ ID."
       (let* ((object (plist-get successful :0))
              (key (plist-get object :key))
              (version (plist-get object :version)))
-        (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object))
+        (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :data ,(plist-get object :data)))
         (zotero-cache-serialize)
         (message "Uploading...done.")
         object))

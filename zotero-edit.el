@@ -396,7 +396,7 @@ ID."
                              (value (plist-get data field))
                              (values (seq-into value 'list))
                              (table (zotero-cache-synccache "collections" nil type id))
-                             (choices (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table)))
+                             (choices (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :data :name))) table)))
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
                                        :entry-format "%i %d %v\n"
@@ -522,7 +522,7 @@ ID."
                       (let* ((fieldname "Parent Collection" )
                              (value (plist-get data field))
                              (table (zotero-cache-synccache "collections" nil type id))
-                             (collections (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :object :data :name))) table))
+                             (collections (ht-map (lambda (key value) `(item :format "%t" :value ,key :tag ,(zotero-lib-plist-get* value :data :name))) table))
                              (choices (cons `(item :format "%t" :value :json-false :tag "None") collections)))
                         (widget-create 'menu-choice
                                        :format (concat fieldname ": %[%v%]\n")

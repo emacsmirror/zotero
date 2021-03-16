@@ -789,8 +789,8 @@ STRING should contain only one character."
 
 (defun zotero-browser--find-attachment (entry)
   "Return the path of the attachment of the current entry."
-  (when-let ((key (zotero-lib-plist-get* entry :object :data :key))
-             (filename (zotero-lib-plist-get* entry :object :data :filename))
+  (when-let ((key (zotero-lib-plist-get* entry :data :key))
+             (filename (zotero-lib-plist-get* entry :data :filename))
              (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
              (file (concat (file-name-as-directory dir) filename)))
     (cond
@@ -865,24 +865,24 @@ application is found, Emacs simply visits the file."
 (defun zotero-browser--open-imported-url (entry)
   "Open attachment ENTRY."
   (let* ((path (expand-file-name (zotero-browser--find-attachment entry)))
-         (contenttype (zotero-lib-plist-get* entry :object :data :contentType)))
+         (contenttype (zotero-lib-plist-get* entry :data :contentType)))
     (if (equal contenttype "text/html")
         (browse-url-of-file path)
       (zotero-browser--open-file path))))
 
 (defun zotero-browser--open-linked-file (entry)
   "Open attachment ENTRY."
-  (let ((path (zotero-lib-plist-get* entry :object :data :path)))
+  (let ((path (zotero-lib-plist-get* entry :data :path)))
     (zotero-browser--open-file path)))
 
 (defun zotero-browser--open-linked-url (entry)
   "Open attachment ENTRY."
-  (let ((url (zotero-lib-plist-get* entry :object :data :url)))
+  (let ((url (zotero-lib-plist-get* entry :data :url)))
     (browse-url url)))
 
 (defun zotero-browser--open-attachment (entry)
   "Open attachment ENTRY."
-  (when-let ((linkmode (zotero-lib-plist-get* entry :object :data :linkMode)))
+  (when-let ((linkmode (zotero-lib-plist-get* entry :data :linkMode)))
     (pcase linkmode
       ("imported_file" (zotero-browser--open-imported-file entry))
       ("imported_url" (zotero-browser--open-imported-url entry))
@@ -897,8 +897,8 @@ The text is copied to a separate buffer. When done, exit with
 in the source buffer, and replace it with the edited version."
   (when-let ((type zotero-browser-type)
              (id zotero-browser-id)
-             (key (zotero-lib-plist-get* entry :object :data :key))
-             (note (zotero-lib-plist-get* entry :object :data :note)))
+             (key (zotero-lib-plist-get* entry :data :key))
+             (note (zotero-lib-plist-get* entry :data :note)))
     (let ((buffer (generate-new-buffer zotero-browser-note-buffer-name)))
       (with-current-buffer buffer
         (setq zotero-browser-type type
@@ -967,7 +967,7 @@ The format can be changed by customizing
                             (let ((value (pcase type
                                            ("user" "User library")
                                            ("group" (let ((group (zotero-cache-group id)))
-                                                      (zotero-lib-plist-get* group :object :data key))))))
+                                                      (zotero-lib-plist-get* group :data key))))))
                               value))
                            (:version
                             (when-let ((value (plist-get library key)))
@@ -979,7 +979,7 @@ The format can be changed by customizing
                            ((or :group-type :description :url :libraryEditing :libraryReading :fileEditing)
                             (when (equal type "group")
                               (let* ((group (zotero-cache-group id))
-                                     (value (zotero-lib-plist-get* group :object :data key)))
+                                     (value (zotero-lib-plist-get* group :data key)))
                                 value)))
                            ((pred keywordp)
                             (when-let ((value (plist-get library key)))
@@ -1058,7 +1058,7 @@ The format can be changed by customizing
          (insert (string ?\s)))
        (while keys
          (when-let ((key (pop keys))
-                    (string (zotero-lib-plist-get* entry :object :data key)))
+                    (string (zotero-lib-plist-get* entry :data key)))
            (insert string)
            ;; Don't put a separator after the last key
            (when keys
@@ -1080,18 +1080,18 @@ The format can be changed by customizing
 (defun zotero-browser--item-pp (key)
   "Pretty print item KEY."
   (let* ((entry (zotero-cache-synccache "item" key zotero-browser-type zotero-browser-id))
-         (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+         (itemtype (zotero-lib-plist-get* entry :data :itemType))
          (level (zotero-browser--level key))
          (indentation (+ zotero-browser-padding level))
          (prefix (make-string indentation ?\s))
-         (deleted-p (zotero-lib-plist-get* entry :object :data :deleted))
+         (deleted-p (zotero-lib-plist-get* entry :data :deleted))
          (beg (point)))
     (pcase itemtype
       ("attachment"
        (let ((separator (car zotero-browser-attachment-keys))
              (keys (cdr zotero-browser-attachment-keys)))
          (when-let ((_ zotero-browser-icons)
-                    (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
+                    (linkmode (zotero-lib-plist-get* entry :data :linkMode))
                     (file (zotero-browser--attachment-icon linkmode))
                     (image (create-image file 'png nil :height (window-font-height))))
            (insert (propertize itemtype 'display image 'rear-nonsticky t))
@@ -1100,10 +1100,10 @@ The format can be changed by customizing
            (when-let ((key (pop keys))
                       (string (pcase key
                                 (:version
-                                 (when-let ((value (zotero-lib-plist-get* entry :object :data :version)))
+                                 (when-let ((value (zotero-lib-plist-get* entry :data :version)))
                                    (number-to-string value)))
                                 ((pred keywordp)
-                                 (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
+                                 (when-let ((value (zotero-lib-plist-get* entry :data key)))
                                    value)))))
              (insert string)
              ;; Don't put a separator after the last key
@@ -1137,7 +1137,7 @@ The format can be changed by customizing
        (let ((separator (car zotero-browser-note-keys))
              (keys (cdr zotero-browser-note-keys)))
          (when-let ((_ zotero-browser-icons)
-                    (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+                    (itemtype (zotero-lib-plist-get* entry :data :itemType))
                     (file (zotero-browser--itemtype-icon itemtype))
                     (image (create-image file 'png nil :height (window-font-height))))
            (insert (propertize itemtype 'display image 'rear-nonsticky t))
@@ -1146,16 +1146,16 @@ The format can be changed by customizing
            (when-let ((key (pop keys))
                       (string (pcase key
                                 (:note
-                                 (when-let ((note (zotero-lib-plist-get* entry :object :data :note))
+                                 (when-let ((note (zotero-lib-plist-get* entry :data :note))
                                             (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
                                             (match (string-match "^.+$" text)) ; Match first non-empty line
                                             (first-line (match-string-no-properties 0 text)))
                                    first-line))
                                 (:version
-                                 (when-let ((value (zotero-lib-plist-get* entry :object :data :version)))
+                                 (when-let ((value (zotero-lib-plist-get* entry :data :version)))
                                    (number-to-string value)))
                                 ((pred keywordp)
-                                 (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
+                                 (when-let ((value (zotero-lib-plist-get* entry :data key)))
                                    value)))))
              (insert string)
              ;; Don't put a separator after the last key
@@ -1178,7 +1178,7 @@ The format can be changed by customizing
        (let ((separator (car zotero-browser-item-keys))
              (keys (cdr zotero-browser-item-keys)))
          (when-let ((_ zotero-browser-icons)
-                    (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+                    (itemtype (zotero-lib-plist-get* entry :data :itemType))
                     (file (zotero-browser--itemtype-icon itemtype))
                     (image (create-image file 'png nil :height (window-font-height))))
            (insert (propertize itemtype 'display image 'rear-nonsticky t))
@@ -1187,7 +1187,7 @@ The format can be changed by customizing
            (when-let ((key (pop keys))
                       (string (pcase key
                                 (:creators
-                                 (when-let ((creators (zotero-lib-plist-get* entry :object :data :creators))
+                                 (when-let ((creators (zotero-lib-plist-get* entry :data :creators))
                                             (names (when (seq-some (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators)
                                                      (seq-map (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators))))
                                    (pcase (length names)
@@ -1199,21 +1199,21 @@ The format can be changed by customizing
                                       (let* ((selection (seq-take names 1)))
                                         (concat (string-join selection ", ") " et al."))))))
                                 (:version
-                                 (when-let ((value (zotero-lib-plist-get* entry :object :data :version)))
+                                 (when-let ((value (zotero-lib-plist-get* entry :data :version)))
                                    (number-to-string value)))
                                 (:year
-                                 (when-let ((date (zotero-lib-plist-get* entry :object :data :date))
+                                 (when-let ((date (zotero-lib-plist-get* entry :data :date))
                                             (match (string-match "[[:digit:]]\\{4\\}" date))
                                             (year (match-string 0 date)))
                                    year))
                                 (:note
-                                 (when-let ((note (zotero-lib-plist-get* entry :object :data :note))
+                                 (when-let ((note (zotero-lib-plist-get* entry :data :note))
                                             (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
                                             (match (string-match "^.+$" text)) ; Match first non-empty line
                                             (first-line (match-string-no-properties 0 text)))
                                    first-line))
                                 ((pred keywordp)
-                                 (when-let ((value (zotero-lib-plist-get* entry :object :data key)))
+                                 (when-let ((value (zotero-lib-plist-get* entry :data key)))
                                    value)))))
              (insert string)
              ;; Don't put a separator after the last key
@@ -1246,7 +1246,7 @@ The format can be changed by customizing
          (id zotero-browser-id)
          (key (ewoc-data (ewoc-locate ewoc)))
          (entry (zotero-cache-synccache "item" key type id))
-         (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
+         (itemtype (zotero-lib-plist-get* entry :data :itemType)))
     (cond
      ((equal itemtype "note")
       (zotero-browser--open-note entry))
@@ -1265,7 +1265,7 @@ The format can be changed by customizing
            (id zotero-browser-id)
            (key (ewoc-data (ewoc-locate ewoc)))
            (entry (zotero-cache-synccache "item" key type id))
-           (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
+           (itemtype (zotero-lib-plist-get* entry :data :itemType)))
       (cond
        ((equal itemtype "attachment")
         (when-let ((file (zotero-browser--find-attachment entry))
@@ -1277,7 +1277,7 @@ The format can be changed by customizing
         (when-let ((children (zotero-browser--children key))
                    ;; Find the first child that is an attachment
                    (child (ht-find (lambda (_key value)
-                                     (let ((itemtype (zotero-lib-plist-get* value :object :data :itemType)))
+                                     (let ((itemtype (zotero-lib-plist-get* value :data :itemType)))
                                        (equal itemtype "attachment")))
                                    children))
                    (file (zotero-browser--find-attachment (cadr child)))
@@ -1537,14 +1537,14 @@ If NUM is omitted or nil, expand till level 1."
               (node (ewoc-locate ewoc))
               (key (ewoc-data node))
               (entry (zotero-cache-synccache "collection" key type id))
-              (data (zotero-lib-plist-get* entry :object :data)))
+              (data (plist-get entry :data)))
          (pop-to-buffer (zotero-edit-collection data type id) zotero-browser-edit-buffer-action)))
       ('zotero-browser-items-mode
        (let* ((ewoc zotero-browser-ewoc)
               (node (ewoc-locate ewoc))
               (key (ewoc-data node))
               (entry (zotero-cache-synccache "item" key type id))
-              (data (zotero-lib-plist-get* entry :object :data)))
+              (data (plist-get entry :data)))
          (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))))
 
 (defun zotero-browser-move-to-parent (&optional arg)
@@ -1561,8 +1561,8 @@ With a `C-u' prefix, move to top level."
          (node (ewoc-locate ewoc))
          (key (ewoc-data node))
          (entry (zotero-cache-synccache "item" key type id))
-         (data (zotero-lib-plist-get* entry :object :data))
-         (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
+         (data (plist-get entry :data))
+         (itemtype (zotero-lib-plist-get* entry :data :itemType))
          updated-data)
     (unless (or (equal itemtype "attachment") (equal itemtype "note"))
       (user-error "Item type %s cannot be moved to a parent"))
@@ -1573,7 +1573,7 @@ With a `C-u' prefix, move to top level."
              (name (completing-read "Select parent item:" choices nil t))
              (parent (cdr (assoc name choices)))
              (entry (ht-get table parent))
-             (itemtype (zotero-lib-plist-get* entry :object :data :itemType)))
+             (itemtype (zotero-lib-plist-get* entry :data :itemType)))
         (if (or (equal itemtype "attachment") (equal itemtype "note"))
             (user-error "Parent item cannot be a note or attachment")
           (setq updated-data (plist-put data :parentItem parent)))))
@@ -1868,11 +1868,11 @@ client."
          (node (ewoc-locate ewoc))
          (key (ewoc-data node))
          (entry (zotero-cache-synccache "item" key type id))
-         (data (zotero-lib-plist-get* entry :object :data))
-         (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-         (linkmode (zotero-lib-plist-get* entry :object :data :linkMode))
-         (filename (zotero-lib-plist-get* entry :object :data :filename))
-         (hash (zotero-lib-plist-get* entry :object :data :md5))
+         (data (plist-get entry :data))
+         (itemtype (zotero-lib-plist-get* entry :data :itemType))
+         (linkmode (zotero-lib-plist-get* entry :data :linkMode))
+         (filename (zotero-lib-plist-get* entry :data :filename))
+         (hash (zotero-lib-plist-get* entry :data :md5))
          (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
          (path (concat (file-name-as-directory dir) filename)))
     (when (and (equal itemtype "attachment")
@@ -1939,7 +1939,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
          (key (ewoc-data node))
          (entry (zotero-cache-synccache "item" key type id))
          (table (zotero-cache-synccache "items" nil type id))
-         (attachment-data (zotero-lib-plist-get* entry :object :data))
+         (attachment-data (plist-get entry :data))
          (itemtype (plist-get attachment-data :itemType))
          (linkmode (plist-get attachment-data :linkMode)))
     (when (and (equal itemtype "attachment")
@@ -2015,8 +2015,8 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
          (node (ewoc-locate ewoc))
          (key (ewoc-data node))
          (entry (zotero-cache-synccache "item" key type id))
-         (itemtype (zotero-lib-plist-get* entry :object :data :itemType))
-         (linkmode (zotero-lib-plist-get* entry :object :data :linkMode)))
+         (itemtype (zotero-lib-plist-get* entry :data :itemType))
+         (linkmode (zotero-lib-plist-get* entry :data :linkMode)))
     (when (and (equal itemtype "attachment")
                (or (equal linkmode "imported_file")
                    (equal linkmode "linked_file")))
@@ -2040,7 +2040,7 @@ key."
          (node (ewoc-locate ewoc))
          (key (ewoc-data node))
          (entry (zotero-cache-synccache "item" key type id))
-         (filename (zotero-lib-plist-get* entry :object :data :filename))
+         (filename (zotero-lib-plist-get* entry :data :filename))
          (dir (or dir (concat (file-name-as-directory zotero-cache-storage-dir) key))))
     (unless (file-exists-p dir)
       (make-directory dir t))
@@ -2152,7 +2152,7 @@ is the user ID or group ID."
   (interactive)
   (zotero-browser-ensure-note-buffer)
   (when-let ((entry (zotero-cache-synccache "item" zotero-browser-key zotero-browser-type zotero-browser-id t))
-             (data (zotero-lib-plist-get* entry :object :data))
+             (data (plist-get entry :data))
              (contents (save-excursion (widen) (buffer-string))))
     (zotero-cache-save (plist-put data :note contents) "items" zotero-browser-type zotero-browser-id)
     (when-let ((buffer (get-buffer zotero-browser-items-buffer-name))
@@ -2167,7 +2167,7 @@ is the user ID or group ID."
   (interactive)
   (zotero-browser-ensure-note-buffer)
   (when-let ((entry (zotero-cache-synccache "item" zotero-browser-key zotero-browser-type zotero-browser-id t))
-             (data (zotero-lib-plist-get* entry :object :data))
+             (data (plist-get entry :data))
              (contents (save-excursion (widen) (buffer-string))))
     (zotero-cache-save (plist-put data :note contents) "items" zotero-browser-type zotero-browser-id)
     (when-let ((buffer (get-buffer zotero-browser-items-buffer-name))
@@ -2213,7 +2213,7 @@ is the user ID or group ID."
        (let* ((type zotero-browser-type)
               (id zotero-browser-id)
               (entry (zotero-cache-synccache "item" key type id))
-              (data (zotero-lib-plist-get* entry :object :data)))
+              (data (plist-get entry :data)))
          (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))))
 
 (defun zotero-browser ()

@@ -109,10 +109,10 @@ is the Zotero API key."
                             ("items" "itemKey")
                             ("searches" "searchKey")))
                (param-value (s-join "," (seq-map #'zotero-lib-keyword->string partition)))
-               (result (zotero-request "GET" resource nil :type type :id id :api-key api-key :params `(("includeTrashed" 1)
+               (response (zotero-request "GET" resource nil :type type :id id :api-key api-key :params `(("includeTrashed" 1)
                                                                                                        (,param-key ,param-value))))
-               (remote-version (zotero-response-version result))
-               (remote-data (zotero-response-data result)))
+               (remote-version (zotero-response-version response))
+               (remote-data (zotero-response-data response)))
           (message "Retrieving %d-%d of %d updated %s...done" (1+ number) (+ number (length partition)) (length keys) resource)
           (setq number (+ number (length partition)))
           (setq version remote-version)
@@ -126,8 +126,8 @@ Return updated cache.
 Argument CACHE is the hash table containing the cache. ID is the
 ID of the personal or group library you want to access, that is the
 \"user ID\" or \"group ID\". API-KEY is the Zotero API key."
-  (let* ((result (zotero-key api-key))
-         (data (zotero-response-data result))
+  (let* ((response (zotero-key api-key))
+         (data (zotero-response-data response))
          (user-access (zotero-lib-plist-get* data :access :user))
          (user-access (thread-first user-access
                         (plist-put :type "user")
@@ -229,8 +229,8 @@ ID of the personal or group library you want to access, that is the
 \"user ID\" or \"group ID\". API-KEY is the Zotero API key."
   ;; First, retrieve a plist of the user's groups with the group as keyword and
   ;; the version as value.
-  (let* ((result (zotero-request "GET" "groups" nil :type "user" :id id :api-key api-key :params '(("format" "versions"))))
-         (remote-groups (zotero-response-data result))
+  (let* ((response (zotero-request "GET" "groups" nil :type "user" :id id :api-key api-key :params '(("format" "versions"))))
+         (remote-groups (zotero-response-data response))
          (libraries (ht-get cache "libraries"))
          (groups (ht-get cache "groups")))
     (cl-loop for id being the hash-keys of groups do
@@ -262,9 +262,9 @@ ID of the personal or group library you want to access, that is the
                (if (eq remote-version local-version)
                    (message "Metadata of group %s already up to date." id)
                  ;; FIXME: metadata cannot be retrieved from read-only groups
-                 (let* ((result (zotero-group id :api-key api-key))
-                        (data (zotero-response-data result)))
-                   (ht-set! groups id `(:version ,remote-version :object ,data))))))
+                 (let* ((response (zotero-group id :api-key api-key))
+                        (object (zotero-response-data response)))
+                   (ht-set! groups id `(:version ,remote-version :data ,(plist-get object :data)))))))
     cache))
 
 (defun zotero-sync--remotely-updated (cache type id api-key &optional full-sync)
@@ -287,12 +287,12 @@ performed."
                  (t 0)))
          (version (plist-get library :version)))
     (cl-loop for resource in '("collections" "items" "searches") do
-             (let* ((result (zotero-request "GET" resource nil :type type :id id :api-key api-key :params `(("since" ,since)
+             (let* ((response (zotero-request "GET" resource nil :type type :id id :api-key api-key :params `(("since" ,since)
                                                                                                             ("format" "versions")
                                                                                                             ("includeTrashed" 1))))
-                    (remote-version (zotero-response-version result))
+                    (remote-version (zotero-response-version response))
                     ;; Returns a plist of the form (:key version :key version ...)
-                    (data (zotero-response-data result))
+                    (data (zotero-response-data response))
                     ;; Collect only the keys
                     (keys (cl-loop for key in data by #'cddr collect key)))
                (when remote-version
@@ -300,9 +300,9 @@ performed."
                  (ht-set! libraries id (plist-put library :version remote-version))
                  (setq version remote-version))
                (when keys
-                 (let* ((response (zotero-sync--get-remotely-updated keys resource type id api-key))
-                        (remote-version (plist-get response :version))
-                        (objects (plist-get response :data))
+                 (let* ((result (zotero-sync--get-remotely-updated keys resource type id api-key))
+                        (remote-version (plist-get result :version))
+                        (objects (plist-get result :data))
                         (table (ht-get* cache "synccache" resource)))
                    (when (and remote-version
                               (not (eq remote-version version)))
@@ -330,12 +330,12 @@ performed."
                  (storage-version storage-version)
                  (t 0)))
          (version (plist-get library :version))
-         (result (zotero-request "GET" "deleted" nil :type type :id id :api-key api-key :params `(("since" ,since))))
-         (remote-version (zotero-response-version result))
+         (response (zotero-request "GET" "deleted" nil :type type :id id :api-key api-key :params `(("since" ,since))))
+         (remote-version (zotero-response-version response))
          ;; Returns a plist of the form (:collections ["12345678" "ABCDEFGH"
          ;; ...] :items ["87654321" "HGFEDCBA" ...] :searches [] :tags ["tag 1"
          ;; "tag 2" ...] :settings [])
-         (deletions (zotero-response-data result)))
+         (deletions (zotero-response-data response)))
     (when (and remote-version
                (not (eq remote-version version)))
       (throw 'sync 'concurrent-update))
@@ -366,16 +366,16 @@ Zotero API key."
                                                                          (equal (plist-get value :id) id))))
                                     (ht-reject (lambda (_key value) (plist-get value :synced)))))
                         (keys (ht-keys modified))
-                        (objects (seq-map (lambda (elt) (zotero-lib-plist-get* elt :object :data)) (ht-values modified)))
+                        (objects (seq-map (lambda (elt) (plist-get elt :data)) (ht-values modified)))
                         (partitions (seq-partition objects 50))
                         (number 0))
                (dolist (partition partitions)
                  (message "Uploading %d-%d of %d updated %s..." (1+ number) (+ number (length partition)) (length keys) resource)
                  (let* ((json (apply #'zotero-json-encode-to-array partition))
-                        (result (zotero-request "POST" resource nil :type type :id id :api-key api-key :headers `(("Content-Type" . "application/json")) :data (encode-coding-string json 'utf-8)))
-                        (status-code (zotero-response-status-code result))
-                        (remote-version (zotero-response-version result))
-                        (data (zotero-response-data result))
+                        (response (zotero-request "POST" resource nil :type type :id id :api-key api-key :headers `(("Content-Type" . "application/json")) :data (encode-coding-string json 'utf-8)))
+                        (status-code (zotero-response-status-code response))
+                        (remote-version (zotero-response-version response))
+                        (data (zotero-response-data response))
                         (successful (plist-get data :successful))
                         ;; (success (plist-get data :success))
                         (unchanged (plist-get data :unchanged))
@@ -399,7 +399,7 @@ Zotero API key."
                                  (let ((key (plist-get object :key))
                                        (type (zotero-lib-plist-get* object :library :type))
                                        (id (number-to-string (zotero-lib-plist-get* object :library :id))))
-                                   (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))))
+                                   (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :data ,(plist-get object :data))))))
                       ;; Do not update the version of Zotero objects in the
                       ;; unchanged object.
                       (unless (eq unchanged :json-empty)
@@ -451,9 +451,9 @@ Zotero API key."
                                      ("items" "itemKey")
                                      ("searches" "searchKey")))
                         (param-value (s-join "," partition))
-                        (result (zotero-request "DELETE" resource nil :type type :id id :api-key api-key :headers `(("If-Unmodified-Since-Version" . ,(number-to-string version))) :params `((,param-key ,param-value))))
-                        (status-code (zotero-response-status-code result))
-                        (remote-version (zotero-response-version result)))
+                        (response (zotero-request "DELETE" resource nil :type type :id id :api-key api-key :headers `(("If-Unmodified-Since-Version" . ,(number-to-string version))) :params `((,param-key ,param-value))))
+                        (status-code (zotero-response-status-code response))
+                        (remote-version (zotero-response-version response)))
                    (pcase status-code
                      (204
                       ;; On a 204 response, store the returned
@@ -480,10 +480,11 @@ Zotero API key."
 Return the updated table when success or nil when failed.
 
 VERSION is the \"Last-Modified-Version\"."
-  (seq-doseq (remote-object objects)
-    (let* ((key (plist-get remote-object :key))
+  (seq-doseq (object objects)
+    (let* ((key (plist-get object :key))
            (value (ht-get table key))
-           (local-object (plist-get value :object))
+           (remote-data (plist-get object :data))
+           (local-data (plist-get value :data))
            default)
       ;; FIXME: when resolving a conflict between a locally deleted object and a
       ;; remotely modified object in favor of the remote object, remove it from
@@ -495,7 +496,7 @@ VERSION is the \"Last-Modified-Version\"."
          (ht-set! table key (thread-first value
                               (plist-put :synced t)
                               (plist-put :version version)
-                              (plist-put :object remote-object))))
+                              (plist-put :data remote-data))))
         ;; if object hasn't been modified locally (synced == true):
         ;; overwrite with synced = true and version = Last-Modified-Version
         ((guard (eq (plist-get value :synced) t))
@@ -504,25 +505,23 @@ VERSION is the \"Last-Modified-Version\"."
                               (plist-put :version version))))
         ;; if object hasn't changed:
         ;; set synced = true and version = Last-Modified-Version
-        ((guard (equal (plist-get value :object) remote-object))
+        ((guard (equal local-data remote-data))
          (ht-set! table key (thread-first value
                               (plist-put :synced t)
                               (plist-put :version version))))
         ;; if changes can be automatically merged:
         ;; apply changes from each side and set synced = true and version = Last-Modified-Version
-        ((guard (zotero-lib-mergable-plist-p (plist-get value :object) remote-object))
-         (let ((merged (zotero-lib-merge-plist local-object remote-object)))
+        ((guard (zotero-lib-mergable-plist-p local-data remote-data))
+         (let ((merged (zotero-lib-merge-plist local-data remote-data)))
            (ht-set! table key (thread-first value
                                 (plist-put :synced t)
                                 (plist-put :version version)
-                                (plist-put :object merged)))))
+                                (plist-put :data merged)))))
         ;; else:
         ;; prompt user to choose a side or merge conflicts
         ;; TODO: global variable to set default action: 'ask 'keep-local 'keep-remote 'manual
         (_
-         (let ((local-data (plist-get local-object :data))
-               (remote-data (plist-get remote-object :data))
-               (choice (or default
+         (let ((choice (or default
                            (read-multiple-choice
                             "Conflict between local and remote object cannot be automatically resolved. How should this be resolved? "
                             '((?d "see the difference side by side")
@@ -542,14 +541,14 @@ VERSION is the \"Last-Modified-Version\"."
                    (ht-set! table key (thread-first value
                                         (plist-put :synced nil)
                                         (plist-put :version version)
-                                        (plist-put :object (plist-put local-object :data (plist-put local-data :version version))))))
+                                        (plist-put :data local-data))))
                   ;; if user chooses remote copy:
                   ;; overwrite with synced = true and version = Last-Modified-Version
                   (?r
                    (ht-set! table key (thread-first value
                                         (plist-put :synced t)
                                         (plist-put :version version)
-                                        (plist-put :object remote-object))))
+                                        (plist-put :data remote-data))))
                   (?q
                    (throw 'sync 'quit)))))
              ;; if user chooses local copy:
@@ -559,25 +558,25 @@ VERSION is the \"Last-Modified-Version\"."
               (ht-set! table key (thread-first value
                                    (plist-put :synced nil)
                                    (plist-put :version version)
-                                   (plist-put :object (plist-put local-object :data (plist-put local-data :version version))))))
+                                   (plist-put :data local-data))))
              ;; if user chooses remote copy:
              ;; overwrite with synced = true and version = Last-Modified-Version
              (?r
               (ht-set! table key (thread-first value
                                    (plist-put :synced t)
                                    (plist-put :version version)
-                                   (plist-put :object remote-object))))
+                                   (plist-put :data remote-data))))
              (?L
               (ht-set! table key (thread-first value
                                    (plist-put :synced nil)
                                    (plist-put :version version)
-                                   (plist-put :object (plist-put local-object :data (plist-put local-data :version version)))))
+                                   (plist-put :data local-data)))
               (setq default ?l))
              (?R
               (ht-set! table key (thread-first value
                                    (plist-put :synced t)
                                    (plist-put :version version)
-                                   (plist-put :object remote-object)))
+                                   (plist-put :data remote-data)))
               (setq default ?r))
              (?q
               (throw 'sync 'quit))))))))
@@ -616,19 +615,19 @@ VERSION is the \"Last-Modified-Version\"."
                 (ht-remove! table key))
                ;; if user chooses local modification, keep object and set synced = true and version = Last-Modified-Version
                (?k
-                (let* ((object (plist-get value :object))
-                       (type (zotero-lib-plist-get* object :library :type))
-                       (id (number-to-string (zotero-lib-plist-get* object :library :id))))
-                  (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object))))
+                (let ((type (plist-get value :type))
+                      (id (plist-get value :id))
+                      (data (plist-get value :data)))
+                  (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :data ,data))))
                (?D
                 (ht-remove! table key)
                 (setq default ?d))
                (?K
-                (let* ((object (plist-get value :object))
-                       (type (zotero-lib-plist-get* object :library :type))
-                       (id (number-to-string (zotero-lib-plist-get* object :library :id))))
-                  (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :object ,object)))
-                (setq default ?k))
+                (let ((type (plist-get value :type))
+                      (id (plist-get value :id))
+                       (data (plist-get value :data)))
+                  (ht-set! table key `(:synced t :version ,version :type ,type :id ,id :data ,data))
+                  (setq default ?k)))
                (?q
                 (throw 'sync 'quit)))))))))
   table)
@@ -655,11 +654,11 @@ repository of the schema."
   (let* ((schema (ht-get (or cache zotero-cache) "schema"))
          (etag (plist-get schema :etag))
          (url-automatic-caching t)
-         (result (condition-case nil
+         (response (condition-case nil
                      (zotero-request "GET" "schema" nil :headers `(("If-None-Match" . ,etag)))
                    (file-missing (zotero-request "GET" "schema"))))
-         (data (zotero-response-data result))
-         (etag (zotero-response-etag result)))
+         (data (zotero-response-data response))
+         (etag (zotero-response-etag response)))
     (ht-set! cache "schema" data)
     (plist-put (ht-get cache "schema") :etag etag)
     (plist-put (ht-get cache "schema") :last-sync (current-time))
@@ -670,20 +669,22 @@ repository of the schema."
 
 Argument CACHE is the hash table containing the cache."
   (let* ((table (ht-get* cache "templates" "items"))
-         (result (zotero-item-template itemtype))
-         (object (zotero-response-data result)))
-    (ht-set! table itemtype `(:last-sync ,(current-time) :object ,object))
-    object))
+         (response (zotero-item-template itemtype))
+         (object (zotero-response-data response))
+         (data (plist-get object :data)))
+    (ht-set! table itemtype `(:last-sync ,(current-time) :data ,data))
+    data))
 
 (defun zotero-sync-attachment-template (cache linkmode)
   "Store the attachment template for LINKMODE.
 
 Argument CACHE is the hash table containing the cache."
   (let* ((table (ht-get* cache "templates" "attachments"))
-         (result (zotero-attachment-template linkmode))
-         (object (zotero-response-data result)))
-    (ht-set! table linkmode `(:last-sync ,(current-time) :object ,object))
-    object))
+         (response (zotero-attachment-template linkmode))
+         (object (zotero-response-data response))
+         (data (plist-get object :data)))
+    (ht-set! table linkmode `(:last-sync ,(current-time) :data ,data))
+    data))
 
 (defun zotero-sync--templates (cache)
   "Sync the item and attachment templates.
@@ -714,7 +715,7 @@ Zotero API key."
                                                                          (equal (plist-get elt :linkMode) "imported_url"))))))))
     (cl-loop for key being the hash-keys of attachments
              using (hash-values value) do
-             (let* ((data (zotero-lib-plist-get* value :object :data))
+             (let* ((data (plist-get value :data))
                     (linkmode (plist-get data :linkMode))
                     (filename (plist-get data :filename))
                     (md5 (plist-get data :md5))
