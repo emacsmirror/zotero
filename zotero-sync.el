@@ -675,8 +675,7 @@ repository of the schema."
 Argument CACHE is the hash table containing the cache."
   (let* ((table (ht-get* cache "templates" "items"))
          (response (zotero-item-template itemtype))
-         (object (zotero-response-data response))
-         (data (plist-get object :data)))
+         (data (zotero-response-data response)))
     (ht-set! table itemtype `(:last-sync ,(current-time) :data ,data))
     data))
 
@@ -686,8 +685,7 @@ Argument CACHE is the hash table containing the cache."
 Argument CACHE is the hash table containing the cache."
   (let* ((table (ht-get* cache "templates" "attachments"))
          (response (zotero-attachment-template linkmode))
-         (object (zotero-response-data response))
-         (data (plist-get object :data)))
+         (data (zotero-response-data response)))
     (ht-set! table linkmode `(:last-sync ,(current-time) :data ,data))
     data))
 
