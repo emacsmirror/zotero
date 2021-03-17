@@ -457,10 +457,10 @@ ID."
           (widget-create 'push-button
 		         :notify (lambda (&rest _ignore)
                                    (message "Saving...")
-                                   (if-let ((object (zotero-cache-save zotero-edit-data-copy "items" type id)))
+                                   (if-let ((data (zotero-cache-save zotero-edit-data-copy "items" type id)))
                                        (progn
                                          (message "Saving...done.")
-                                         (zotero-edit-item (plist-get object :data) type id))
+                                         (zotero-edit-item data type id))
                                      (message "Saving...failed.")))
                          "Save")
           (widget-insert " ")
@@ -551,10 +551,10 @@ ID."
           (widget-create 'push-button
 		         :notify (lambda (&rest _ignore)
 	                           (message "Saving...")
-                                   (if-let ((object (zotero-cache-save zotero-edit-data-copy "collections" type id)))
+                                   (if-let ((data (zotero-cache-save zotero-edit-data-copy "collections" type id)))
                                        (progn
                                          (message "Saving...done.")
-                                         (zotero-edit-collection (plist-get object :data) type id))
+                                         (zotero-edit-collection data type id))
                                      (message "Saving...failed.")))
                          "Save")
           (widget-insert " ")
@@ -583,12 +583,12 @@ ID."
         (type zotero-edit-type)
         (id zotero-edit-id)
         (data zotero-edit-data-copy))
-    (if-let ((object (zotero-cache-save data resource type id)))
+    (if-let ((data (zotero-cache-save data resource type id)))
         (progn
           (message "Saving item...done")
           (pcase zotero-edit-resource
-            ("items" (zotero-edit-item (plist-get object :data) type id))
-            ("collections" (zotero-edit-collection (plist-get object :data) type id))))
+            ("items" (zotero-edit-item data type id))
+            ("collections" (zotero-edit-collection data type id))))
       (message "Saving item...failed"))))
 
 (defun zotero-edit-ensure-edit-buffer ()
