@@ -1941,7 +1941,8 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
          (table (zotero-cache-synccache "items" nil type id))
          (attachment-data (plist-get entry :data))
          (itemtype (plist-get attachment-data :itemType))
-         (linkmode (plist-get attachment-data :linkMode)))
+         (linkmode (plist-get attachment-data :linkMode))
+         (version (plist-get attachment-data :version)))
     (when (and (equal itemtype "attachment")
                (equal linkmode "imported_file"))
       (let* ((file (zotero-browser--find-attachment entry))
@@ -1976,16 +1977,22 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
 	    ;; Put the parent item in the same collections as the attachment
             (when (stringp collection)
               (setq result (plist-put result :collections (vector collection))))
-            ;; Save the parent item
-            (if-let ((data (zotero-cache-save result "items" type id)))
-                ;; Rename the attachment to match new metadata and make it a child
-                (let* ((key (plist-get data :key))
-                       (base (zotero-browser--filename-base data))
-                       (dir (file-name-directory file))
-                       (ext (file-name-extension file t))
-                       (newname (concat dir base ext))
-                       (data (thread-first attachment-data
-                               (plist-put :parentItem key)
+            ;; Create the parent item
+            (when-let ((data (zotero-cache-save result "items" type id))
+                       (parent-key (plist-get data :key)))
+              (ewoc-enter-before ewoc node parent-key)
+              (zotero-browser--prefix (ewoc-location (ewoc-prev ewoc node)) zotero-browser-collapse-symbol)
+              ;; Rename the attachment to match new metadata and make it a child
+              (let* ((base (zotero-browser--filename-base data))
+                     (dir (file-name-directory file))
+                     (ext (file-name-extension file t))
+                     (newname (concat dir base ext)))
+                (rename-file file newname t)
+                ;; Update the attachment item
+                (let* ((data (thread-first attachment-data
+                               (plist-put :parentItem parent-key)
+                               ;; Children don't have collections
+                               (plist-put :collections [])
                                (plist-put :title base)
                                (plist-put :filename (concat base ext))
                                ;; md5 and mtime can be edited directly in
@@ -1995,13 +2002,21 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
                                ;; an atomic method for setting the properties
                                ;; along with the corresponding file.
                                (plist-put :md5 nil)
-                               (plist-put :mtime nil))))
-                  (rename-file file newname t)
-                  (zotero-cache-save data "items" type id)
-                  (ewoc-enter-before ewoc node key)
-                  (zotero-browser--prefix (ewoc-location (ewoc-prev ewoc node)) zotero-browser-collapse-symbol)
-                  (ewoc-invalidate ewoc node))
-              (user-error "Saving parent item failed")))))))))
+                               (plist-put :mtime nil)))
+                       (response (zotero-update-item key data version :type type :id id))
+                       (status-code (zotero-response-status-code response)))
+                  (when (eq status-code 204)
+                    (zotero-cache-save data "items" type id)
+                    ;; Get upload authorization for the renamed file
+                    (if-let ((md5 (plist-get attributes :md5))
+                             (response (zotero-upload-attachment key newname md5 :type type :id id))
+                             (object (zotero-response-data response))
+                             (data (plist-get object :data)))
+                        (progn
+                          (zotero-cache-save data "items" type id)
+                          (ewoc-invalidate ewoc node)
+                          (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))
+                      (user-error "Failed to associate attachment with item %s" key)))))))))))))
 
 (defun zotero-browser-index-attachment ()
   "Index the full-text content of the current entry."
