@@ -1333,23 +1333,58 @@ The format can be changed by customizing
        (display-buffer (zotero-browser-items zotero-browser-resource zotero-browser-collection zotero-browser-type zotero-browser-id))))
     (goto-char pos)))
 
-(defun zotero-browser-next ()
-  "Move point to the next item."
-  (interactive)
+(defun zotero-browser-next (arg)
+  "Move to the next item.
+With ARG, repeats or can move backward if negative."
+  (interactive "p")
   (zotero-browser-ensure-browser-buffer)
-  (let ((ewoc zotero-browser-ewoc))
+  (let* ((ewoc zotero-browser-ewoc)
+         (count (if arg (abs arg) 1))
+         (backward-p (and arg (< arg 0)))
+         (move (if backward-p #'ewoc-goto-prev #'ewoc-goto-next)))
     (when (ewoc-nth ewoc 0)
-      (ewoc-goto-next ewoc 1)
-      (zotero-browser-display))))
+      (funcall move ewoc count))))
 
-(defun zotero-browser-prev ()
-  "Move point to the previous item."
-  (interactive)
+(defun zotero-browser-prev (arg)
+  "Move to the previous item.
+With ARG, repeats or can move forward if negative."
+  (interactive "p")
+  (zotero-browser-next (if arg (- arg) -1)))
+
+(defun zotero-browser-forward-same-level (arg)
+  "Move to the next item at same level.
+Stop at the first and last child of a parent. With ARG, repeats
+or can move backward if negative."
+  (interactive "p")
   (zotero-browser-ensure-browser-buffer)
-  (let ((ewoc zotero-browser-ewoc))
-    (when (ewoc-nth ewoc 0)
-      (ewoc-goto-prev ewoc 1)
-      (zotero-browser-display))))
+  (let* ((ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         (level (zotero-browser--level (ewoc-data node)))
+         (count (if arg (abs arg) 1))
+         (backward-p (and arg (< arg 0)))
+         (move (if backward-p #'ewoc-prev #'ewoc-next)))
+    (dotimes (_ count)
+      (let ((next-node (funcall move ewoc node))
+            next-level)
+        (while (not (or
+                     ;; Same level
+                     (eq next-level level)
+                     ;; Lower level
+                     (and next-level (< next-level level))
+                     ;; End of ewoc
+                     (not next-node)))
+          (setq next-level (zotero-browser--level (ewoc-data next-node)))
+          (if (eq next-level level)
+              (setq node next-node)
+            (setq next-node (funcall move ewoc next-node))))))
+    (ewoc-goto-node ewoc node)))
+
+(defun zotero-browser-backward-same-level (arg)
+  "Move to the previous item at same level.
+Stop at the  first and last child of a  parent. With ARG, repeats
+or can move forward if negative."
+  (interactive "p")
+  (zotero-browser-forward-same-level (if arg (- arg) -1)))
 
 (defun zotero-browser-up ()
   "Move point to the parent item."
@@ -1369,35 +1404,27 @@ The format can be changed by customizing
                 (ewoc-goto-node ewoc node)
                 (prog1
                     (not (equal key parent))
-                  (setq n (1+ n)))))
-          (zotero-browser-display))))))
+                  (setq n (1+ n))))))))))
 
-(defun zotero-browser-next-collection ()
-  "Move point to the next collection."
-  (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let ((buffer (current-buffer)))
-    (pop-to-buffer zotero-browser-collections-buffer-name)
-    (zotero-browser-next)
-    (pop-to-buffer buffer)))
+(defun zotero-browser-next-collection (arg)
+  "Move point to the next collection.
+With ARG, repeats or can move backward if negative."
+  (interactive "p")
+  (with-current-buffer zotero-browser-collections-buffer-name
+    (zotero-browser-next arg)))
 
-(defun zotero-browser-prev-collection ()
-  "Move point to the previous collection."
-  (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let ((buffer (current-buffer)))
-    (pop-to-buffer zotero-browser-collections-buffer-name)
-    (zotero-browser-prev)
-    (pop-to-buffer buffer)))
+(defun zotero-browser-prev-collection (arg)
+  "Move point to the previous collection.
+With ARG, repeats or can move forward if negative."
+  (interactive "p")
+  (with-current-buffer zotero-browser-collections-buffer-name
+    (zotero-browser-prev arg)))
 
 (defun zotero-browser-up-collection ()
   "Move point to the parent collection."
   (interactive)
-  (zotero-browser-ensure-browser-buffer)
-  (let ((buffer (current-buffer)))
-    (pop-to-buffer zotero-browser-collections-buffer-name)
-    (zotero-browser-up)
-    (pop-to-buffer buffer)))
+  (with-current-buffer zotero-browser-collections-buffer-name
+    (zotero-browser-up)))
 
 (defun zotero-browser-all-items ()
   "Show all items."
