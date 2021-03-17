@@ -114,6 +114,7 @@
     (define-key map (kbd "g") #'zotero-browser-revert)
     (define-key map (kbd "n") #'zotero-browser-next)
     (define-key map (kbd "p") #'zotero-browser-prev)
+    (define-key map (kbd "C-c C-u") #'zotero-browser-up-collection)
     (define-key map (kbd "C-c C-n") #'zotero-browser-next-collection)
     (define-key map (kbd "C-c C-p") #'zotero-browser-prev-collection)
     (define-key map (kbd "+") #'zotero-browser-create)
@@ -129,12 +130,14 @@
     (define-key map (kbd "<backtab>") #'zotero-browser-cycle)
     (define-key map (kbd "$") #'zotero-browser-expand-all)
     (define-key map (kbd "M-$") #'zotero-browser-collapse-all)
+    (define-key map (kbd "u") #'zotero-browser-up)
     (define-key map (kbd "n") #'zotero-browser-next)
     (define-key map (kbd "p") #'zotero-browser-prev)
-    (define-key map (kbd "u") #'zotero-browser-up)
+    (define-key map (kbd "C-c C-f") #'zotero-browser-forward-same-level)
+    (define-key map (kbd "C-c C-b") #'zotero-browser-backward-same-level)
+    (define-key map (kbd "C-c C-u") #'zotero-browser-up-collection)
     (define-key map (kbd "C-c C-n") #'zotero-browser-next-collection)
     (define-key map (kbd "C-c C-p") #'zotero-browser-prev-collection)
-    (define-key map (kbd "C-c C-u") #'zotero-browser-up-collection)
     (define-key map (kbd "g") #'zotero-browser-revert)
     (define-key map (kbd "D") #'zotero-browser-delete)
     (define-key map (kbd "+") #'zotero-browser-create)
@@ -150,12 +153,14 @@
     (define-key map (kbd "<backtab>") #'zotero-browser-cycle)
     (define-key map (kbd "$") #'zotero-browser-expand-all)
     (define-key map (kbd "M-$") #'zotero-browser-collapse-all)
+    (define-key map (kbd "u") #'zotero-browser-up)
     (define-key map (kbd "n") #'zotero-browser-next)
     (define-key map (kbd "p") #'zotero-browser-prev)
-    (define-key map (kbd "u") #'zotero-browser-up)
+    (define-key map (kbd "C-c C-f") #'zotero-browser-forward-same-level)
+    (define-key map (kbd "C-c C-b") #'zotero-browser-backward-same-level)
+    (define-key map (kbd "C-c C-u") #'zotero-browser-up-collection)
     (define-key map (kbd "C-c C-n") #'zotero-browser-next-collection)
     (define-key map (kbd "C-c C-p") #'zotero-browser-prev-collection)
-    (define-key map (kbd "C-c C-u") #'zotero-browser-up-collection)
     (define-key map (kbd "g") #'zotero-browser-revert)
     (define-key map (kbd "D") #'zotero-browser-delete)
     (define-key map (kbd "R") #'zotero-browser-remove-from-collection)
@@ -256,8 +261,15 @@ tree.")
 (easy-menu-define zotero-browser-libraries-mode-menu zotero-browser-libraries-mode-map
   "Menu for `zotero-browser-libraries-mode'."
   `("Zotero-Browser"
-    ["Edit" zotero-browser-edit :help "Change the group settings"]
-    ["Create" zotero-create-group :help "Create a new group"]
+    ["Edit group" zotero-browser-edit :help "Change the group settings"]
+    ["Create group" zotero-create-group :help "Create a new group"]
+    "--"
+    ("Navigate"
+     ["Next" zotero-browser-next]
+     ["Previous" zotero-browser-prev]
+     ["Up collection" zotero-browser-up-collection]
+     ["Next collection" zotero-browser-next-collection]
+     ["Previous collection" zotero-browser-prev-collection])
     "--"
     ["Revert" zotero-browser-revert]
     ["Quit" quit-window]
@@ -266,13 +278,21 @@ tree.")
 (easy-menu-define zotero-browser-collections-mode-menu zotero-browser-collections-mode-map
   "Menu for `zotero-browser-collections-mode'."
   `("Zotero-Browser"
-    ["Toggle" zotero-browser-toggle :help "Expand or collapse the children of the current item"]
-    ["Cycle" zotero-browser-cycle :help "Cycle the visibility of children"]
-    ["Expand all" zotero-browser-expand-all :help "Expand all children"]
-    ["Collapse all" zotero-browser-collapse-all :help "Collapse all children"]
+    ("Show/Hide"
+     ["Toggle" zotero-browser-toggle :help "Expand or collapse the children of the current item"]
+     ["Cycle" zotero-browser-cycle :help "Cycle the visibility of children"]
+     ["Expand all" zotero-browser-expand-all :help "Expand all children"]
+     ["Collapse all" zotero-browser-collapse-all :help "Collapse all children"])
     "--"
-    ["Edit" zotero-browser-edit :help "Edit current entry"]
-    ["Create" zotero-browser-create :help "Create a new collection"]
+    ("Navigate"
+     ["Up" zotero-browser-up]
+     ["Next" zotero-browser-next]
+     ["Previous" zotero-browser-prev]
+     ["Next same level" zotero-browser-forward-same-level]
+     ["Previous same level" zotero-browser-backward-same-level])
+    "--"
+    ["Edit collection" zotero-browser-edit :help "Edit current entry"]
+    ["Create collection" zotero-browser-create :help "Create a new collection"]
     "--"
     ["Revert" zotero-browser-revert]
     ["Quit" quit-window]
@@ -281,24 +301,37 @@ tree.")
 (easy-menu-define zotero-browser-items-mode-menu zotero-browser-items-mode-map
   "Menu for `zotero-browser-items-mode'."
   `("Zotero-Browser"
-    ["Toggle" zotero-browser-toggle :help "Expand or collapse the children of the current item"]
-    ["Cycle" zotero-browser-cycle :help "Cycle the visibility of children"]
-    ["Expand all" zotero-browser-expand-all :help "Expand all children"]
-    ["Collapse all" zotero-browser-collapse-all :help "Collapse all children"]
+    ("Show/Hide"
+     ["Toggle" zotero-browser-toggle :help "Expand or collapse the children of the current item"]
+     ["Cycle" zotero-browser-cycle :help "Cycle the visibility of children"]
+     ["Expand all" zotero-browser-expand-all :help "Expand all children"]
+     ["Collapse all" zotero-browser-collapse-all :help "Collapse all children"])
     "--"
-    ["Edit" zotero-browser-edit :help "Edit current entry"]
-    ["Create" zotero-browser-create :help "Create a new item"]
-    ["Create note" zotero-browser-create-note :help "Create a new note"]
-    ["Create attachment" zotero-browser-create-attachment :help "Create a new attachment"]
-    ["Update attachment" zotero-browser-update-attachment :help "Update current attachment"]
-    ["Add by identifier" zotero-browser-add-by-identifier :help "Add a new item by ISBN, DOI, PMID, or arXiv ID"]
+    ("Navigate"
+     ["Up" zotero-browser-up]
+     ["Next" zotero-browser-next]
+     ["Previous" zotero-browser-prev]
+     ["Next same level" zotero-browser-forward-same-level]
+     ["Previous same level" zotero-browser-backward-same-level]
+     ["Up collection" zotero-browser-up-collection]
+     ["Next collection" zotero-browser-next-collection]
+     ["Previous collection" zotero-browser-prev-collection])
+    "--"
+    ["Edit item" zotero-browser-edit :help "Edit current entry"]
+    ("Create item"    ["Create" zotero-browser-create :help "Create a new item"]
+     ["Create note" zotero-browser-create-note :help "Create a new note"]
+     ["Create attachment" zotero-browser-create-attachment :help "Create a new attachment"]
+     ["Update attachment" zotero-browser-update-attachment :help "Update current attachment"]
+     ["Add by identifier" zotero-browser-add-by-identifier :help "Add a new item by ISBN, DOI, PMID, or arXiv ID"])
     "--"
     ["Move to trash" zotero-browser-move-to-trash :help "Move current entry or entries in active region to trash"]
+    ["Restore from trash" zotero-browser-restore :help "Restore current entry or entries in active region"]
     ["Delete" zotero-browser-delete :help "Delete current entry or entries in active region"]
-    ["Restore" zotero-browser-restore :help "Restore current entry or entries in active region"]
-    ["Remove from collection" zotero-browser-remove-from-collection :help "Remove current entry from a collection"]
-    ["Copy to collection" zotero-browser-copy-to-collection :help "Copy current entry to a collection"]
-    ["Move to parent" zotero-browser-move-to-parent :help "Move current entry to a parent item"]
+    "--"
+    ("File item"
+     ["Remove from collection" zotero-browser-remove-from-collection :help "Remove current entry from a collection"]
+     ["Copy to collection" zotero-browser-copy-to-collection :help "Copy current entry to a collection"]
+     ["Move to parent" zotero-browser-move-to-parent :help "Move current entry to a parent item"])
     "--"
     ["Open attachment" zotero-browser-open]
     ["Open attachment directory" zotero-browser-open-directory]
