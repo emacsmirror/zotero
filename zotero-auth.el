@@ -120,7 +120,7 @@ API key."
 (defun zotero-auth-username (&optional token)
   "Return the Zotero username in TOKEN."
   (interactive)
-  (let ((token (or token (zotero-auth-token))))
+  (let ((token (or token (zotero-auth--token))))
     (zotero-auth-token-username token)))
 
 ;;;; Functions
