@@ -31,6 +31,7 @@
 (require 'mailcap)
 (require 'seq)
 (require 'subr-x)
+(require 'zotero)
 (require 'zotero-lib)
 (require 'zotero-cache)
 (require 'zotero-sync)

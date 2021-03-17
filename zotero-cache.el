@@ -31,7 +31,10 @@
 (require 'seq)
 (require 'zotero)
 (require 'zotero-lib)
-(require 'zotero-diff)
+
+(declare-function zotero-sync-item-template "zotero-sync")
+(declare-function zotero-sync-attachment-template "zotero-sync")
+(declare-function zotero-sync-schema "zotero-sync")
 
 ;;;; Variables
 
