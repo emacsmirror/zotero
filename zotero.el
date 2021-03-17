@@ -1153,10 +1153,11 @@ ID\". API-KEY is the Zotero API key."
                                ("Zotero-Write-Token" . ,write-token))
                     :data (encode-coding-string json 'utf-8))))
 
-(cl-defun zotero-update-item (key object &key type id api-key)
+(cl-defun zotero-update-item (key object version &key type id api-key)
   "Update existing item KEY.
 
-OBJECT is a plist of the modified item.
+OBJECT is a plist of the modified item. VERSION is the last known
+item version.
 
 To update an existing item, first retrieve the current version of
 the item with `zotero-item'. The editable data will be found in
@@ -1185,12 +1186,14 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (let ((json (zotero-json-encode-to-array object)))
+  (let ((version (if (numberp version) (number-to-string version) version))
+        (json (zotero-json-encode object)))
     (zotero-request "PUT" "item" key
                     :type type
                     :id id
                     :api-key api-key
-                    :headers '(("Content-Type" . "application/json"))
+                    :headers `(("Content-Type" . "application/json")
+                               ("If-Unmodified-Since-Version" . ,version))
                     :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-update-items (objects &key type id api-key)
@@ -1244,7 +1247,6 @@ ID\". API-KEY is the Zotero API key."
                     :headers '(("Content-Type" . "application/json"))
                     :data (encode-coding-string json 'utf-8))))
 
-
 (cl-defun zotero-patch-item (key object version &key type id api-key)
   "Partially update existing item KEY.
 
@@ -1258,12 +1260,14 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (let ((json (zotero-json-encode-to-array object)))
+  (let ((version (if (numberp version) (number-to-string version) version))
+        (json (zotero-json-encode-to-array object)))
     (zotero-request "PATCH" "item" key
                     :type type
                     :id id
                     :api-key api-key
-                    :headers `(("If-Unmodified-Since-Version" . ,version))
+                    :headers `(("Content-Type" . "application/json")
+                               ("If-Unmodified-Since-Version" . ,version))
                     :data (encode-coding-string json 'utf-8))))
 
 (cl-defun zotero-delete-item (key version &key type id api-key)
@@ -1275,11 +1279,12 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (zotero-request "DELETE" "item" key
-                  :type type
-                  :id id
-                  :api-key api-key
-                  :headers `(("If-Unmodified-Since-Version" . ,version))))
+  (let ((version (if (numberp version) (number-to-string version) version)))
+    (zotero-request "DELETE" "item" key
+                    :type type
+                    :id id
+                    :api-key api-key
+                    :headers `(("If-Unmodified-Since-Version" . ,version)))))
 
 (cl-defun zotero-delete-items (keys version &key type id api-key)
   "Delete multiple items.
@@ -1296,7 +1301,8 @@ ID\". API-KEY is the Zotero API key."
   (cl-assert (consp keys))
   (cond
    ((<= (length keys) 50)
-    (let ((value (s-join "," keys)))
+    (let ((version (if (numberp version) (number-to-string version) version))
+          (value (s-join "," keys)))
       (zotero-request "DELETE" "items" nil
                       :type type
                       :id id
@@ -1369,7 +1375,7 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (let ((json (zotero-json-encode-to-array object)))
+  (let ((json (zotero-json-encode object)))
     (zotero-request "PUT" "collection" key
                     :type type
                     :id id
@@ -1414,11 +1420,12 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (zotero-request "DELETE" "collection" key
-                  :type type
-                  :id id
-                  :api-key api-key
-                  :headers `(("If-Unmodified-Since-Version" . ,version))))
+  (let ((version (if (numberp version) (number-to-string version) version)))
+    (zotero-request "DELETE" "collection" key
+                    :type type
+                    :id id
+                    :api-key api-key
+                    :headers `(("If-Unmodified-Since-Version" . ,version)))))
 
 (cl-defun zotero-delete-collections (keys version &key type id api-key)
   "Delete multiple collections.
@@ -1435,7 +1442,8 @@ ID\". API-KEY is the Zotero API key."
   (cl-assert (consp keys))
   (cond
    ((<= (length keys) 50)
-    (let ((value (s-join "," keys)))
+    (let ((version (if (numberp version) (number-to-string version) version))
+          (value (s-join "," keys)))
       (zotero-request "DELETE" "collections" nil
                       :type type
                       :id id
@@ -1534,7 +1542,8 @@ ID\". API-KEY is the Zotero API key."
   (cl-assert (consp keys))
   (cond
    ((<= (length keys) 50)
-    (let ((value (s-join "," keys)))
+    (let ((version (if (numberp version) (number-to-string version) version))
+          (value (s-join "," keys)))
       (zotero-request "DELETE" "searches" nil
                       :type type
                       :id id
@@ -1559,7 +1568,8 @@ ID\". API-KEY is the Zotero API key."
   (cl-assert (consp tags))
   (cond
    ((<= (length tags) 50)
-    (let ((value (s-join "||" (mapcar #'url-hexify-string tags))))
+    (let ((version (if (numberp version) (number-to-string version) version))
+          (value (s-join "||" (mapcar #'url-hexify-string tags))))
       (zotero-request "DELETE" "tags" nil
                       :type type
                       :id id
