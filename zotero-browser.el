@@ -212,7 +212,7 @@
     (define-key map [mouse-1] #'zotero-browser-edit)
     (define-key map [mouse-3] #'zotero-browser-top-attachment-popup-menu)
     map)
-  "Keymap for mouse events on top-level attachments.")
+  "Keymap for mouse events on top level attachments.")
 
 (defvar zotero-browser-child-attachment-keymap
   (let ((map (make-sparse-keymap)))
@@ -576,27 +576,27 @@ All currently available key bindings:
 ;;;; Functions
 
 (defun zotero-browser-item-popup-menu (event)
-  "Pop up a menu."
+  "Pop up a menu with mouse EVENT."
   (interactive "@e")
   (popup-menu zotero-browser-item-menu event))
 
 (defun zotero-browser-trash-item-popup-menu (event)
-  "Pop up a menu."
+  "Pop up a menu with mouse EVENT."
   (interactive "@e")
   (popup-menu zotero-browser-trash-item-menu event))
 
 (defun zotero-browser-top-attachment-popup-menu (event)
-  "Pop up a menu."
+  "Pop up a menu with mouse EVENT."
   (interactive "@e")
   (popup-menu zotero-browser-top-attachment-menu event))
 
 (defun zotero-browser-child-attachment-popup-menu (event)
-  "Pop up a menu."
+  "Pop up a menu with mouse EVENT."
   (interactive "@e")
   (popup-menu zotero-browser-child-attachment-menu event))
 
 (defun zotero-browser-note-popup-menu (event)
-  "Pop up a menu."
+  "Pop up a menu with mouse EVENT."
   (interactive "@e")
   (popup-menu zotero-browser-note-menu event))
 
@@ -789,7 +789,7 @@ STRING should contain only one character."
     (if (file-readable-p filename) filename nil)))
 
 (defun zotero-browser--find-attachment (entry)
-  "Return the path of the attachment of the current entry."
+  "Return the path of the attachment of the current ENTRY."
   (when-let ((key (zotero-lib-plist-get* entry :data :key))
              (filename (zotero-lib-plist-get* entry :data :filename))
              (dir (concat (file-name-as-directory zotero-cache-storage-dir) key))
@@ -859,7 +859,7 @@ application is found, Emacs simply visits the file."
            (find-file-other-frame file))))))))
 
 (defun zotero-browser--open-imported-file (entry)
-  "Open attachment."
+  "Open attachment ENTRY."
   (let ((path (expand-file-name (zotero-browser--find-attachment entry))))
     (zotero-browser--open-file path)))
 
