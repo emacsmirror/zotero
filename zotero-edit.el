@@ -148,6 +148,23 @@ All currently available key bindings:
 
 ;;;; Functions
 
+(defun zotero-edit--update (key)
+  "Update KEY in the edit buffer.
+Called if KEY is added, deleted, or changed."
+  (when-let ((buffer (get-buffer zotero-edit-buffer-name)))
+    (with-current-buffer buffer
+      (if (equal key (plist-get zotero-edit-data :key))
+          (let ((type zotero-edit-type)
+                (id zotero-edit-id)
+                (resource zotero-edit-resource))
+            (if-let ((entry (zotero-cache-synccache resource key type id t))
+                     (data (plist-get entry :data)))
+                (pcase resource
+                  ("collections" (zotero-edit-collection data type id))
+                  ("items" (zotero-edit-item data type id)))
+              (delete-window (get-buffer-window buffer))
+              (kill-buffer buffer)))))))
+
 (defun zotero-edit--toggle-notify (widget &rest _ignore)
   "Toggle mode of name textfields in WIDGET."
   (let* ((parent (widget-get widget :parent))
@@ -186,6 +203,7 @@ ID."
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
     (with-current-buffer buffer
       (zotero-edit-mode)
+      (add-hook 'zotero-browser-after-change-functions #'zotero-edit--update)
       (let ((inhibit-read-only t))
         (erase-buffer)
         (remove-overlays))
@@ -483,6 +501,7 @@ ID."
   (let ((buffer (get-buffer-create zotero-edit-buffer-name)))
     (with-current-buffer buffer
       (zotero-edit-mode)
+      (add-hook 'zotero-browser-after-change-functions #'zotero-edit--update)
       (let ((inhibit-read-only t))
         (erase-buffer)
         (remove-overlays))
