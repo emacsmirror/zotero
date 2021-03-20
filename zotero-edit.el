@@ -144,7 +144,7 @@ All currently available key bindings:
 All currently available key bindings:
 
 \\{zotero-edit-text-mode-map}"
-  nil "ZotEdit" nil)
+  nil " ZotEdit" nil)
 
 ;;;; Functions
 
