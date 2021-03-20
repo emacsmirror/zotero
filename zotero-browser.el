@@ -872,8 +872,14 @@ Called if item KEY is added, deleted, or changed."
                 ;; Item is not a parent
                 (let ((keys (funcall sort-fn table)))
                   (if (equal (car (last keys)) key)
-                      ;; If the item is the last item, place at the end
-                      (ewoc-enter-last ewoc key)
+                      ;; If the item is the last item, place at the end. But
+                      ;; place it before the 'unfiled and 'trash collection
+                      (if-let ((last-node (ewoc-nth ewoc -1)))
+                          (progn
+                            (while (symbolp (ewoc-data last-node))
+                              (setq last-node (ewoc-prev ewoc last-node)))
+                            (ewoc-enter-after ewoc last-node key))
+                        (ewoc-enter-last ewoc key))
                     ;; Else place it before the next item (we don't place it after the
                     ;; previous item, because it could be expanded)
                     (let* ((idx (seq-position keys key))
@@ -892,10 +898,16 @@ Called if item KEY is added, deleted, or changed."
                   ;; If the item is collapsed
                   (let ((keys (funcall sort-fn table)))
                     (if (equal (car (last keys)) key)
-                        ;; If the key is the last item, place at the end
-                        (progn
+                        ;; If the item is the last item, place at the end. But
+                        ;; place it before the 'unfiled and 'trash collection
+                        (if-let ((last-node (ewoc-nth ewoc -1)))
+                            (progn
+                              (while (symbolp (ewoc-data last-node))
+                                (setq last-node (ewoc-prev ewoc last-node)))
+                              (let ((node (ewoc-enter-after ewoc last-node key)))
+                                ;; And prefix it with the expand symbol
+                                (zotero-browser--prefix (ewoc-location node) zotero-browser-expand-symbol)))
                           (let ((node (ewoc-enter-last ewoc key)))
-                            ;; And prefix it with the expand symbol
                             (zotero-browser--prefix (ewoc-location node) zotero-browser-expand-symbol)))
                       ;; Else place it before the next item (we don't place it after the
                       ;; previous item, because it could be expanded)
