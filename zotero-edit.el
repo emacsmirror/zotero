@@ -456,12 +456,7 @@ ID."
           (widget-insert "\n")
           (widget-create 'push-button
 		         :notify (lambda (&rest _ignore)
-                                   (message "Saving...")
-                                   (if-let ((data (zotero-cache-save zotero-edit-data-copy "items" type id)))
-                                       (progn
-                                         (message "Saving...done.")
-                                         (zotero-edit-item data type id))
-                                     (message "Saving...failed.")))
+                                   (zotero-edit-save))
                          "Save")
           (widget-insert " ")
           ;; Revert button
@@ -550,12 +545,7 @@ ID."
           (widget-insert "\n")
           (widget-create 'push-button
 		         :notify (lambda (&rest _ignore)
-	                           (message "Saving...")
-                                   (if-let ((data (zotero-cache-save zotero-edit-data-copy "collections" type id)))
-                                       (progn
-                                         (message "Saving...done.")
-                                         (zotero-edit-collection data type id))
-                                     (message "Saving...failed.")))
+	                           (zotero-edit-save))
                          "Save")
           (widget-insert " ")
           ;; Revert button
@@ -583,9 +573,11 @@ ID."
         (type zotero-edit-type)
         (id zotero-edit-id)
         (data zotero-edit-data-copy))
-    (if-let ((data (zotero-cache-save data resource type id)))
+    (if-let ((data (zotero-cache-save data resource type id))
+             (key (plist-get data :key)))
         (progn
           (message "Saving item...done")
+          (run-hook-with-args 'zotero-browser-after-change-functions key)
           (pcase zotero-edit-resource
             ("items" (zotero-edit-item data type id))
             ("collections" (zotero-edit-collection data type id))))

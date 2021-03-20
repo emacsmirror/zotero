@@ -76,6 +76,10 @@
                                             (window-height . 0.5)
                                             (preserve-size . (nil . t))))
 
+(defvar zotero-browser-after-change-functions nil
+  "List of functions to be called when items have been created, deleted, or updated.
+Each function is called with the item key as argument.")
+
 (defvar zotero-browser-padding 1
   "Set the number of characters preceding each entry.")
 
@@ -658,6 +662,17 @@ STRING should contain only one character."
          (spacing (substring prefix 0 -1)))
     (put-text-property position (line-end-position) 'line-prefix (concat spacing string))))
 
+(defun zotero-browser--find (ewoc key)
+  "Return the first node of item KEY in EWOC."
+  (when-let ((node (ewoc-nth ewoc 0)))
+    (catch 'break
+      (while
+          (progn
+            (ewoc-goto-node ewoc node)
+            (when (equal (ewoc-data node) key)
+              (throw 'break node))
+            (setq node (ewoc-next ewoc node)))))))
+
 (defun zotero-browser--add (ewoc node table)
   "Add items of TABLE after NODE in EWOC."
   (let ((keys (pcase major-mode
@@ -700,36 +715,6 @@ STRING should contain only one character."
                     (zotero-cache-parentitem next-key table)))))
     (equal parent key)))
 
-(defun zotero-browser--children (key)
-  "Return the children of KEY."
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (table (pcase major-mode
-                  ('zotero-browser-collections-mode
-                   (zotero-cache-synccache "collections" nil type id))
-                  ('zotero-browser-items-mode
-                   (zotero-cache-synccache "items" nil type id)))))
-    (pcase major-mode
-      ('zotero-browser-collections-mode
-       (zotero-cache-subcollections key table))
-      ('zotero-browser-items-mode
-       (zotero-cache-subitems key table)))))
-
-(defun zotero-browser--parent (key)
-  "Return the parent of KEY."
-  (let* ((type zotero-browser-type)
-         (id zotero-browser-id)
-         (table (pcase major-mode
-                  ('zotero-browser-collections-mode
-                   (zotero-cache-synccache "collections" nil type id))
-                  ('zotero-browser-items-mode
-                   (zotero-cache-synccache "items" nil type id)))))
-    (pcase major-mode
-      ('zotero-browser-collections-mode
-       (zotero-cache-parentcollection key table))
-      ('zotero-browser-items-mode
-       (zotero-cache-parentitem key table)))))
-
 (defun zotero-browser--expand (ewoc node)
   "Expand the children of NODE in EWOC."
   (let* ((key (ewoc-data node))
@@ -764,6 +749,129 @@ STRING should contain only one character."
           (when (member parent parents)
             (ewoc-delete ewoc next-node)
             (setq key next-key))))))
+
+(defun zotero-browser--children (key)
+  "Return the children of KEY."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (table (pcase major-mode
+                  ('zotero-browser-collections-mode
+                   (zotero-cache-synccache "collections" nil type id))
+                  ('zotero-browser-items-mode
+                   (zotero-cache-synccache "items" nil type id)))))
+    (pcase major-mode
+      ('zotero-browser-collections-mode
+       (zotero-cache-subcollections key table))
+      ('zotero-browser-items-mode
+       (zotero-cache-subitems key table)))))
+
+(defun zotero-browser--parent (key)
+  "Return the parent of KEY."
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (table (pcase major-mode
+                  ('zotero-browser-collections-mode
+                   (zotero-cache-synccache "collections" nil type id))
+                  ('zotero-browser-items-mode
+                   (zotero-cache-synccache "items" nil type id)))))
+    (pcase major-mode
+      ('zotero-browser-collections-mode
+       (zotero-cache-parentcollection key table))
+      ('zotero-browser-items-mode
+       (zotero-cache-parentitem key table)))))
+
+(defun zotero-browser--update-collection (key)
+  "Update collection KEY in the collections buffer.
+Called if collection KEY is added, deleted, or changed."
+  (when-let ((buffer (get-buffer zotero-browser-collections-buffer-name)))
+    (with-current-buffer buffer
+      (zotero-browser--update key))))
+
+(defun zotero-browser--update-item (key)
+  "Update item KEY in the items buffer.
+Called if item KEY is added, deleted, or changed."
+  (when-let ((buffer (get-buffer zotero-browser-items-buffer-name)))
+    (with-current-buffer buffer
+      (zotero-browser--update key))))
+
+(defun zotero-browser--update (key)
+  "Update item KEY in the items buffer.
+Called if item KEY is added, deleted, or changed."
+  (zotero-browser-ensure-browser-buffer)
+  (let* ((inhibit-read-only t)
+         (ewoc zotero-browser-ewoc)
+         (table (zotero-cache-synccache zotero-browser-resource
+                                        zotero-browser-collection
+                                        zotero-browser-type
+                                        zotero-browser-id))
+         (parent (zotero-browser--parent key)))
+    ;; If node is visible, delete it
+    (when-let ((node (zotero-browser--find ewoc key)))
+      (ewoc-delete ewoc node))
+    ;; If key is in table, place it in the buffer
+    (let ((sort-fn (pcase major-mode
+                     ('zotero-browser-collections-mode
+                      (apply-partially #'zotero-cache-sort-by :name 'asc))
+                     ('zotero-browser-items-mode
+                      (apply-partially #'zotero-cache-sort-by :title 'asc)))))
+      (when (or (ht-contains-p table key) (ht-contains-p table parent))
+        (if parent
+            ;; Item is a child
+            (let ((parent-node (zotero-browser--find ewoc parent)))
+              (if (zotero-browser--expanded-p ewoc parent-node)
+                  ;; If the parent is expanded, place the item in the children
+                  (progn
+                    (let* ((siblings (zotero-browser--children parent))
+                           (keys (funcall sort-fn siblings)))
+                      (if (equal (car keys) key)
+                          ;; If the key is the first child, place it after the
+                          ;; parent
+                          (ewoc-enter-after ewoc parent-node key)
+                        (let* ((idx (seq-position keys key))
+                               (prev-key (seq-elt keys (1- idx)))
+                               (prev-node (zotero-browser--find ewoc prev-key)))
+                          (ewoc-enter-after ewoc prev-node key)))))
+                ;; If the parent is collapsed, expand it
+                (zotero-browser--expand ewoc parent-node)))
+          ;; Top level item
+          (let ((children (zotero-browser--children key)))
+            (if (ht-empty-p children)
+                ;; Item is not a parent
+                (let ((keys (funcall sort-fn table)))
+                  (if (equal (car (last keys)) key)
+                      ;; If the item is the last item, place at the end
+                      (ewoc-enter-last ewoc key)
+                    ;; Else place it before the next item (we don't place it after the
+                    ;; previous item, because it could be expanded)
+                    (let* ((idx (seq-position keys key))
+                           (next-key (seq-elt keys (1+ idx)))
+                           (next-node (zotero-browser--find ewoc next-key)))
+                      (ewoc-enter-before ewoc next-node key))))
+              ;; Item is a parent
+              (let* ((keys (funcall sort-fn children))
+                     (child (zotero-browser--find ewoc (car keys))))
+                (if child
+                    ;; If the item is expanded, place before the first child
+                    (progn
+                      (let ((node (ewoc-enter-before ewoc child key)))
+                        ;; And prefix it with the collapse symbol
+                        (zotero-browser--prefix (ewoc-location node) zotero-browser-collapse-symbol)))
+                  ;; If the item is collapsed
+                  (let ((keys (funcall sort-fn table)))
+                    (if (equal (car (last keys)) key)
+                        ;; If the key is the last item, place at the end
+                        (progn
+                          (let ((node (ewoc-enter-last ewoc key)))
+                            ;; And prefix it with the expand symbol
+                            (zotero-browser--prefix (ewoc-location node) zotero-browser-expand-symbol)))
+                      ;; Else place it before the next item (we don't place it after the
+                      ;; previous item, because it could be expanded)
+                      (let* ((idx (seq-position keys key))
+                             (next-key (seq-elt keys (1+ idx)))
+                             (next-node (zotero-browser--find ewoc next-key))
+                             (node (ewoc-enter-before ewoc next-node key)))
+                        ;; And prefix it with the expand symbol
+                        (zotero-browser--prefix (ewoc-location node) zotero-browser-expand-symbol)))))))))))))
 
 (defun zotero-browser--itemtype-icon (itemtype)
   "Return the icon file for ITEMTYPE, or nil if none exists."
@@ -1563,7 +1671,8 @@ With a `C-u' prefix, move to top level."
          (key (ewoc-data node))
          (entry (zotero-cache-synccache "item" key type id))
          (data (plist-get entry :data))
-         (itemtype (zotero-lib-plist-get* entry :data :itemType))
+         (itemtype (plist-get data :itemType))
+         (key (plist-get data :key))
          updated-data)
     (unless (or (equal itemtype "attachment") (equal itemtype "note"))
       (user-error "Item type %s cannot be moved to a parent"))
@@ -1579,7 +1688,7 @@ With a `C-u' prefix, move to top level."
             (user-error "Parent item cannot be a note or attachment")
           (setq updated-data (plist-put data :parentItem parent)))))
     (zotero-cache-save updated-data "items" type id)
-    (zotero-browser-revert)))
+    (run-hook-with-args 'zotero-browser-after-change-functions key)))
 
 (defun zotero-browser-move-to-collection ()
   "Move current entry to a collection."
@@ -1599,7 +1708,7 @@ With a `C-u' prefix, move to top level."
          (new (cdr (assoc name choices)))
          (old zotero-browser-collection))
     (zotero-cache-substitute-collection key new old type id)
-    (zotero-browser-revert)))
+    (run-hook-with-args 'zotero-browser-after-change-functions key)))
 
 (defun zotero-browser-copy-to-collection ()
   "Copy current entry to another collection."
@@ -1611,16 +1720,14 @@ With a `C-u' prefix, move to top level."
          (ewoc zotero-browser-ewoc)
          (type zotero-browser-type)
          (id zotero-browser-id)
-         (resource zotero-browser-resource)
          (node (ewoc-locate ewoc))
          (key (ewoc-data node))
          (table (zotero-cache-synccache "collections" nil type id))
          (choices (zotero-cache-field :name table))
          (name (completing-read "Select collection:" choices nil t))
          (collection (cdr (assoc name choices))))
-    (when (equal resource "items-top")
-      (ewoc-delete ewoc node))
-    (zotero-cache-add-to-collection key collection type id)))
+    (zotero-cache-add-to-collection key collection type id)
+    (run-hook-with-args 'zotero-browser-after-change-functions key)))
 
 (defun zotero-browser-remove-from-collection ()
   "Remove current entry from the collection."
@@ -1635,8 +1742,11 @@ With a `C-u' prefix, move to top level."
          (node (ewoc-locate ewoc))
          (key (ewoc-data node))
          (collection zotero-browser-collection))
-    (ewoc-delete ewoc node)
-    (zotero-cache-remove-from-collection key collection type id)))
+    (zotero-cache-remove-from-collection key collection type id)
+    (run-hook-with-args 'zotero-browser-after-change-functions key)
+    (let ((children (zotero-browser--children key)))
+      (ht-each (lambda (key _value) (run-hook-with-args 'zotero-browser-after-change-functions key))
+               children))))
 
 (defun zotero-browser-move-to-trash ()
   "Move current entry to trash.
@@ -1655,11 +1765,15 @@ If region is active, trash entries in active region instead."
          (type zotero-browser-type)
          (id zotero-browser-id)
          (ewoc zotero-browser-ewoc)
-         (nodes (zotero-browser--nodes ewoc))
          (keys (zotero-browser--keys ewoc)))
-    (apply #'ewoc-delete ewoc nodes)
     (dolist (key keys)
-      (zotero-cache-trash key type id))))
+      (zotero-cache-trash key type id)
+      (run-hook-with-args 'zotero-browser-after-change-functions key)
+      ;; Move all children to trash as well
+      (let ((children (zotero-browser--children key)))
+        (ht-each (lambda (key _value) (zotero-cache-trash key type id)
+                   (run-hook-with-args 'zotero-browser-after-change-functions key))
+                 children)))))
 
 (defun zotero-browser-restore-from-trash ()
   "Restore current entry from trash.
@@ -1674,11 +1788,15 @@ If region is active, restore entries in active region instead."
          (type zotero-browser-type)
          (id zotero-browser-id)
          (ewoc zotero-browser-ewoc)
-         (nodes (zotero-browser--nodes ewoc))
          (keys (zotero-browser--keys ewoc)))
-    (apply #'ewoc-delete ewoc nodes)
     (dolist (key keys)
-      (zotero-cache-restore key type id))))
+      (zotero-cache-restore key type id)
+      (run-hook-with-args 'zotero-browser-after-change-functions key)
+      ;; Restore all children from trash as well
+      (let ((children (zotero-browser--children key)))
+        (ht-each (lambda (key _value) (zotero-cache-restore key type id)
+                   (run-hook-with-args 'zotero-browser-after-change-functions key))
+                 children)))))
 
 (defun zotero-browser-delete ()
   "Delete current entry.
@@ -1695,19 +1813,12 @@ If region is active, delete entries in active region instead."
                      ('zotero-browser-collections-mode "collections")
                      ('zotero-browser-items-mode "items")))
          (ewoc zotero-browser-ewoc)
-         (nodes (zotero-browser--nodes ewoc)))
-    (dolist (node nodes)
-      (let* ((key (ewoc-data node))
-             (parent (zotero-browser--parent key))
-             (children (zotero-browser--children key)))
+         (keys (zotero-browser--keys ewoc)))
+    (dolist (key keys)
+      (let ((children (ht-keys (zotero-browser--children key))))
         (zotero-cache-delete resource key type id)
-        (ewoc-delete ewoc node)
-        ;; Refresh parent to change indentation
-        (when parent
-          (ewoc-map (lambda (key) (equal parent key)) ewoc))
-        ;; Refresh expanded children to change indentation
-        (unless (ht-empty? children)
-          (ewoc-map (lambda (key) (ht-contains? children key)) ewoc))))))
+        (run-hook-with-args 'zotero-browser-after-change-functions key)
+        (mapc (lambda (child) (run-hook-with-args 'zotero-browser-after-change-functions child)) children)))))
 
 (defun zotero-browser-create ()
   "Create a new collection or item."
@@ -1806,15 +1917,12 @@ client."
                      (t data))))
          (when-let ((data (zotero-cache-save data "items" type id))
                     (key (plist-get data :key)))
-           (if parent
-               (progn
-                 (zotero-browser--prefix (ewoc-location node) zotero-browser-collapse-symbol)
-                 (ewoc-enter-after ewoc node key))
-             (ewoc-enter-last ewoc key))
+           (run-hook-with-args 'zotero-browser-after-change-functions key)
            (if-let ((response (zotero-upload-attachment key file nil :type type :id id))
                     (object (zotero-response-data response))
                     (data (plist-get object :data)))
                (progn
+                 (run-hook-with-args 'zotero-browser-after-change-functions key)
                  (zotero-cache-save data "items" type id)
                  (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))
              (error "Failed to associate attachment with item %s" key)))))
@@ -1841,11 +1949,7 @@ client."
                      (t data))))
          (when-let ((data (zotero-cache-save data "items" type id))
                     (key (plist-get data :key)))
-           (if parent
-               (progn
-                 (zotero-browser--prefix (ewoc-location node) zotero-browser-collapse-symbol)
-                 (ewoc-enter-after ewoc node key))
-             (ewoc-enter-last ewoc key))
+           (run-hook-with-args 'zotero-browser-after-change-functions key)
            (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))
       ("linked_url"
        (if parent
@@ -1981,8 +2085,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
             ;; Create the parent item
             (when-let ((data (zotero-cache-save result "items" type id))
                        (parent-key (plist-get data :key)))
-              (ewoc-enter-before ewoc node parent-key)
-              (zotero-browser--prefix (ewoc-location (ewoc-prev ewoc node)) zotero-browser-collapse-symbol)
+              (run-hook-with-args 'zotero-browser-after-change-functions parent-key)
               ;; Rename the attachment to match new metadata and make it a child
               (let* ((base (zotero-browser--filename-base data))
                      (dir (file-name-directory file))
@@ -2015,8 +2118,7 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
                              (data (plist-get object :data)))
                         (progn
                           (zotero-cache-save data "items" type id)
-                          (ewoc-invalidate ewoc node)
-                          (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))
+                          (run-hook-with-args 'zotero-browser-after-change-functions key))
                       (user-error "Failed to associate attachment with item %s" key)))))))))))))
 
 (defun zotero-browser-index-attachment ()
@@ -2136,6 +2238,8 @@ is the user ID or group ID."
   (let ((buffer (get-buffer-create zotero-browser-items-buffer-name)))
     (with-current-buffer buffer
       (zotero-browser-items-mode)
+      (add-hook 'zotero-browser-after-change-functions #'zotero-browser--update-collection)
+      (add-hook 'zotero-browser-after-change-functions #'zotero-browser--update-item)
       (let ((ewoc (ewoc-create #'zotero-browser--item-pp))
             (inhibit-read-only t))
         ;; Remove previous entries
@@ -2171,10 +2275,7 @@ is the user ID or group ID."
              (data (plist-get entry :data))
              (contents (save-excursion (widen) (buffer-string))))
     (zotero-cache-save (plist-put data :note contents) "items" zotero-browser-type zotero-browser-id)
-    (when-let ((buffer (get-buffer zotero-browser-items-buffer-name))
-               (key zotero-browser-key))
-      (with-current-buffer buffer
-        (ewoc-map (lambda (elt) (equal elt key)) zotero-browser-ewoc)))
+    (run-hook-with-args 'zotero-browser-after-change-functions zotero-browser-key)
     (set-buffer-modified-p nil)
     (kill-buffer-and-window)))
 
@@ -2186,10 +2287,7 @@ is the user ID or group ID."
              (data (plist-get entry :data))
              (contents (save-excursion (widen) (buffer-string))))
     (zotero-cache-save (plist-put data :note contents) "items" zotero-browser-type zotero-browser-id)
-    (when-let ((buffer (get-buffer zotero-browser-items-buffer-name))
-               (key zotero-browser-key))
-      (with-current-buffer buffer
-        (ewoc-map (lambda (elt) (equal elt key)) zotero-browser-ewoc)))
+    (run-hook-with-args 'zotero-browser-after-change-functions zotero-browser-key)
     (set-buffer-modified-p nil)))
 
 (defun zotero-browser-note-abort ()
