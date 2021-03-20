@@ -82,6 +82,8 @@ enter value; \\[zotero-edit-text]: edit in buffer")
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map widget-text-keymap)
     (define-key map (kbd "C-c C-c") #'zotero-edit-text)
+    (define-key map (kbd "C-x C-s") #'zotero-edit-save)
+    (define-key map (kbd "C-c C-k") #'zotero-edit-revert)
     map)
   "Keymap for multiline text fields in `zotero-edit-mode'.")
 
@@ -258,7 +260,8 @@ ID."
                                        :format " %v "
                                        :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
-                                       :value value)
+                                       :value value
+                                       :keymap zotero-edit-text-keymap)
                         (widget-insert "\n")))
                      ;; Creators
                      ((and :creators field)
@@ -311,7 +314,8 @@ ID."
                                                 :entry-format "%v" ; Omit `insert-button' and `delete-button' widgets
                                                 (editable-field
                                                  :size 10
-                                                 :format " %v "))
+                                                 :format " %v "
+                                                 :keymap zotero-edit-text-keymap))
                                                (toggle
                                                 :format "Switch to %[%v%]"
                                                 :on "Dual field"
@@ -436,7 +440,8 @@ ID."
                                        :format " %v "
                                        :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
-                                       :value value)
+                                       :value value
+                                       :keymap zotero-edit-text-keymap)
                         (widget-insert "\n")))))
           ;; Date Added
           (when-let ((value (plist-get data :dateAdded))
@@ -510,7 +515,8 @@ ID."
                                        :format " %v "
                                        :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
-                                       :value value)
+                                       :value value
+                                       :keymap zotero-edit-text-keymap)
                         (widget-insert "\n")))
                      ;; Parent Collection
                      ((and :parentCollection field)
