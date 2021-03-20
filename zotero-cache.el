@@ -750,10 +750,24 @@ the sorting order: 'asc for ascending or 'desc for descending."
                        (funcall pred a b))))
       (seq-map #'car))))
 
-(defun zotero-cache-field (field table)
-  "Get FIELD from entries in TABLE.
-Return a list of the field values."
-  (ht-map (lambda (key value) (cons (zotero-lib-plist-get* value :data field) key)) table))
+(defun zotero-cache-parentitems (table)
+  "Return a list with possible parent items from TABLE.
+
+The list can be used in completion functions and consists of cons
+cells whose CAR is the title and the CDR is the key, and is to be
+used in completion functions."
+  (let ((parents (zotero-cache-filter-data (lambda (elt) (let ((itemtype (plist-get elt :itemType)))
+                                                           (and (not (equal itemtype "attachment"))
+                                                                (not (equal itemtype "note"))))) table)))
+    (ht-map (lambda (key value) (cons (zotero-lib-plist-get* value :data :title) key)) parents)))
+
+(defun zotero-cache-parentcollections (table)
+  "Return a list with possible parent collections from TABLE.
+
+The list can be used in completion functions and consists of cons
+cells whose CAR is the name and the CDR is the key, and is to be
+used in completion functions."
+  (ht-map (lambda (key value) (cons (zotero-lib-plist-get* value :data :name) key)) table))
 
 (defun zotero-cache-add-to-collection (key collection type id)
   "Add item KEY to COLLECTION.
