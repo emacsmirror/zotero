@@ -828,8 +828,12 @@ Called if item KEY is added, deleted, or changed."
       (zotero-browser--update key))))
 
 (defun zotero-browser--update (key)
-  "Update item KEY in the items buffer.
-Called if item KEY is added, deleted, or changed."
+  "Update KEY in a browser buffers.
+Called if KEY is added, deleted, or changed.
+
+This function tries to find the correct location to display the
+item, without affecting the display of other items like
+`zotero-browser-revert' would."
   (zotero-browser-ensure-browser-buffer)
   (let* ((inhibit-read-only t)
          (ewoc zotero-browser-ewoc)
