@@ -427,6 +427,7 @@
     |---------+-----------------------------|
     | =n=       | Move to next library        |
     | =p=       | Move to previous library    |
+    | =C-c C-u= | Move to parent collection   |
     | =C-c C-n= | Move to next collection     |
     | =C-c C-p= | Move to previous collection |
     | =RET=     | Display library             |
@@ -436,21 +437,23 @@
     | =q=       | Quit current window         |
 
 *** Zotero collections mode
-    | Key   | Binding                                             |
-    |-------+-----------------------------------------------------|
-    | =n=     | Move to next collection                             |
-    | =p=     | Move to previous collection                         |
-    | =u=     | Move to parent collection                           |
-    | =TAB=   | Expand or collapse the children of the current item |
-    | =S-TAB= | Cycle the visibility of children                    |
-    | =$=     | Expand all children                                 |
-    | =M-$=   | Collapse all children                               |
-    | =RET=   | Display collection                                  |
-    | =e=     | Edit collection                                     |
-    | =+=     | Create new collection                               |
-    | =D=     | Delete collection                                   |
-    | =g=     | Reload the current buffer                           |
-    | =q=     | Quit current window                                 |
+    | Key     | Binding                                             |
+    |---------+-----------------------------------------------------|
+    | =n=       | Move to next collection                             |
+    | =p=       | Move to previous collection                         |
+    | =u=       | Move to parent collection                           |
+    | =C-c C-f= | Move to next collection on same level               |
+    | =C-c C-b= | Move to previous collection on same level           |
+    | =TAB=     | Expand or collapse the children of the current item |
+    | =S-TAB=   | Cycle the visibility of children                    |
+    | =$=       | Expand all children                                 |
+    | =M-$=     | Collapse all children                               |
+    | =RET=     | Display collection                                  |
+    | =e=       | Edit collection                                     |
+    | =+=       | Create new collection                               |
+    | =D=       | Delete collection                                   |
+    | =g=       | Reload the current buffer                           |
+    | =q=       | Quit current window                                 |
 
 *** Zotero items mode
     | Key     | Binding                                             |
@@ -458,6 +461,8 @@
     | =n=       | Move to next item                                   |
     | =p=       | Move to previous item                               |
     | =u=       | Move to parent item                                 |
+    | =C-c C-f= | Move to next item on same level                     |
+    | =C-c C-b= | Move to previous item on same level                 |
     | =C-c C-n= | Move to next collection                             |
     | =C-c C-p= | Move to previous collection                         |
     | =C-c C-u= | Move to parent collection                           |
