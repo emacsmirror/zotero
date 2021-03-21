@@ -80,6 +80,7 @@ in translations."
           (let* ((itemtype (plist-get data :itemType))
                  (linkmode (plist-get data :linkMode))
                  (template (pcase itemtype
+                             ((pred null) (zotero-collection-template))
                              ("attachment" (zotero-cache-attachment-template linkmode))
                              (_ (zotero-cache-item-template itemtype)))))
             ;; Key
@@ -98,6 +99,19 @@ in translations."
               (widget-insert (concat value "\n")))
             (cl-loop for key in template by #'cddr do
                      (pcase key
+                       ;; Collection name
+                       (:name
+                        (let* ((fieldname "Name")
+                               (value (plist-get data key)))
+                          (widget-insert (concat fieldname ": "))
+                          (widget-insert (concat value "\n"))))
+                       ;; Parent collection
+                       (:parentCollection
+                        (let* ((fieldname "Parent Collection")
+                               (value (plist-get data key)))
+                          (unless (or (null value) (eq value :json-false))
+                            (widget-insert (concat fieldname ": "))
+                            (widget-insert (concat value "\n")))))
                        ;; Itemtype
                        (:itemType
                         (let* ((fieldname "Item Type")
