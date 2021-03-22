@@ -1799,7 +1799,7 @@ With a `C-u' prefix, move to top level."
          (node (ewoc-locate ewoc))
          (key (ewoc-data node))
          (table (zotero-cache-synccache "collections" nil type id))
-         (choices (zotero-cache-parentcollections))
+         (choices (zotero-cache-parentcollections table))
          (name (completing-read "Select collection:" choices nil t))
          (collection (cdr (assoc name choices))))
     (zotero-cache-add-to-collection key collection type id)
