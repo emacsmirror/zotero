@@ -36,14 +36,17 @@
 ;;;; Functions
 
 (defun zotero-json--read (orig-fun)
-  "Advice around `json-read-object' to read `:json-empty' as JSON empty object (\"{}\").
+  "Advice around `json-read-object'.
 
+This function reads `:json-empty' as JSON empty object (\"{}\").
 Both \"null\" and \"{}\" are parsed as nil, so there's no
 convenient way to differentiate between an empty value or an
 empty object. However, a \"null\" instead of \"{}\" for an empty
 object will return a \"400 Bad Request\" error. The advices
 around `json-read-object' and `json-encode' use the value
-`:json-empty' when reading or writing a JSON empty object."
+`:json-empty' when reading or writing a JSON empty object.
+
+Argument ORIG-FUN is the original function `zotero-read-object'."
   (let ((beg (point)))
     ;; Skip over the "{"
     (json-advance)
@@ -57,14 +60,18 @@ around `json-read-object' and `json-encode' use the value
       (funcall orig-fun))))
 
 (defun zotero-json--encode (orig-fun arg)
-  "Advice around `json-encode' to write `:json-empty' as JSON empty object (\"{}\").
+  "Advice around `json-encode'.
 
+This function writes `:json-empty' as JSON empty object (\"{}\").
 Both \"null\" and \"{}\" are parsed as nil, so there's no
 convenient way to differentiate between an empty value or an
 empty object. However, a \"null\" instead of \"{}\" for an empty
 object will return a \"400 Bad Request\" error. The advices
 around `json-read-object' and `json-encode' use the value
-`:json-empty' when reading or writing a JSON empty object."
+`:json-empty' when reading or writing a JSON empty object.
+
+Argument ORIG-FUN is the original function `json-encode'. ARG is
+the object passed to `json-encode'."
   (if (eq arg :json-empty)
       "{}"
     (funcall orig-fun arg)))

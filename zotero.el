@@ -61,8 +61,10 @@
   "API version. Version 3 is currently the default and recommended version.")
 
 (defvar zotero-rate-limit nil
-  "The time in seconds (since the Unix epoch) that the rate of requests is limited by the \"Backoff\" or \"Retry-After\" header.
-The time is formatted as a \"Lisp timestamp\".")
+  "The time in seconds that the rate of requests is limited.
+The rate limit is indicated by the \"Backoff\" or \"Retry-After\"
+header. The time is formatted as a \"Lisp timestamp\" (seconds
+since the Unix epoch).")
 
 (defvar zotero-status-line-regexp
   "\\([^ ]+\\) \\([[:digit:]]\\{3\\}\\) \\(.*\\)"
@@ -558,28 +560,40 @@ RESOURCE is one of:
   - \"collections\": collections in the library
   - \"collections-top\": top level collections in the library
   - \"collection\": a specific collection in the library
-  - \"subcollections\": subcollections within a specific collection in the library
+  - \"subcollections\": subcollections within a specific
+    collection in the library
   - \"items\": all items in the library, excluding trashed items
-  - \"items-top\": top level items in the library, excluding trashed items
+  - \"items-top\": top level items in the library, excluding
+    trashed items
   - \"trash-items\": items in the trash
   - \"item\": a specific item in the library
   - \"item-children\": child items under a specific item
   - \"publication-items\": items in My Publications
-  - \"collection-items\": items within a specific collection in the library
-  - \"collection-items-top\": top level items within a specific collection in the library
+  - \"collection-items\": items within a specific collection in
+    the library
+  - \"collection-items-top\": top level items within a specific
+    collection in the library
   - \"searches\": all saved searches in the library
   - \"search\": a specific saved search in the library
-  - \"tags\": all tags in the library, or tags of all types matching a specific name when an url encoded tag is provided
+  - \"tags\": all tags in the library, or tags of all types
+    matching a specific name when an url encoded tag is provided
   - \"item-tags\": tags associated with a specific item
-  - \"collection-tags\": tags within a specific collection in the library
-  - \"items-tags\": all tags in the library, with the ability to filter based on the items
+  - \"collection-tags\": tags within a specific collection in the
+    library
+  - \"items-tags\": all tags in the library, with the ability to
+    filter based on the items
   - \"items-top-tags\": tags assigned to top level items
   - \"trash-items-tags\": tags assigned to items in the trash
-  - \"collection-items-tags\": tags assigned to items in a given collection
-  - \"collection-items-top-tags\": tags assigned to top level items in a given collection
-  - \"publication-items-tags\": tags assigned to items in My Publications
+  - \"collection-items-tags\": tags assigned to items in a given
+    collection
+  - \"collection-items-top-tags\": tags assigned to top level
+    items in a given collection
+  - \"publication-items-tags\": tags assigned to items in My
+    Publications
   - \"keys\": the user id and privileges of the given API key
-  - \"groups\": all groups the current API key has access to, including public groups the key owner belongs to even if the key doesn't have explicit permissions for them
+  - \"groups\": all groups the current API key has access to,
+    including public groups the key owner belongs to even if the
+    key doesn't have explicit permissions for them
   - \"group\": group metadata
   - \"all-fulltext\": all full-text content
   - \"item-fulltext\": an item's full-text content

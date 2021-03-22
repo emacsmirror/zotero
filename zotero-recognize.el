@@ -122,9 +122,10 @@ Return JSON with metadata, layout and rich text of FILE."
     (seq-into (nreverse result) 'vector)))
 
 (defun zotero-recognize-parse-metadata (data)
-  "Parse bibliographic metadata DATA from the Zotero lookup service to a Zotero item.
-Return plist that could be saved to the library by passing it to
-`zotero-cache-save' or uploaded by passing it to
+  "Parse bibliographic metadata DATA.
+DATA is an object returned from the Zotero lookup service. Return
+a plist with a Zotero item that could be saved to the library by
+passing it to `zotero-cache-save' or uploaded by passing it to
 `zotero-create-item'."
   (let (result)
     (pcase (plist-get data :type)

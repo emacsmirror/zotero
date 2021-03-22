@@ -273,7 +273,10 @@ digit is checked using a checksum algorithm."
   "Check if STRING is a valid arXiv identifier.
 Return the arXiv identifier if it is valid, else return nil.
 
-The scheme used by arXiv was changed in April 2007. Argument STRING can be in either the old scheme (from 1999 to March 2007) or the new scheme (since 1 April 2007). A leading \"arXiv\" identifier is allowed.
+The scheme used by arXiv was changed in April 2007. Argument
+STRING can be in either the old scheme (from 1999 to March 2007)
+or the new scheme (since 1 April 2007). A leading \"arXiv\"
+identifier is allowed.
 
 The format is validated by a regexp."
   (when-let ((match (cadr (s-match zotero-lib-arxiv-regexp string))))
@@ -283,7 +286,8 @@ The format is validated by a regexp."
   "Check if STRING is a valid Crossref DOI.
 Return the DOI if it is valid, else return nil.
 
-A leading \"doi\" identifier or a link (for example, https://doi.org/10.1000/182) is allowed.
+A leading \"doi\" identifier or a link (for example,
+https://doi.org/10.1000/182) is allowed.
 
 The format is validated by a regexp."
   (when-let ((match (cadr (s-match zotero-lib-doi-regexp string))))

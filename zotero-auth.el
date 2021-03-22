@@ -129,7 +129,8 @@ API key."
   "Advice replacing `oauth-fetch-token' in package `oauth.el'.
 Fetch an access token, secret, user ID and username from the
 service provider. The original function only fetches the access
-token and secret."
+token and secret.
+Argument ARG is the request object passed to `oauth-do-request'."
   (with-current-buffer (oauth-do-request arg)
     ;; Move beyond blank line at end of headers.
     (goto-char (point-min))

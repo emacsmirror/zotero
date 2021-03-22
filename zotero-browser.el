@@ -77,7 +77,7 @@
                                             (preserve-size . (nil . t))))
 
 (defvar zotero-browser-after-change-functions nil
-  "List of functions to be called when items have been created, deleted, or updated.
+  "List of functions to be called when items have changed.
 Each function is called with the item key as argument.")
 
 (defvar zotero-browser-padding 1
@@ -1734,7 +1734,8 @@ If NUM is omitted or nil, expand till level 1."
 
 (defun zotero-browser-move-to-parent (&optional arg)
   "Move current entry to a parent item.
-With a `C-u' prefix, move to top level."
+With a `C-u' prefix, move to top level.
+Optional argument ARG is the prefix argument."
   (interactive "P")
   (zotero-browser-ensure-items-mode)
   (zotero-browser-ensure-write-access)
@@ -1919,7 +1920,8 @@ If region is active, delete entries in active region instead."
 
 (defun zotero-browser-create-note (&optional arg)
   "Create a new note.
-With a `C-u' prefix, create a new top level note."
+With a `C-u' prefix, create a new top level note.
+Optional argument ARG is the prefix argument."
   (interactive "P")
   (zotero-browser-ensure-items-mode)
   (zotero-browser-ensure-write-access)
@@ -1944,6 +1946,7 @@ With a `C-u' prefix, create a new top level note."
 (defun zotero-browser-create-attachment (&optional arg)
   "Create a new attachment with the current entry as parent.
 With a `C-u' prefix, create a new top level attachment.
+Optional argument ARG is the prefix argument.
 
 Only file attachments (imported_file/linked_file) and PDF
 imported web attachments (imported_url with content type
