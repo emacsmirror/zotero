@@ -48,7 +48,7 @@
 (defvar zotero-browser-libraries-buffer-action
   '((display-buffer-reuse-window display-buffer-in-side-window) . ((side . left)
                                                                    (slot . -1)
-                                                                   (window-width . 0.3)
+                                                                   (window-width . 0.2)
                                                                    (window-height . fit-window-to-buffer)
                                                                    (preserve-size . (t . nil))
                                                                    (reusable-frames . nil))))
@@ -56,12 +56,12 @@
 (defvar zotero-browser-collections-buffer-action
   '((display-buffer-reuse-window display-buffer-in-side-window) . ((side . left)
                                                                    (slot . 0)
-                                                                   (window-width . 0.3)
+                                                                   (window-width . 0.2)
                                                                    (preserve-size . (t . nil))
                                                                    (reusable-frames . nil))))
 
 (defvar zotero-browser-items-buffer-action
-  '((display-buffer-same-window) . ((window-width . 0.4)
+  '((display-buffer-same-window) . ((window-width . 0.5)
                                     (preserve-size . (t . nil)))))
 
 (defvar zotero-browser-edit-buffer-action
