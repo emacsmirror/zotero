@@ -499,31 +499,21 @@ Join all the key values with the separator in between."
                         (const :tag "Version" :version)
                         (const :tag "Name" :name)))))
 
-(defcustom zotero-browser-attachment-keys '(". " :title)
-  "Attachment fields to show in the items browser.
-Join all the key values with the separator in between."
+(defcustom zotero-browser-collection-columns '(("Name" :name 10)("Version" :version 3))
+  "Fields to show in the items browser.
+This should be a list of elements (NAME FIELD WIDTH),
+where:
+ - NAME is a string describing the column. This is the label for
+   the column in the header line.
+ - FIELD is the prop of the object plist to be sorted.
+ - WIDTH is the width to reserve for the column."
   :group 'zotero-browser
-  :type '(cons (string :tag "Separator")
-               (repeat (choice
+  :type '(repeat (list (string :tag "Name")
+                       (choice
                         (const :tag "Key" :key)
                         (const :tag "Version" :version)
-                        (const :tag "Item Type" :itemtype)
-                        (const :tag "Link Mode" :linkMode)
-                        (const :tag "Title" :title)
-                        (const :tag "Access Date" :accessDate)
-                        (const :tag "Content Type" :contentType)
-                        (const :tag "Charset" :charset)))))
-
-(defcustom zotero-browser-note-keys '(". " :note)
-  "Note fields to show in the items browser.
-Join all the key values with the separator in between."
-  :group 'zotero-browser
-  :type '(cons (string :tag "Separator")
-               (repeat (choice
-                        (const :tag "Key" :key)
-                        (const :tag "Version" :version)
-                        (const :tag "Item Type" :itemtype)
-                        (const :tag "Note" :note)))))
+                        (const :tag "Name" :name))
+                       (integer :tag "Width of column"))))
 
 (defcustom zotero-browser-item-columns '(("Title" :title 50)("Creators" :creators 25)("Year" :year 4))
   "Fields to show in the items browser.
@@ -550,27 +540,6 @@ where:
                         (const :tag "Extra" :extra)
                         (const :tag "Note" :note))
                        (integer :tag "Width of column"))))
-
-(defcustom zotero-browser-item-keys '(". " :creators :title :year)
-  "Item fields to show in the items browser.
-Join all the key values with the separator in between."
-  :group 'zotero-browser
-  :type
-  '(cons (string :tag "Separator")
-         (repeat (choice
-                  (const :tag "Key" :key)
-                  (const :tag "Version" :version)
-                  (const :tag "Item Type" :itemtype)
-                  (const :tag "Title" :title)
-                  (const :tag "Creators" :creators)
-                  (const :tag "Date" :date)
-                  (const :tag "Year" :year)
-                  (const :tag "Publisher" :publisher)
-                  (const :tag "Publication Title" :publicationTitle)
-                  (const :tag "Date Added" :dateAdded)
-                  (const :tag "Date Modified" :dateModified)
-                  (const :tag "Extra" :extra)
-                  (const :tag "Note" :note)))))
 
 (defcustom zotero-browser-filename-keys '(" - " :creators :title :year)
   "Fields to show in the attachment filename.
@@ -1311,82 +1280,102 @@ The format can be changed by customizing
                                       help-echo "mouse-1: open library; mouse-3: popup menu"
                                       keymap ,zotero-browser-library-keymap))))
 
-(defun zotero-browser--collection-pp (key)
-  "Pretty print collection KEY."
-  (pcase key
-    ('unfiled
-     (let* ((level 1)
-            (indentation (+ zotero-browser-padding level))
-            (prefix (make-string indentation ?\s))
-            (beg (point)))
-       (when-let ((_ zotero-browser-icons)
-                  (icon "treesource-unfiled.png")
+(defun zotero-browser--print-collection (key)
+  "Insert collection KEY at point."
+  (let ((padding (max zotero-browser-padding 0))
+        (padding-right 1))
+    (pcase key
+      ('unfiled
+       (let* ((level 0)
+              (pos (+ padding level))
+              (prefix (make-string pos ?\s))
+              (props `(line-prefix ,prefix
+                                   wrap-prefix ,prefix
+                                   mouse-face highlight
+                                   help-echo "mouse-1: open collection; mouse-3: popup menu"
+                                   keymap ,zotero-browser-collection-keymap)))
+         (when zotero-browser-icons
+           (let* ((icon "treesource-unfiled.png")
                   (dir (file-name-as-directory "img"))
                   (file (expand-file-name (concat dir icon) zotero-directory))
                   (image (create-image file 'png nil :height (window-font-height))))
-         (insert (propertize "unfiled" 'display image 'rear-nonsticky t))
-         (insert (string ?\s)))
-       (insert "Unfiled")
-       (add-text-properties beg (point)
-                            `(line-prefix ,prefix
-                                          wrap-prefix ,prefix
-                                          mouse-face highlight
-                                          help-echo "mouse-1: open collection; mouse-3: popup menu"
-                                          keymap ,zotero-browser-collection-keymap))))
-    ('trash
-     (let* ((level 1)
-            (indentation (+ zotero-browser-padding level))
-            (prefix (make-string indentation ?\s))
-            (beg (point)))
-       (when-let ((_ zotero-browser-icons)
-                  (icon "treesource-trash.png")
+             (insert (apply #'propertize "unfiled"
+                            'display image
+                            'rear-nonsticky t
+                            props))
+             (setq pos (+ pos 2 padding-right))
+             (insert (apply #'propertize " "
+                            'display `(space :align-to ,pos)
+                            props))))
+         (insert (apply #'propertize "Unfiled" props))))
+      ('trash
+       (let* ((level 0)
+              (pos (+ padding level))
+              (prefix (make-string pos ?\s))
+              (props `(line-prefix ,prefix
+                                   wrap-prefix ,prefix
+                                   mouse-face highlight
+                                   help-echo "mouse-1: open collection; mouse-3: popup menu"
+                                   keymap ,zotero-browser-collection-keymap)))
+         (when zotero-browser-icons
+           (let* ((icon "treesource-trash.png")
                   (dir (file-name-as-directory "img"))
                   (file (expand-file-name (concat dir icon) zotero-directory))
                   (image (create-image file 'png nil :height (window-font-height))))
-         (insert (propertize "trash" 'display image 'rear-nonsticky t))
-         (insert (string ?\s)))
-       (insert "Trash")
-       (add-text-properties beg (point)
-                            `(line-prefix ,prefix
-                                          wrap-prefix ,prefix
-                                          mouse-face highlight
-                                          help-echo "mouse-1: open collection; mouse-3: popup menu"
-                                          keymap ,zotero-browser-collection-keymap))))
-    (_
-     (let* ((entry (zotero-cache-synccache "collection" key zotero-browser-type zotero-browser-id))
-            (level (zotero-browser--level key))
-            (indentation (+ zotero-browser-padding level))
-            (prefix (make-string indentation ?\s))
-            (beg (point))
-            (separator (car zotero-browser-collection-keys))
-            (keys (cdr zotero-browser-collection-keys)))
-       (when-let ((_ zotero-browser-icons)
-                  (icon "treesource-collection.png")
+             (insert (apply #'propertize "trash"
+                            'display image
+                            'rear-nonsticky t
+                            props))
+             (setq pos (+ pos 2 padding-right))
+             (insert (apply #'propertize " "
+                            'display `(space :align-to ,pos)
+                            props))))
+         (insert (apply #'propertize "Trash" props))))
+      (_
+       (let* ((entry (zotero-cache-synccache "collection" key zotero-browser-type zotero-browser-id))
+              (level (zotero-browser--level key))
+              (pos (+ padding level))
+              (prefix (make-string pos ?\s))
+              (props `(line-prefix ,prefix
+                                   wrap-prefix ,prefix
+                                   mouse-face highlight
+                                   help-echo "mouse-1: open collection; mouse-3: popup menu"
+                                   keymap ,zotero-browser-collection-keymap)))
+         (when zotero-browser-icons
+           (let* ((icon "treesource-collection.png")
                   (dir (file-name-as-directory "img"))
                   (file (expand-file-name (concat dir icon) zotero-directory))
                   (image (create-image file 'png nil :height (window-font-height))))
-         (insert (propertize "collection" 'display image 'rear-nonsticky t))
-         (insert (string ?\s)))
-       (while keys
-         (when-let ((key (pop keys))
-                    (string (zotero-lib-plist-get* entry :data key)))
-           (insert string)
-           ;; Don't put a separator after the last key
-           (when keys
-             ;; Insert the separator's substring that doesn't overlap with the
-             ;; preceding string. This prevents ugly double dots and the like.
-             (let ((length (length separator))
-                   (num 0))
-               (while (or (eq num length)
-                          (not (s-ends-with-p (substring separator 0 (- length num)) string)))
-                 (setq num (1+ num)))
-               (insert (s-right num separator))))))
-       (add-text-properties beg (point)
-                            `(line-prefix ,prefix
-                                          wrap-prefix ,prefix
-                                          mouse-face highlight
-                                          help-echo "mouse-1: open collection; mouse-3: popup menu"
-                                          keymap ,zotero-browser-collection-keymap))))))
+             (insert (apply #'propertize "collection"
+                            'display image
+                            'rear-nonsticky t
+                            props))
+             (setq pos (+ pos 2 padding-right))
+             (insert (apply #'propertize " "
+                            'display `(space :align-to ,pos)
+                            props))))
+         (dolist (column zotero-browser-collection-columns)
+           (let* ((field (nth 1 column))
+                  (width (nth 2 column))
+                  (value (pcase field
+                           (:version
+                            (zotero-browser--version entry))
+                           ((pred keywordp)
+                            (zotero-lib-plist-get* entry :data field))))
+                  (value-width (length value))
+                  (string (cond
+                           ((null value)
+                            "")
+                           ((> value-width width)
+                            (propertize (truncate-string-to-width value (- width level) nil nil t t)
+                                        'help-echo value))
+                           (t
+                            value))))
+             (insert (apply #'propertize string props))
+             (setq pos (+ pos width padding-right))
+             (insert (apply #'propertize " "
+                            'display `(space :align-to ,pos)
+                            props)))))))))
 
 (defun zotero-browser--print-item (key)
   "Insert entry KEY at point."
@@ -2346,7 +2335,7 @@ ID."
   (let ((buffer (get-buffer-create zotero-browser-collections-buffer-name)))
     (with-current-buffer buffer
       (zotero-browser-collections-mode)
-      (let ((ewoc (ewoc-create #'zotero-browser--collection-pp))
+      (let ((ewoc (ewoc-create #'zotero-browser--print-collection))
             (inhibit-read-only t))
         ;; Remove previous entries
         (erase-buffer)
