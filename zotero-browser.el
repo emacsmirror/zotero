@@ -110,24 +110,6 @@ Each function is called with the item key as argument.")
 (defvar-local zotero-browser-status nil
   "Visibility status of the current buffer.")
 
-(defvar zotero-browser-libraries-sort-field '(:name . nil)
-  "Sort field for the collections buffer.
-If nil, no sorting is performed. Otherwise, this should be a cons
-cell (FIELD . FLIP). FIELD is the prop of the object plist to be
-sorted. FLIP, if non-nil, means to invert the resulting sort.")
-
-(defvar zotero-browser-collections-sort-field '(:name . nil)
-  "Sort field for the collections buffer.
-If nil, no sorting is performed. Otherwise, this should be a cons
-cell (FIELD . FLIP). FIELD is the prop of the object plist to be
-sorted. FLIP, if non-nil, means to invert the resulting sort.")
-
-(defvar zotero-browser-items-sort-field '(:title . nil)
-  "Sort field for the items buffer.
-If nil, no sorting is performed. Otherwise, this should be a cons
-cell (FIELD . FLIP). FIELD is the prop of the object plist to be
-sorted. FLIP, if non-nil, means to invert the resulting sort.")
-
 ;;;; Keymap
 
 (defvar zotero-browser-libraries-mode-map
@@ -475,6 +457,67 @@ tree.")
 Icons are enabled by default."
   :group 'zotero-browser
   :type 'boolean)
+
+(defcustom zotero-browser-libraries-sort-field '(:name . nil)
+  "Sort field for the collections buffer.
+If nil, no sorting is performed. Otherwise, this should be a cons
+cell (FIELD . FLIP). FIELD is the prop of the object plist to be
+sorted. FLIP, if non-nil, means to invert the resulting sort."
+  :group 'zotero-browser
+  :type '(choice (const :tag "No sorting" nil)
+                 (cons (choice
+                        (const :tag "ID" :id)
+                        (const :tag "Version" :version)
+                        (const :tag "Read permission" :library)
+                        (const :tag "Write permission" :write)
+                        (const :tag "Last Synced" :last-sync)
+                        (const :tag "Name" :name)
+                        (const :tag "Group Type" :group-type)
+                        (const :tag "Description" :description)
+                        (const :tag "URL" :url)
+                        (const :tag "Library Reading" :libraryEditing)
+                        (const :tag "Library Editing" :libraryReading)
+                        (const :tag "File Editing" :fileEditing))
+                       (choice (const :tag "Ascending" nil)
+                               (const :tag "Descending" t)))))
+
+(defcustom zotero-browser-collections-sort-field '(:name . nil)
+  "Sort field for the collections buffer.
+If nil, no sorting is performed. Otherwise, this should be a cons
+cell (FIELD . FLIP). FIELD is the prop of the object plist to be
+sorted. FLIP, if non-nil, means to invert the resulting sort."
+  :group 'zotero-browser
+  :type '(choice (const :tag "No sorting" nil)
+                 (cons (choice
+                        (const :tag "Key" :key)
+                        (const :tag "Version" :version)
+                        (const :tag "Name" :name))
+                       (choice (const :tag "Ascending" nil)
+                               (const :tag "Descending" t)))))
+
+(defcustom zotero-browser-items-sort-field '(:title . nil)
+  "Sort field for the items buffer.
+If nil, no sorting is performed. Otherwise, this should be a cons
+cell (FIELD . FLIP). FIELD is the prop of the object plist to be
+sorted. FLIP, if non-nil, means to invert the resulting sort."
+  :group 'zotero-browser
+  :type '(choice (const :tag "No sorting" nil)
+                 (cons (choice
+                        (const :tag "Key" :key)
+                        (const :tag "Version" :version)
+                        (const :tag "Item Type" :itemtype)
+                        (const :tag "Title" :title)
+                        (const :tag "Creators" :creators)
+                        (const :tag "Date" :date)
+                        (const :tag "Year" :year)
+                        (const :tag "Publisher" :publisher)
+                        (const :tag "Publication Title" :publicationTitle)
+                        (const :tag "Date Added" :dateAdded)
+                        (const :tag "Date Modified" :dateModified)
+                        (const :tag "Extra" :extra)
+                        (const :tag "Note" :note))
+                       (choice (const :tag "Ascending" nil)
+                               (const :tag "Descending" t)))))
 
 (defcustom zotero-browser-library-columns '((:name . 20))
   "Fields to show in the libraries buffer.
