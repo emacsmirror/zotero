@@ -1315,7 +1315,7 @@ The format can be changed by customizing
                       ((null value)
                        "")
                       ((> value-width width)
-                       (propertize (truncate-string-to-width value (- width level) nil nil t t)
+                       (propertize (truncate-string-to-width value width nil nil t t)
                                    'help-echo value))
                       (t
                        value))))
