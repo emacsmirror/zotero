@@ -196,6 +196,12 @@ sorted. FLIP, if non-nil, means to invert the resulting sort.")
     map)
   "Local keymap for `zotero-browser-note-mode'.")
 
+(defvar zotero-browser-header-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'zotero-browser-sort)
+    map)
+  "Keymap for mouse events on the header.")
+
 (defvar zotero-browser-toggle-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map [mouse-1] #'zotero-browser-toggle)
@@ -519,6 +525,32 @@ Join all the key values with the separator in between."
                         (const :tag "Item Type" :itemtype)
                         (const :tag "Note" :note)))))
 
+(defcustom zotero-browser-item-columns '(("Title" :title 50)("Creators" :creators 25)("Year" :year 4))
+  "Fields to show in the items browser.
+This should be a list of elements (NAME FIELD WIDTH),
+where:
+ - NAME is a string describing the column. This is the label for
+   the column in the header line.
+ - FIELD is the prop of the object plist to be sorted.
+ - WIDTH is the width to reserve for the column."
+  :group 'zotero-browser
+  :type '(repeat (list (string :tag "Name")
+                       (choice
+                        (const :tag "Key" :key)
+                        (const :tag "Version" :version)
+                        (const :tag "Item Type" :itemtype)
+                        (const :tag "Title" :title)
+                        (const :tag "Creators" :creators)
+                        (const :tag "Date" :date)
+                        (const :tag "Year" :year)
+                        (const :tag "Publisher" :publisher)
+                        (const :tag "Publication Title" :publicationTitle)
+                        (const :tag "Date Added" :dateAdded)
+                        (const :tag "Date Modified" :dateModified)
+                        (const :tag "Extra" :extra)
+                        (const :tag "Note" :note))
+                       (integer :tag "Width of column"))))
+
 (defcustom zotero-browser-item-keys '(". " :creators :title :year)
   "Item fields to show in the items browser.
 Join all the key values with the separator in between."
@@ -648,6 +680,30 @@ All currently available key bindings:
   "Pop up a menu with mouse EVENT."
   (interactive "@e")
   (popup-menu zotero-browser-note-menu event))
+
+(defun zotero-browser-sort (event)
+  "Sort entries by the column of mouse EVENT."
+  (interactive "@e")
+  (let* ((pos (event-start event))
+         (point (posn-point pos))
+         (string (posn-string pos))
+         (window (posn-window pos))
+         (buffer (window-buffer window)))
+    (with-current-buffer buffer
+      (let ((field (get-text-property (if string (cdr string) point) 'zotero-browser-field (car string))))
+        (zotero-browser--sort-by field)))))
+
+(defun zotero-browser--sort-by (field)
+  "Sort entries by FIELD in the items buffer."
+  (zotero-browser-ensure-items-mode)
+  (let ((prev-field (car zotero-browser-items-sort-field))
+        (prev-flip (cdr zotero-browser-items-sort-field)))
+    ;; Flip the sort order on a second click.
+    (if (eq field prev-field)
+        (setcdr zotero-browser-items-sort-field
+	        (not prev-flip))
+      (setq zotero-browser-items-sort-field (cons field nil)))
+    (zotero-browser-revert)))
 
 (defun zotero-browser--nodes (ewoc)
   "Return a list with the EWOC node at point.
@@ -1119,6 +1175,83 @@ The format can be changed by customizing
            (push value result)))))
     (mapconcat (lambda (elt) (s-truncate zotero-browser-filename-max-length elt)) (nreverse result) separator)))
 
+(defun zotero-browser--creators (entry)
+  "Return creators in ENTRY."
+  (when-let ((creators (zotero-lib-plist-get* entry :data :creators))
+             (names (seq-map (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators)))
+    (pcase (length names)
+      (1 (seq-elt names 0))
+      (2 (concat (seq-elt names 0)
+                 " and "
+                 (seq-elt names 1)))
+      ((pred (< 2))
+       (let* ((selection (seq-take names 1)))
+         (concat (string-join selection ", ") " et al."))))))
+
+(defun zotero-browser--version (entry)
+  "Return the version in ENTRY."
+  (when-let ((value (zotero-lib-plist-get* entry :data :version)))
+    (number-to-string value)))
+
+(defun zotero-browser--year (entry)
+  "Return the year in ENTRY."
+  (when-let ((date (zotero-lib-plist-get* entry :data :date))
+             (_ (string-match "[[:digit:]]\\{4\\}" date))
+             (year (match-string 0 date)))
+    year))
+
+(defun zotero-browser--note (entry)
+  "Return the first line of note in ENTRY."
+  (when-let ((note (zotero-lib-plist-get* entry :data :note))
+             (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
+             (_ (string-match "^.+$" text)) ; Match first non-empty line
+             (first-line (match-string-no-properties 0 text)))
+    first-line))
+
+(defun zotero-browser--header ()
+  "Return header."
+  (let* ((field (car zotero-browser-items-sort-field))
+         (flip (cdr zotero-browser-items-sort-field))
+         (pos (max zotero-browser-padding 0))
+         (prefix (make-string pos ?\s))
+         (padding-right 1)
+         (button-props `(help-echo "Click to sort by column"
+			           mouse-face header-line-highlight
+			           keymap ,zotero-browser-header-keymap
+                                   line-prefix ,prefix
+                                   wrap-prefix ,prefix))
+         cols)
+    (push (propertize " " 'display `(space :align-to ,pos)) cols)
+    (when zotero-browser-icons
+      (setq pos (+ pos 2 padding-right))
+      (push (propertize " " 'display `(space :align-to ,pos)) cols))
+    (dolist (col zotero-browser-item-columns)
+      (let* ((label (nth 0 col))
+             (key (nth 1 col))
+             (width (nth 2 col))
+             (props (nthcdr 3 col))
+             (string (truncate-string-to-width label width nil nil t t))
+             (string-width (length string)))
+        (push
+         (cond
+          ;; The selected sort column
+          ((eq key field)
+           (apply #'propertize (concat label
+			               (cond
+			                ((> (+ 2 (length label)) width) "")
+			                (flip " ▴")
+			                (t " ▾")))
+                  'face 'bold
+                  'zotero-browser-field key
+                  button-props))
+          ;; Unselected sortable column.
+	  (t (apply #'propertize label
+                    'zotero-browser-field key
+                    button-props))) cols)
+        (setq pos (+ pos width padding-right))
+        (push (propertize " " 'display `(space :align-to ,pos)) cols)))
+    (apply #'concat (nreverse cols))))
+
 (defun zotero-browser--library-pp (key)
   "Pretty print library KEY."
   (let* ((library (zotero-cache-library nil key))
@@ -1255,163 +1388,79 @@ The format can be changed by customizing
                                           help-echo "mouse-1: open collection; mouse-3: popup menu"
                                           keymap ,zotero-browser-collection-keymap))))))
 
-(defun zotero-browser--item-pp (key)
-  "Pretty print item KEY."
+(defun zotero-browser--print-item (key)
+  "Insert entry KEY at point."
   (let* ((entry (zotero-cache-synccache "item" key zotero-browser-type zotero-browser-id))
          (itemtype (zotero-lib-plist-get* entry :data :itemType))
-         (level (zotero-browser--level key))
-         (indentation (+ zotero-browser-padding level))
-         (prefix (make-string indentation ?\s))
          (deleted-p (zotero-lib-plist-get* entry :data :deleted))
-         (beg (point)))
-    (pcase itemtype
-      ("attachment"
-       (let ((separator (car zotero-browser-attachment-keys))
-             (keys (cdr zotero-browser-attachment-keys)))
-         (when-let ((_ zotero-browser-icons)
-                    (linkmode (zotero-lib-plist-get* entry :data :linkMode))
-                    (file (zotero-browser--attachment-icon linkmode))
-                    (image (create-image file 'png nil :height (window-font-height))))
-           (insert (propertize itemtype 'display image 'rear-nonsticky t))
-           (insert (string ?\s)))
-         (while keys
-           (when-let ((key (pop keys))
-                      (string (pcase key
-                                (:version
-                                 (when-let ((value (zotero-lib-plist-get* entry :data :version)))
-                                   (number-to-string value)))
-                                ((pred keywordp)
-                                 (when-let ((value (zotero-lib-plist-get* entry :data key)))
-                                   value)))))
-             (insert string)
-             ;; Don't put a separator after the last key
-             (when keys
-               ;; Insert the separator's substring that doesn't overlap with the
-               ;; preceding string. This prevents ugly double dots and the like.
-               (let ((length (length separator))
-                     (num 0))
-                 (while (or (eq num length)
-                            (not (s-ends-with-p (substring separator 0 (- length num)) string)))
-                   (setq num (1+ num)))
-                 (insert (s-right num separator))))))
-         (pcase level
-           ;; Top-level
-           (1
-            (add-text-properties beg (point)
-                                 `(line-prefix ,prefix
-                                               wrap-prefix ,prefix
-                                               mouse-face highlight
-                                               help-echo "mouse-1: edit current entry; mouse-3: popup menu"
-                                               keymap ,zotero-browser-top-attachment-keymap)))
-           ;; Child
-           (2
-            (add-text-properties beg (point)
-                                 `(line-prefix ,prefix
-                                               wrap-prefix ,prefix
-                                               mouse-face highlight
-                                               help-echo "mouse-1: edit current entry; mouse-3: popup menu"
-                                               keymap ,zotero-browser-child-attachment-keymap))))))
-      ("note"
-       (let ((separator (car zotero-browser-note-keys))
-             (keys (cdr zotero-browser-note-keys)))
-         (when-let ((_ zotero-browser-icons)
-                    (itemtype (zotero-lib-plist-get* entry :data :itemType))
-                    (file (zotero-browser--itemtype-icon itemtype))
-                    (image (create-image file 'png nil :height (window-font-height))))
-           (insert (propertize itemtype 'display image 'rear-nonsticky t))
-           (insert (string ?\s)))
-         (while keys
-           (when-let ((key (pop keys))
-                      (string (pcase key
-                                (:note
-                                 (when-let ((note (zotero-lib-plist-get* entry :data :note))
-                                            (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
-                                            (match (string-match "^.+$" text)) ; Match first non-empty line
-                                            (first-line (match-string-no-properties 0 text)))
-                                   first-line))
-                                (:version
-                                 (when-let ((value (zotero-lib-plist-get* entry :data :version)))
-                                   (number-to-string value)))
-                                ((pred keywordp)
-                                 (when-let ((value (zotero-lib-plist-get* entry :data key)))
-                                   value)))))
-             (insert string)
-             ;; Don't put a separator after the last key
-             (when keys
-               ;; Insert the separator's substring that doesn't overlap with the
-               ;; preceding string. This prevents ugly double dots and the like.
-               (let ((length (length separator))
-                     (num 0))
-                 (while (or (eq num length)
-                            (not (s-ends-with-p (substring separator 0 (- length num)) string)))
-                   (setq num (1+ num)))
-                 (insert (s-right num separator))))))
-         (add-text-properties beg (point)
-                              `(line-prefix ,prefix
-                                            wrap-prefix ,prefix
-                                            mouse-face highlight
-                                            help-echo "mouse-1: edit current entry; mouse-3: popup menu"
-                                            keymap ,zotero-browser-note-keymap))))
-      (_
-       (let ((separator (car zotero-browser-item-keys))
-             (keys (cdr zotero-browser-item-keys)))
-         (when-let ((_ zotero-browser-icons)
-                    (itemtype (zotero-lib-plist-get* entry :data :itemType))
-                    (file (zotero-browser--itemtype-icon itemtype))
-                    (image (create-image file 'png nil :height (window-font-height))))
-           (insert (propertize itemtype 'display image 'rear-nonsticky t))
-           (insert (string ?\s)))
-         (while keys
-           (when-let ((key (pop keys))
-                      (string (pcase key
-                                (:creators
-                                 (when-let ((creators (zotero-lib-plist-get* entry :data :creators))
-                                            (names (when (seq-some (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators)
-                                                     (seq-map (lambda (elt) (or (plist-get elt :lastName) (plist-get elt :name))) creators))))
-                                   (pcase (length names)
-                                     (1 (seq-elt names 0))
-                                     (2 (concat (seq-elt names 0)
-                                                " and "
-                                                (seq-elt names 1)))
-                                     ((pred (< 2))
-                                      (let* ((selection (seq-take names 1)))
-                                        (concat (string-join selection ", ") " et al."))))))
-                                (:version
-                                 (when-let ((value (zotero-lib-plist-get* entry :data :version)))
-                                   (number-to-string value)))
-                                (:year
-                                 (when-let ((date (zotero-lib-plist-get* entry :data :date))
-                                            (match (string-match "[[:digit:]]\\{4\\}" date))
-                                            (year (match-string 0 date)))
-                                   year))
-                                (:note
-                                 (when-let ((note (zotero-lib-plist-get* entry :data :note))
-                                            (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
-                                            (match (string-match "^.+$" text)) ; Match first non-empty line
-                                            (first-line (match-string-no-properties 0 text)))
-                                   first-line))
-                                ((pred keywordp)
-                                 (when-let ((value (zotero-lib-plist-get* entry :data key)))
-                                   value)))))
-             (insert string)
-             ;; Don't put a separator after the last key
-             (when keys
-               ;; Insert the separator's substring that doesn't overlap with the
-               ;; preceding string. This prevents ugly double dots and the like.
-               (let ((length (length separator))
-                     (num 0))
-                 (while (or (eq num length)
-                            (not (s-ends-with-p (substring separator 0 (- length num)) string)))
-                   (setq num (1+ num)))
-                 (insert (s-right num separator))))))
-         (add-text-properties beg (point)
-                              `(line-prefix ,prefix
-                                            wrap-prefix ,prefix
-                                            mouse-face highlight
-                                            help-echo "mouse-1: edit current entry; mouse-3: popup menu"
-                                            keymap ,(if deleted-p
-                                                        zotero-browser-trash-item-keymap
-                                                      zotero-browser-item-keymap))))))))
+         (level (zotero-browser--level key))
+         (padding (max zotero-browser-padding 0))
+         (padding-right 1)
+         (pos (+ padding level))
+         (prefix (make-string pos ?\s))
+         (keymap (pcase itemtype
+                   ("attachment"
+                    (pcase level
+                      ;; Top-level
+                      (0 zotero-browser-top-attachment-keymap)
+                      ;; Child
+                      (1 zotero-browser-child-attachment-keymap)))
+                   ("note"
+                    zotero-browser-note-keymap)
+                   (_
+                    (if deleted-p
+                        zotero-browser-trash-item-keymap
+                      zotero-browser-item-keymap))))
+         (props `(line-prefix ,prefix
+                              wrap-prefix ,prefix
+                              mouse-face highlight
+                              help-echo "mouse-1: edit current entry; mouse-3: popup menu"
+                              keymap ,keymap)))
+    (when zotero-browser-icons
+      (let* ((file (if (equal itemtype "attachment")
+                       (let ((linkmode (zotero-lib-plist-get* entry :data :linkMode)))
+                         (zotero-browser--attachment-icon linkmode))
+                     (zotero-browser--itemtype-icon itemtype)))
+             (image (create-image file 'png nil :height (window-font-height))))
+        (insert (apply #'propertize itemtype
+                       'display image
+                       'rear-nonsticky t
+                       props))
+        (setq pos (+ pos 2 padding-right))
+        (insert (apply #'propertize " "
+                       'display `(space :align-to ,pos)
+                       props))))
+    (dolist (column zotero-browser-item-columns)
+      (let* ((field (nth 1 column))
+             (width (nth 2 column))
+             (value (pcase field
+                      ;; Insert the first line of the note
+                      ((and :title (guard (equal itemtype "note")))
+                       (zotero-browser--note entry))
+                      (:creators
+                       (zotero-browser--creators entry))
+                      (:version
+                       (zotero-browser--version entry))
+                      (:year
+                       (zotero-browser--year entry))
+                      (:note
+                       (zotero-browser--note entry))
+                      ((pred keywordp)
+                       (zotero-lib-plist-get* entry :data field))))
+             (value-width (length value))
+             (string (cond
+                      ((null value)
+                       "")
+                      ((> value-width width)
+                       (propertize (truncate-string-to-width value (- width level) nil nil t t)
+                                   'help-echo value))
+                      (t
+                       value))))
+        (insert (apply #'propertize string props))
+        (setq pos (+ pos width padding-right))
+        (insert (apply #'propertize " "
+                       'display `(space :align-to ,pos)
+                       props))))))
 
 ;;;; Commands
 
@@ -1503,11 +1552,11 @@ The format can be changed by customizing
   (let ((pos (point)))
     (pcase major-mode
       ('zotero-browser-libraries-mode
-       (display-buffer (zotero-browser-libraries)))
+       (zotero-browser-libraries))
       ('zotero-browser-collections-mode
-       (display-buffer (zotero-browser-collections zotero-browser-resource zotero-browser-type zotero-browser-id)))
+       (zotero-browser-collections zotero-browser-resource zotero-browser-type zotero-browser-id))
       ('zotero-browser-items-mode
-       (display-buffer (zotero-browser-items zotero-browser-resource zotero-browser-collection zotero-browser-type zotero-browser-id))))
+       (zotero-browser-items zotero-browser-resource zotero-browser-collection zotero-browser-type zotero-browser-id)))
     (goto-char pos)))
 
 (defun zotero-browser-next (arg)
@@ -2341,7 +2390,7 @@ is the user ID or group ID."
       (zotero-browser-items-mode)
       (add-hook 'zotero-browser-after-change-functions #'zotero-browser--update-collection)
       (add-hook 'zotero-browser-after-change-functions #'zotero-browser--update-item)
-      (let ((ewoc (ewoc-create #'zotero-browser--item-pp))
+      (let ((ewoc (ewoc-create #'zotero-browser--print-item))
             (inhibit-read-only t))
         ;; Remove previous entries
         (erase-buffer)
@@ -2355,6 +2404,7 @@ is the user ID or group ID."
                   zotero-browser-id id
                   zotero-browser-resource resource
                   zotero-browser-collection collection)
+            (ewoc-set-hf ewoc (zotero-browser--header) "")
             (dolist (key keys)
               (let ((parent (zotero-cache-parentitem key table))
                     (children (ht-keys (zotero-cache-subitems key table))))
