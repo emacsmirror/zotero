@@ -690,25 +690,41 @@
 **** User Option: zotero-browser-icons
      When t show browser icons. Icons are enabled by default.
 
-**** User Option zotero-browser-library-keys
-     Fields to show in the library browser.
-     Join all the key values with the separator in between.
+**** User Option: zotero-browser-libraries-sort-field
+     Sort field for the collections buffer. If nil, no sorting is performed.
+     Otherwise, this should be a cons cell (FIELD . FLIP). FIELD is the prop of the
+     object plist to be sorted. FLIP, if non-nil, means to invert the resulting sort.
+     Default=:name.
 
-**** User Option: zotero-browser-collection-keys
-     Fields to show in the collections browser.
-     Join all the key values with the separator in between.
+**** User Option: zotero-browser-collections-sort-field
+     Sort field for the collections buffer. If nil, no sorting is performed.
+     Otherwise, this should be a cons cell (FIELD . FLIP). FIELD is the prop of the
+     object plist to be sorted. FLIP, if non-nil, means to invert the resulting sort.
+     Default=:name.
 
-**** User Option zotero-browser-attachment-keys
-     Attachment fields to show in the items browser.
-     Join all the key values with the separator in between.
+**** User Option: zotero-browser-items-sort-field
+     Sort field for the items buffer. If nil, no sorting is performed. Otherwise,
+     this should be a cons cell (FIELD . FLIP). FIELD is the prop of the object plist
+     to be sorted. FLIP, if non-nil, means to invert the resulting sort.
+     Default=:title.
 
-**** User Option zotero-browser-note-keys
-     Note fields to show in the items browser.
-     Join all the key values with the separator in between.
+**** User Option: zotero-browser-library-columns
+     Fields to show in the libraries buffer. This should be a list of cons cells
+     (FIELD . WIDTH), where:
+     - FIELD is the prop of the object plist to be sorted.
+     - WIDTH is the width to reserve for the column.
 
-**** User Option zotero-browser-item-keys
-     Item fields to show in the items browser.
-     Join all the key values with the separator in between.
+**** User Option: zotero-browser-collection-columns
+     Fields to show in the collections buffer. This should be a list of cons
+     cells (FIELD . WIDTH), where:
+     - FIELD is the prop of the object plist to be sorted.
+     - WIDTH is the width to reserve for the column.
+
+**** User Option: zotero-browser-item-columns
+     Fields to show in the items buffer. This should be a list of cons cells
+     (FIELD . WIDTH), where:
+     - FIELD is the prop of the object plist to be sorted.
+     - WIDTH is the width to reserve for the column.
 
 **** User Option: zotero-browser-filename-keys
      Fields to show in the attachment filename.
