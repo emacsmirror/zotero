@@ -476,17 +476,14 @@ Icons are enabled by default."
   :group 'zotero-browser
   :type 'boolean)
 
-(defcustom zotero-browser-library-columns '(("Name" :name 20))
+(defcustom zotero-browser-library-columns '((:name . 20))
   "Fields to show in the libraries buffer.
-This should be a list of elements (NAME FIELD WIDTH),
+This should be a list of cons cells (FIELD . WIDTH),
 where:
- - NAME is a string describing the column. This is the label for
-   the column in the header line.
  - FIELD is the prop of the object plist to be sorted.
  - WIDTH is the width to reserve for the column."
   :group 'zotero-browser
-  :type '(repeat (list (string :tag "Name")
-                       (choice
+  :type '(repeat (cons (choice
                         (const :tag "ID" :id)
                         (const :tag "Version" :version)
                         (const :tag "Read permission" :library)
@@ -501,33 +498,27 @@ where:
                         (const :tag "File Editing" :fileEditing))
                        (integer :tag "Width of column"))))
 
-(defcustom zotero-browser-collection-columns '(("Name" :name 10))
+(defcustom zotero-browser-collection-columns '((:name . 10))
   "Fields to show in the collections buffer.
-This should be a list of elements (NAME FIELD WIDTH),
+This should be a list of cons cells (FIELD . WIDTH),
 where:
- - NAME is a string describing the column. This is the label for
-   the column in the header line.
  - FIELD is the prop of the object plist to be sorted.
  - WIDTH is the width to reserve for the column."
   :group 'zotero-browser
-  :type '(repeat (list (string :tag "Name")
-                       (choice
+  :type '(repeat (cons (choice
                         (const :tag "Key" :key)
                         (const :tag "Version" :version)
                         (const :tag "Name" :name))
                        (integer :tag "Width of column"))))
 
-(defcustom zotero-browser-item-columns '(("Title" :title 50)("Creators" :creators 25)("Year" :year 4))
+(defcustom zotero-browser-item-columns '((:title . 50)(:creators . 25)(:year . 4))
   "Fields to show in the items buffer.
-This should be a list of elements (NAME FIELD WIDTH),
+This should be a list cons cells (FIELD . WIDTH),
 where:
- - NAME is a string describing the column. This is the label for
-   the column in the header line.
  - FIELD is the prop of the object plist to be sorted.
  - WIDTH is the width to reserve for the column."
   :group 'zotero-browser
-  :type '(repeat (list (string :tag "Name")
-                       (choice
+  :type '(repeat (cons (choice
                         (const :tag "Key" :key)
                         (const :tag "Version" :version)
                         (const :tag "Item Type" :itemtype)
@@ -1180,8 +1171,8 @@ The format can be changed by customizing
     first-line))
 
 (defun zotero-browser--header ()
-  "Return header."
-  (let* ((field (car zotero-browser-items-sort-field))
+  "Return the header of the items buffer."
+  (let* ((sort-field (car zotero-browser-items-sort-field))
          (flip (cdr zotero-browser-items-sort-field))
          (pos (max zotero-browser-padding 0))
          (prefix (make-string pos ?\s))
@@ -1191,46 +1182,45 @@ The format can be changed by customizing
 			           keymap ,zotero-browser-header-keymap
                                    line-prefix ,prefix
                                    wrap-prefix ,prefix))
-         cols)
-    (push (propertize " " 'display `(space :align-to ,pos)) cols)
+         columns)
+    (push (propertize " " 'display `(space :align-to ,pos)) columns)
     (when zotero-browser-icons
       (setq pos (+ pos 2 padding-right))
-      (push (propertize " " 'display `(space :align-to ,pos)) cols))
-    (dolist (col zotero-browser-item-columns)
-      (let* ((label (nth 0 col))
-             (key (nth 1 col))
-             (width (nth 2 col))
-             (string (truncate-string-to-width label width nil nil t t))
-             (string-width (length string)))
+      (push (propertize " " 'display `(space :align-to ,pos)) columns))
+    (dolist (column zotero-browser-item-columns)
+      (let* ((field (car column))
+             (width (cdr column))
+             (label (s-capitalized-words (zotero-lib-keyword->string field)))
+             (label (truncate-string-to-width label width nil nil t t)))
         (push
          (cond
-          ;; The selected sort column
-          ((eq key field)
+          ((eq field sort-field)
+           ;; The selected sort column
            (apply #'propertize (concat label
 			               (cond
-			                ((> (+ 2 string-width) width) "")
+			                ((> (+ 2 (length label)) width) "")
 			                (flip " ▴")
 			                (t " ▾")))
                   'face 'bold
-                  'zotero-browser-field key
+                  'zotero-browser-field field
                   button-props))
           ;; Unselected sortable column.
-	  (t (apply #'propertize label
-                    'zotero-browser-field key
-                    button-props))) cols)
+	  (t
+           (apply #'propertize label
+                  'zotero-browser-field field
+                  button-props)))
+         columns)
         (setq pos (+ pos width padding-right))
-        (push (propertize " " 'display `(space :align-to ,pos)) cols)))
-    (apply #'concat (nreverse cols))))
+        (push (propertize " " 'display `(space :align-to ,pos)) columns)))
+    (apply #'concat (nreverse columns))))
 
 (defun zotero-browser--print-library (key)
   "Insert library KEY at point."
   (let* ((library (zotero-cache-library nil key))
          (type (plist-get library :type))
          (id (plist-get library :id))
-         (padding (max zotero-browser-padding 0))
+         (pos (max zotero-browser-padding 0))
          (padding-right 1)
-         (level (zotero-browser--level key))
-         (pos (+ padding level))
          (prefix (make-string pos ?\s))
          (props `(line-prefix ,prefix
                               wrap-prefix ,prefix
@@ -1253,8 +1243,8 @@ The format can be changed by customizing
                        'display `(space :align-to ,pos)
                        props))))
     (dolist (column zotero-browser-library-columns)
-      (let* ((field (nth 1 column))
-             (width (nth 2 column))
+      (let* ((field (car column))
+             (width (cdr column))
              (value (pcase field
                       (:name
                        (let ((value (pcase type
@@ -1367,8 +1357,8 @@ The format can be changed by customizing
                             'display `(space :align-to ,pos)
                             props))))
          (dolist (column zotero-browser-collection-columns)
-           (let* ((field (nth 1 column))
-                  (width (nth 2 column))
+           (let* ((field (car column))
+                  (width (cdr column))
                   (value (pcase field
                            (:version
                             (zotero-browser--version entry))
@@ -1399,19 +1389,19 @@ The format can be changed by customizing
          (padding-right 1)
          (pos (+ padding level))
          (prefix (make-string pos ?\s))
-         (keymap (pcase itemtype
-                   ("attachment"
-                    (pcase level
-                      ;; Top-level
-                      (0 zotero-browser-top-attachment-keymap)
-                      ;; Child
-                      (1 zotero-browser-child-attachment-keymap)))
-                   ("note"
-                    zotero-browser-note-keymap)
-                   (_
-                    (if deleted-p
-                        zotero-browser-trash-item-keymap
-                      zotero-browser-item-keymap))))
+         (keymap (cond
+                  (deleted-p
+                   zotero-browser-trash-item-keymap)
+                  ((equal itemtype "attachment")
+                   (pcase level
+                     ;; Top-level
+                     (0 zotero-browser-top-attachment-keymap)
+                     ;; Child
+                     (1 zotero-browser-child-attachment-keymap)))
+                  ((equal itemtype "note")
+                   zotero-browser-note-keymap)
+                  (t
+                   zotero-browser-item-keymap)))
          (props `(line-prefix ,prefix
                               wrap-prefix ,prefix
                               mouse-face highlight
@@ -1432,8 +1422,8 @@ The format can be changed by customizing
                        'display `(space :align-to ,pos)
                        props))))
     (dolist (column zotero-browser-item-columns)
-      (let* ((field (nth 1 column))
-             (width (nth 2 column))
+      (let* ((field (car column))
+             (width (cdr column))
              (value (pcase field
                       ;; Insert the first line of the note
                       ((and :title (guard (equal itemtype "note")))
