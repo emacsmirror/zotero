@@ -1342,7 +1342,8 @@ The format can be changed by customizing
                                    wrap-prefix ,prefix
                                    mouse-face highlight
                                    help-echo "mouse-1: open collection; mouse-3: popup menu"
-                                   keymap ,zotero-browser-collection-keymap)))
+                                   keymap ,zotero-browser-collection-keymap))
+              (count (length zotero-browser-collection-columns)))
          (when zotero-browser-icons
            (let* ((icon "treesource-collection.png")
                   (dir (file-name-as-directory "img"))
@@ -1356,9 +1357,14 @@ The format can be changed by customizing
              (insert (apply #'propertize " "
                             'display `(space :align-to ,pos)
                             props))))
-         (dolist (column zotero-browser-collection-columns)
-           (let* ((field (car column))
-                  (width (cdr column))
+         (dotimes (i count)
+           (let* ((column (nth i zotero-browser-collection-columns))
+                  (field (car column))
+                  ;; The width of the first column is shorter for higher level
+                  ;; items to allow for indentation
+                  (width (if (eq i 0)
+                             (- (cdr column) level)
+                           (cdr column)))
                   (value (pcase field
                            (:version
                             (zotero-browser--version entry))
@@ -1406,7 +1412,8 @@ The format can be changed by customizing
                               wrap-prefix ,prefix
                               mouse-face highlight
                               help-echo "mouse-1: edit current entry; mouse-3: popup menu"
-                              keymap ,keymap)))
+                              keymap ,keymap))
+         (count (length zotero-browser-item-columns)))
     (when zotero-browser-icons
       (let* ((file (if (equal itemtype "attachment")
                        (let ((linkmode (zotero-lib-plist-get* entry :data :linkMode)))
@@ -1421,9 +1428,14 @@ The format can be changed by customizing
         (insert (apply #'propertize " "
                        'display `(space :align-to ,pos)
                        props))))
-    (dolist (column zotero-browser-item-columns)
-      (let* ((field (car column))
-             (width (cdr column))
+    (dotimes (i count)
+      (let* ((column (nth i zotero-browser-item-columns))
+             (field (car column))
+             ;; The width of the first column is shorter for higher level
+             ;; items to allow for indentation
+             (width (if (eq i 0)
+                        (- (cdr column) level)
+                      (cdr column)))
              (value (pcase field
                       ;; Insert the first line of the note
                       ((and :title (guard (equal itemtype "note")))
