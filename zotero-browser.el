@@ -1317,7 +1317,6 @@ The format can be changed by customizing
               (props `(line-prefix ,prefix
                                    wrap-prefix ,prefix
                                    mouse-face highlight
-                                   help-echo "mouse-1: open collection; mouse-3: popup menu"
                                    keymap ,zotero-browser-collection-keymap)))
          (when zotero-browser-icons
            (let* ((icon "treesource-trash.png")
@@ -1341,7 +1340,6 @@ The format can be changed by customizing
               (props `(line-prefix ,prefix
                                    wrap-prefix ,prefix
                                    mouse-face highlight
-                                   help-echo "mouse-1: open collection; mouse-3: popup menu"
                                    keymap ,zotero-browser-collection-keymap))
               (count (length zotero-browser-collection-columns)))
          (when zotero-browser-icons
@@ -1411,7 +1409,6 @@ The format can be changed by customizing
          (props `(line-prefix ,prefix
                               wrap-prefix ,prefix
                               mouse-face highlight
-                              help-echo "mouse-1: edit current entry; mouse-3: popup menu"
                               keymap ,keymap))
          (count (length zotero-browser-item-columns)))
     (when zotero-browser-icons
