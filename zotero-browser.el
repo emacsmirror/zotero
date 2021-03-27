@@ -1198,7 +1198,6 @@ The format can be changed by customizing
       (let* ((label (nth 0 col))
              (key (nth 1 col))
              (width (nth 2 col))
-             (props (nthcdr 3 col))
              (string (truncate-string-to-width label width nil nil t t))
              (string-width (length string)))
         (push
