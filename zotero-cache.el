@@ -143,8 +143,9 @@ If optional argument NO-CONFIRM is non-nil, don't ask for confirmation."
 
 (defun zotero-cache--year (string)
   "Return year in STRING, or nil."
-  (when-let ((match (s-match "[[:digit:]]\\{4\\}" string)))
-    (car match)))
+  (when (stringp string)
+    (let ((match (s-match "[[:digit:]]\\{4\\}" string)))
+      (car match))))
 
 (defun zotero-cache--some (pred table)
   "Return non-nil if PRED is satisfied for at least one element of TABLE.
@@ -152,11 +153,11 @@ PRED is a function that takes a data element as its first
 argument."
   (if (ht-find (lambda (_key value) (funcall pred (plist-get value :data))) table) t nil))
 
-(defun zotero-cache--pred (field direction)
+(defun zotero-cache--pred (field flip)
   "Return a predicate function as used by `zotero-cache-sort-by'.
 
-FIELD is the prop of the object plist to be sorted. DIRECTION is
-the sorting order: 'asc for ascending or 'desc for descending."
+FIELD is the prop of the object plist to be sorted. FLIP, if
+non-nil, means to invert the resulting sort."
   (let ((pred (pcase field
                 ;; REVIEW: is this necessary? The sorting function already ignores type errors.
                 ;; The :tags, :collections, and :relations fields are vectors and not suitable for sorting
@@ -164,26 +165,49 @@ the sorting order: 'asc for ascending or 'desc for descending."
                  (user-error "The %S field is not suitable for sorting" field))
                 ;; The :creators field is a vector, and sorted by :lastName of the first creator
                 (:creators
-                 (lambda (a b) (string-greaterp (plist-get (seq-first a) :lastName) (plist-get (seq-first b) :lastName))))
+                 (lambda (a b) (cond ((seq-empty-p a)
+                                      t)
+                                     ((seq-empty-p b)
+                                      nil)
+                                     (t
+                                      (string-lessp (downcase
+                                                     (or
+                                                      (plist-get (seq-first a) :lastName)
+                                                      (plist-get (seq-first a) :name)))
+                                                    (downcase
+                                                     (or
+                                                      (plist-get (seq-first b) :lastName)
+                                                      (plist-get (seq-first b) :name))))))))
                 ;; The date fields could contain time strings in various formats that cannot be parsed reliably, so attempt to extract the year only
                 ((or :date :accessDate :dateDecided :filingDate :issueDate :dateEnacted)
-                 (lambda (a b) (when-let ((year-a (zotero-cache--year a))
-                                          (year-b (zotero-cache--year b)))
-                                 (string-greaterp year-a year-b))))
+                 (lambda (a b) (let ((year-a (zotero-cache--year a))
+                                     (year-b (zotero-cache--year b)))
+                                 (cond ((null a)
+                                        t)
+                                       ((null b)
+                                        nil)
+                                       (t
+                                        (string-lessp year-a year-b))))))
                 ;; The :dateAdded and :dateModified fields are filled automatically in ISO 8601 format
                 ((or :dateAdded :dateModified)
                  (lambda (a b) (time-less-p (encode-time (iso8601-parse a)) (encode-time (iso8601-parse b)))))
                 ;; The :id and :owner fields are integers and only used in groups
                 ;; The :version and :mtime fields are integers
                 ((or :id :owner :version :mtime)
-                 #'<)
+                 (lambda (a b) (cond ((null a)
+                                      t)
+                                     ((null b)
+                                      nil)
+                                     (t
+                                      (< a b)))))
                 ;; The rest of the fields are strings
-                (_ #'string-lessp))))
-    (pcase direction
-      ('asc
-       pred)
-      ('desc
-       (lambda (a b) (funcall pred b a))))))
+                (_ (lambda (a b) (cond ((null a)
+                                        t)
+                                       ((null b)
+                                        nil)
+                                       (t
+                                        (string-lessp (downcase a) (downcase b)))))))))
+    (if flip (lambda (a b) (funcall pred b a)) pred)))
 
 (defun zotero-cache-filter-data (pred table)
   "Return a table containing entries in TABLE for which PRED returns non-nil.
@@ -754,20 +778,18 @@ The first is the primary creator type."
   "Return t if CREATORTYPE is valid for ITEMTYPE."
   (member creatortype (zotero-cache-itemtypecreatortypes itemtype)))
 
-(defun zotero-cache-sort-by (field direction table)
+(defun zotero-cache-sort-by (field flip table)
   "Sort TABLE and return an ordered list of the keys.
 
-FIELD is the prop of the object plist to be sorted. DIRECTION is
-the sorting order: 'asc for ascending or 'desc for descending."
-  (let ((pred (zotero-cache--pred field direction)))
+FIELD is the prop of the object plist to be sorted. FLIP, if
+non-nil, means to invert the resulting sort."
+  (let* ((field (if (eq field :year) :date field)) ; `:year' is a derived field
+         (pred (zotero-cache--pred field flip)))
     (thread-last
         (ht->alist table)
       (seq-sort-by (lambda (elt)
                      (zotero-lib-plist-get* (cdr elt) :data field))
-                   (lambda (a b)
-                     ;; keep the predicate nil-safe
-                     (ignore-error wrong-type-argument
-                       (funcall pred a b))))
+                   pred)
       (seq-map #'car))))
 
 (defun zotero-cache-parentitems (table)

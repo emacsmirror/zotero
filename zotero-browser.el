@@ -110,6 +110,18 @@ Each function is called with the item key as argument.")
 (defvar-local zotero-browser-status nil
   "Visibility status of the current buffer.")
 
+(defvar zotero-browser-collections-sort-field '(:name . nil)
+  "Sort field for the collections buffer.
+If nil, no sorting is performed. Otherwise, this should be a cons
+cell (FIELD . FLIP). FIELD is the prop of the object plist to be
+sorted. FLIP, if non-nil, means to invert the resulting sort.")
+
+(defvar zotero-browser-items-sort-field '(:title . nil)
+  "Sort field for the items buffer.
+If nil, no sorting is performed. Otherwise, this should be a cons
+cell (FIELD . FLIP). FIELD is the prop of the object plist to be
+sorted. FLIP, if non-nil, means to invert the resulting sort.")
+
 ;;;; Keymap
 
 (defvar zotero-browser-libraries-mode-map
@@ -710,9 +722,13 @@ STRING should contain only one character."
   "Add items of TABLE after NODE in EWOC."
   (let ((keys (pcase major-mode
                 ('zotero-browser-collections-mode
-                 (zotero-cache-sort-by :name 'asc table))
+                 (let ((field (car zotero-browser-collections-sort-field))
+                       (flip (cdr zotero-browser-collections-sort-field)))
+                   (zotero-cache-sort-by field flip table)))
                 ('zotero-browser-items-mode
-                 (zotero-cache-sort-by :title 'asc table)))))
+                 (let ((field (car zotero-browser-items-sort-field))
+                       (flip (cdr zotero-browser-items-sort-field)))
+                   (zotero-cache-sort-by field flip table))))))
     (while keys
       (setq node (ewoc-enter-after ewoc node (pop keys))))))
 
@@ -848,9 +864,13 @@ item, without affecting the display of other items like
     ;; If key is in table, place it in the buffer
     (let ((sort-fn (pcase major-mode
                      ('zotero-browser-collections-mode
-                      (apply-partially #'zotero-cache-sort-by :name 'asc))
+                      (let ((field (car zotero-browser-collections-sort-field))
+                            (flip (cdr zotero-browser-collections-sort-field)))
+                        (apply-partially #'zotero-cache-sort-by field flip)))
                      ('zotero-browser-items-mode
-                      (apply-partially #'zotero-cache-sort-by :title 'asc)))))
+                      (let ((field (car zotero-browser-items-sort-field))
+                            (flip (cdr zotero-browser-items-sort-field)))
+                        (apply-partially #'zotero-cache-sort-by field flip))))))
       (when (or (ht-contains-p table key) (ht-contains-p table parent))
         (if parent
             ;; Item is a child
@@ -2283,7 +2303,9 @@ ID."
         (erase-buffer)
         (when (and type id resource)
           (let* ((table (zotero-cache-synccache resource nil type id))
-                 (keys (zotero-cache-sort-by :name 'asc table)))
+                 (field (car zotero-browser-collections-sort-field))
+                 (flip (cdr zotero-browser-collections-sort-field))
+                 (keys (zotero-cache-sort-by field flip table)))
             (setq zotero-browser-ewoc ewoc
                   zotero-browser-type type
                   zotero-browser-id id
@@ -2325,7 +2347,9 @@ is the user ID or group ID."
         (erase-buffer)
         (when (and type id resource)
           (let* ((table (zotero-cache-synccache resource collection type id))
-                 (keys (zotero-cache-sort-by :date 'asc table)))
+                 (field (car zotero-browser-items-sort-field))
+                 (flip (cdr zotero-browser-items-sort-field))
+                 (keys (zotero-cache-sort-by field flip table)))
             (setq zotero-browser-ewoc ewoc
                   zotero-browser-type type
                   zotero-browser-id id
