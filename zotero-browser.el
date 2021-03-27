@@ -110,6 +110,12 @@ Each function is called with the item key as argument.")
 (defvar-local zotero-browser-status nil
   "Visibility status of the current buffer.")
 
+(defvar zotero-browser-libraries-sort-field '(:name . nil)
+  "Sort field for the collections buffer.
+If nil, no sorting is performed. Otherwise, this should be a cons
+cell (FIELD . FLIP). FIELD is the prop of the object plist to be
+sorted. FLIP, if non-nil, means to invert the resulting sort.")
+
 (defvar zotero-browser-collections-sort-field '(:name . nil)
   "Sort field for the collections buffer.
 If nil, no sorting is performed. Otherwise, this should be a cons
@@ -470,12 +476,17 @@ Icons are enabled by default."
   :group 'zotero-browser
   :type 'boolean)
 
-(defcustom zotero-browser-library-keys '(" " :name)
-  "Fields to show in the library browser.
-Join all the key values with the separator in between."
+(defcustom zotero-browser-library-columns '(("Name" :name 20))
+  "Fields to show in the libraries buffer.
+This should be a list of elements (NAME FIELD WIDTH),
+where:
+ - NAME is a string describing the column. This is the label for
+   the column in the header line.
+ - FIELD is the prop of the object plist to be sorted.
+ - WIDTH is the width to reserve for the column."
   :group 'zotero-browser
-  :type '(cons (string :tag "Separator")
-               (repeat (choice
+  :type '(repeat (list (string :tag "Name")
+                       (choice
                         (const :tag "ID" :id)
                         (const :tag "Version" :version)
                         (const :tag "Read permission" :library)
@@ -487,20 +498,11 @@ Join all the key values with the separator in between."
                         (const :tag "URL" :url)
                         (const :tag "Library Reading" :libraryEditing)
                         (const :tag "Library Editing" :libraryReading)
-                        (const :tag "File Editing" :fileEditing)))))
+                        (const :tag "File Editing" :fileEditing))
+                       (integer :tag "Width of column"))))
 
-(defcustom zotero-browser-collection-keys '(" " :name)
-  "Fields to show in the collections browser.
-Join all the key values with the separator in between."
-  :group 'zotero-browser
-  :type '(cons (string :tag "Separator")
-               (repeat (choice
-                        (const :tag "Key" :key)
-                        (const :tag "Version" :version)
-                        (const :tag "Name" :name)))))
-
-(defcustom zotero-browser-collection-columns '(("Name" :name 10)("Version" :version 3))
-  "Fields to show in the items browser.
+(defcustom zotero-browser-collection-columns '(("Name" :name 10))
+  "Fields to show in the collections buffer.
 This should be a list of elements (NAME FIELD WIDTH),
 where:
  - NAME is a string describing the column. This is the label for
@@ -516,7 +518,7 @@ where:
                        (integer :tag "Width of column"))))
 
 (defcustom zotero-browser-item-columns '(("Title" :title 50)("Creators" :creators 25)("Year" :year 4))
-  "Fields to show in the items browser.
+  "Fields to show in the items buffer.
 This should be a list of elements (NAME FIELD WIDTH),
 where:
  - NAME is a string describing the column. This is the label for
@@ -1220,64 +1222,75 @@ The format can be changed by customizing
         (push (propertize " " 'display `(space :align-to ,pos)) cols)))
     (apply #'concat (nreverse cols))))
 
-(defun zotero-browser--library-pp (key)
-  "Pretty print library KEY."
+(defun zotero-browser--print-library (key)
+  "Insert library KEY at point."
   (let* ((library (zotero-cache-library nil key))
          (type (plist-get library :type))
          (id (plist-get library :id))
-         ;; Set icon height (in pixels) to 1 characters
-         (height (window-font-height))
-         (separator (car zotero-browser-library-keys))
-         (keys (cdr zotero-browser-library-keys))
-         (beg (point)))
-    (when-let ((_ zotero-browser-icons)
-               (icon (pcase type
-                       ("user" "treesource-library.png")
-                       ("group" "treesource-groups.png")))
-               (dir (file-name-as-directory "img"))
-               (file (expand-file-name (concat dir icon) zotero-directory))
-               (image (create-image file 'png nil :height height)))
-      (insert (propertize type 'display image 'rear-nonsticky t))
-      (insert (string ?\s)))
-    (while keys
-      (when-let ((key (pop keys))
-                 (string (pcase key
-                           (:name
-                            (let ((value (pcase type
-                                           ("user" "User library")
-                                           ("group" (let ((group (zotero-cache-group id)))
-                                                      (zotero-lib-plist-get* group :data key))))))
-                              value))
-                           (:version
-                            (when-let ((value (plist-get library key)))
-                              (number-to-string value)))
-                           ((or :library :write))
-                           (:last-sync
-                            (when-let ((value (plist-get library key)))
-                              (format-time-string "%c" value)))
-                           ((or :group-type :description :url :libraryEditing :libraryReading :fileEditing)
-                            (when (equal type "group")
-                              (let* ((group (zotero-cache-group id))
-                                     (value (zotero-lib-plist-get* group :data key)))
-                                value)))
-                           ((pred keywordp)
-                            (when-let ((value (plist-get library key)))
-                              value)))))
-        (insert string)
-        ;; Don't put a separator after the last key
-        (when keys
-          ;; Insert the separator's substring that doesn't overlap with the
-          ;; preceding string. This prevents ugly double dots and the like.
-          (let ((length (length separator))
-                (num 0))
-            (while (or (eq num length)
-                       (not (s-ends-with-p (substring separator 0 (- length num)) string)))
-              (setq num (1+ num)))
-            (insert (s-right num separator))))))
-    (add-text-properties beg (point)
-                         `(mouse-face highlight
-                                      help-echo "mouse-1: open library; mouse-3: popup menu"
-                                      keymap ,zotero-browser-library-keymap))))
+         (padding (max zotero-browser-padding 0))
+         (padding-right 1)
+         (level (zotero-browser--level key))
+         (pos (+ padding level))
+         (prefix (make-string pos ?\s))
+         (props `(line-prefix ,prefix
+                              wrap-prefix ,prefix
+                              mouse-face highlight
+                              help-echo "mouse-1: open library; mouse-3: popup menu"
+                              keymap ,zotero-browser-library-keymap)))
+    (when zotero-browser-icons
+      (let* ((icon (pcase type
+                     ("user" "treesource-library.png")
+                     ("group" "treesource-groups.png")))
+             (dir (file-name-as-directory "img"))
+             (file (expand-file-name (concat dir icon) zotero-directory))
+             (image (create-image file 'png nil :height (window-font-height))))
+        (insert (apply #'propertize type
+                       'display image
+                       'rear-nonsticky t
+                       props))
+        (setq pos (+ pos 2 padding-right))
+        (insert (apply #'propertize " "
+                       'display `(space :align-to ,pos)
+                       props))))
+    (dolist (column zotero-browser-library-columns)
+      (let* ((field (nth 1 column))
+             (width (nth 2 column))
+             (value (pcase field
+                      (:name
+                       (let ((value (pcase type
+                                      ("user" "User library")
+                                      ("group" (let ((group (zotero-cache-group id)))
+                                                 (zotero-lib-plist-get* group :data field))))))
+                         value))
+                      (:version
+                       (when-let ((value (plist-get library field)))
+                         (number-to-string value)))
+                      ((or :library :write))
+                      (:last-sync
+                       (when-let ((value (plist-get library field)))
+                         (format-time-string "%c" value)))
+                      ((or :group-type :description :url :libraryEditing :libraryReading :fileEditing)
+                       (when (equal type "group")
+                         (let* ((group (zotero-cache-group id))
+                                (value (zotero-lib-plist-get* group :data field)))
+                           value)))
+                      ((pred keywordp)
+                       (when-let ((value (plist-get library field)))
+                         value))))
+             (value-width (length value))
+             (string (cond
+                      ((null value)
+                       "")
+                      ((> value-width width)
+                       (propertize (truncate-string-to-width value (- width level) nil nil t t)
+                                   'help-echo value))
+                      (t
+                       value))))
+        (insert (apply #'propertize string props))
+        (setq pos (+ pos width padding-right))
+        (insert (apply #'propertize " "
+                       'display `(space :align-to ,pos)
+                       props))))))
 
 (defun zotero-browser--print-collection (key)
   "Insert collection KEY at point."
@@ -2307,16 +2320,19 @@ key."
       (zotero-browser-libraries-mode)
       (let* ((user (zotero-cache-library "user"))
              (groups (zotero-cache-group))
-             (ewoc (ewoc-create #'zotero-browser--library-pp))
+             (ewoc (ewoc-create #'zotero-browser--print-library))
              (inhibit-read-only t))
         (erase-buffer)
         (setq zotero-browser-ewoc ewoc)
-        (thread-last user
-          (ht-keys)
-          (seq-do (lambda (key) (ewoc-enter-last ewoc key))))
-        (thread-last groups
-          (zotero-cache-sort-by :name 'asc)
-          (seq-do (lambda (key) (ewoc-enter-last ewoc key))))))
+        ;; There should be only one user library, so no sorting
+        (let ((keys (ht-keys user)))
+          (dolist (key keys)
+            (ewoc-enter-last ewoc key)))
+        (let* ((field (car zotero-browser-libraries-sort-field))
+               (flip (cdr zotero-browser-libraries-sort-field))
+               (keys (zotero-cache-sort-by field flip groups)))
+          (dolist (key keys)
+            (ewoc-enter-last ewoc key)))))
     buffer))
 
 (defun zotero-browser-collections (&optional resource type id)
