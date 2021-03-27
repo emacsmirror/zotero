@@ -751,8 +751,8 @@ region instead."
                          (zotero-cache-parentcollection key table))
                         ('zotero-browser-items-mode
                          (zotero-cache-parentitem key table)))))
-          (setq level (1+ level))
           (when parent
+            (setq level (1+ level))
             (setq key parent))))
     level))
 
