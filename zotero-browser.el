@@ -1227,7 +1227,7 @@ The format can be changed by customizing
                                    wrap-prefix ,prefix))
          columns)
     (push (propertize " " 'display `(space :align-to ,pos)) columns)
-    (when zotero-browser-icons
+    (when (and window-system zotero-browser-icons)
       (setq pos (+ pos 2 padding-right))
       (push (propertize " " 'display `(space :align-to ,pos)) columns))
     (dolist (column zotero-browser-item-columns)
@@ -1270,7 +1270,7 @@ The format can be changed by customizing
                               mouse-face highlight
                               help-echo "mouse-1: open library; mouse-3: popup menu"
                               keymap ,zotero-browser-library-keymap)))
-    (when zotero-browser-icons
+    (when (and window-system zotero-browser-icons)
       (let* ((icon (pcase type
                      ("user" "treesource-library.png")
                      ("group" "treesource-groups.png")))
@@ -1339,7 +1339,7 @@ The format can be changed by customizing
                                    mouse-face highlight
                                    help-echo "mouse-1: open collection; mouse-3: popup menu"
                                    keymap ,zotero-browser-collection-keymap)))
-         (when zotero-browser-icons
+         (when (and window-system zotero-browser-icons)
            (let* ((icon "treesource-unfiled.png")
                   (dir (file-name-as-directory "img"))
                   (file (expand-file-name (concat dir icon) zotero-directory))
@@ -1361,7 +1361,7 @@ The format can be changed by customizing
                                    wrap-prefix ,prefix
                                    mouse-face highlight
                                    keymap ,zotero-browser-collection-keymap)))
-         (when zotero-browser-icons
+         (when (and window-system zotero-browser-icons)
            (let* ((icon "treesource-trash.png")
                   (dir (file-name-as-directory "img"))
                   (file (expand-file-name (concat dir icon) zotero-directory))
@@ -1385,7 +1385,7 @@ The format can be changed by customizing
                                    mouse-face highlight
                                    keymap ,zotero-browser-collection-keymap))
               (count (length zotero-browser-collection-columns)))
-         (when zotero-browser-icons
+         (when (and window-system zotero-browser-icons)
            (let* ((icon "treesource-collection.png")
                   (dir (file-name-as-directory "img"))
                   (file (expand-file-name (concat dir icon) zotero-directory))
@@ -1454,7 +1454,7 @@ The format can be changed by customizing
                               mouse-face highlight
                               keymap ,keymap))
          (count (length zotero-browser-item-columns)))
-    (when zotero-browser-icons
+    (when (and window-system zotero-browser-icons)
       (let* ((file (if (equal itemtype "attachment")
                        (let ((linkmode (zotero-lib-plist-get* entry :data :linkMode)))
                          (zotero-browser--attachment-icon linkmode))
