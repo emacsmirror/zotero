@@ -257,7 +257,7 @@ sorted. FLIP, if non-nil, means to invert the resulting sort.")
 
 (defvar zotero-browser-expand-symbol (propertize "▸"
                                                  'mouse-face 'highlight
-                                                 'help-echo "mouse-1: collapse"
+                                                 'help-echo "mouse-1: expand"
                                                  'keymap zotero-browser-toggle-keymap)
   "Expand symbol.
 The symbol appears next to items that contains children and means
@@ -266,7 +266,7 @@ item tree.")
 
 (defvar zotero-browser-collapse-symbol (propertize "▾"
                                                    'mouse-face 'highlight
-                                                   'help-echo "mouse-1: expand"
+                                                   'help-echo "mouse-1: collapse"
                                                    'keymap zotero-browser-toggle-keymap)
   "Collapse symbol.
 The symbol appears next to items that contains children and means
@@ -1764,7 +1764,7 @@ If NUM is omitted or nil, expand till level 1."
                        (or (< level num) (eq num 0)))
                   (zotero-browser--expand ewoc node))
                  (t
-                  (zotero-browser--prefix (ewoc-location node) zotero-browser-expand-symbol))))
+                  (zotero-browser--prefix (ewoc-location node) zotero-browser-collapse-symbol))))
               (prog1
                   ;; End-test of while loop
                   (ewoc-next ewoc node)
