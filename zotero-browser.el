@@ -1206,7 +1206,7 @@ The format can be changed by customizing
           ((eq key field)
            (apply #'propertize (concat label
 			               (cond
-			                ((> (+ 2 (length label)) width) "")
+			                ((> (+ 2 string-width) width) "")
 			                (flip " ▴")
 			                (t " ▾")))
                   'face 'bold
