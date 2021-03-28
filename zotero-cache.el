@@ -826,7 +826,7 @@ ID."
          (updated-collections (unless (seq-contains-p collections collection) (vconcat collections (vector collection)))))
     (zotero-cache-save (plist-put data :collections updated-collections) "items" type id)))
 
-(defun zotero-cache-remove-from-collection (key collection type id)
+(defun zotero-cache-remove-item-from-collection (key collection type id)
   "Remove item KEY from COLLECTION.
 
 Argument TYPE is \"user\" for your personal library, and
@@ -852,7 +852,7 @@ ID."
          (updated-collections (cl-substitute new old collections :test #'equal)))
     (zotero-cache-save (plist-put data :collections updated-collections) "items" type id)))
 
-(defun zotero-cache-remove-from-item (key type id)
+(defun zotero-cache-remove-item-from-parent (key type id)
   "Remove item KEY from parent.
 
 Argument TYPE is \"user\" for your personal library, and
@@ -863,6 +863,18 @@ ID."
          (data (plist-get entry :data))
          (updated-data (zotero-lib-plist-delete data :parentItem)))
     (zotero-cache-save updated-data "items" type id)))
+
+(defun zotero-cache-remove-collection-from-parent (key type id)
+  "Remove collection KEY from parent.
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, that is the user ID or group
+ID."
+  (let* ((entry (zotero-cache-synccache "collection" key type id t))
+         (data (plist-get entry :data))
+         (updated-data (zotero-lib-plist-delete data :parentCollection)))
+    (zotero-cache-save updated-data "collections" type id)))
 
 (defun zotero-cache-delete (resource key type id)
   "Delete KEY from cache.
@@ -885,15 +897,19 @@ ID."
               (collection key)
               (table (zotero-cache-synccache "collection-items" collection type id t)))
          ;; Remove all subcollections from the collection
-         (ht-each (lambda (key _value) (zotero-cache-remove-from-collection key collection type id)) children)
+         (ht-each
+          (lambda (key _value) (zotero-cache-remove-collection-from-parent key type id))
+          children)
          ;; Remove all items from the collection
-         (ht-each (lambda (key _value)
-                    (zotero-cache-remove-from-collection type id key collection))
-                  table)))
+         (ht-each
+          (lambda (key _value) (zotero-cache-remove-item-from-collection key collection type id))
+          table)))
       ("items"
        ;; Remove all subitems from the item
        (let ((children (zotero-cache-subitems key synccache)))
-         (ht-each (lambda (key _value) (zotero-cache-remove-from-item key type id)) children))))
+         (ht-each
+          (lambda (key _value) (zotero-cache-remove-item-from-parent key type id))
+          children))))
     (ht-set! deletions key value)
     (ht-remove! synccache key)
     (zotero-cache-serialize)))

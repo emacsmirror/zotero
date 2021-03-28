@@ -1949,7 +1949,7 @@ Optional argument ARG is the prefix argument."
          (node (ewoc-locate ewoc))
          (key (ewoc-data node))
          (collection zotero-browser-collection))
-    (zotero-cache-remove-from-collection key collection type id)
+    (zotero-cache-remove-item-from-collection key collection type id)
     (run-hook-with-args 'zotero-browser-after-change-functions key)
     (let ((children (zotero-browser--children key)))
       (ht-each (lambda (key _value) (run-hook-with-args 'zotero-browser-after-change-functions key))
