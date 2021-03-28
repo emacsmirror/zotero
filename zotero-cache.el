@@ -159,6 +159,9 @@ argument."
 FIELD is the prop of the object plist to be sorted. FLIP, if
 non-nil, means to invert the resulting sort."
   (let ((pred (pcase field
+                ;; No sorting when sort field is nil
+                ((pred null)
+                 (lambda (a b) t))
                 ;; The :tags, :collections, and :relations fields are vectors and not suitable for sorting
                 ((or :tags :collections :relations)
                  (user-error "The %S field is not suitable for sorting" field))
