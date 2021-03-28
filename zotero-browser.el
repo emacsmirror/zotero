@@ -1205,6 +1205,20 @@ The format can be changed by customizing
              (year (match-string 0 date)))
     year))
 
+(defun zotero-browser--date-added (entry)
+  "Return the added date in ENTRY."
+  (when-let ((date (zotero-lib-plist-get* entry :data :dateAdded))
+             (time (iso8601-parse date))
+             (timestamp (encode-time time)))
+    (format-time-string "%x %X" timestamp)))
+
+(defun zotero-browser--date-modified (entry)
+  "Return the modified date in ENTRY."
+  (when-let ((date (zotero-lib-plist-get* entry :data :dateModified))
+             (time (iso8601-parse date))
+             (timestamp (encode-time time)))
+    (format-time-string "%x %X" timestamp)))
+
 (defun zotero-browser--note (entry)
   "Return the first line of note in ENTRY."
   (when-let ((note (zotero-lib-plist-get* entry :data :note))
@@ -1486,6 +1500,10 @@ The format can be changed by customizing
                        (zotero-browser--version entry))
                       (:year
                        (zotero-browser--year entry))
+                      (:dateAdded
+                       (zotero-browser--date-added entry))
+                      (:dateModified
+                       (zotero-browser--date-modified entry))
                       (:note
                        (zotero-browser--note entry))
                       ((pred keywordp)
