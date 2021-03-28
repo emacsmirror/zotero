@@ -301,8 +301,10 @@ tree.")
      ["Next same level" zotero-browser-forward-same-level]
      ["Previous same level" zotero-browser-backward-same-level])
     "--"
-    ["Edit collection" zotero-browser-edit :help "Edit current entry"]
+    ["Edit collection" zotero-browser-edit :help "Edit current collection"]
     ["Create collection" zotero-browser-create :help "Create a new collection"]
+    "--"
+    ["Delete" zotero-browser-delete :help "Delete current collection or collections in active region"]
     "--"
     ["Revert" zotero-browser-revert]
     ["Quit" quit-window]
