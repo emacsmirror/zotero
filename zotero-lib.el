@@ -227,10 +227,10 @@ digit is checked using a checksum algorithm."
              (isbn (s-replace-all '((" " . "") ("-" . "")) match))
              ;; The elisp regexps don't provide lookaheads to limit the string
              ;; length, so the total length of the isbn has to be checked here
-             (_ (or (and (eq (length isbn) 10)
-                         (s-matches-p zotero-lib-isbn10-regexp isbn))
-                    (and (eq (length isbn) 13)
-                         (s-matches-p zotero-lib-isbn13-regexp isbn))))
+             (valid-isbn-p (or (and (eq (length isbn) 10)
+                                    (s-matches-p zotero-lib-isbn10-regexp isbn))
+                               (and (eq (length isbn) 13)
+                                    (s-matches-p zotero-lib-isbn13-regexp isbn))))
              (last (s-right 1 isbn))
              (list (seq-into isbn 'list))
              (first (butlast list))

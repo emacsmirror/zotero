@@ -1201,7 +1201,7 @@ The format can be changed by customizing
 (defun zotero-browser--year (entry)
   "Return the year in ENTRY."
   (when-let ((date (zotero-lib-plist-get* entry :data :date))
-             (_ (string-match "[[:digit:]]\\{4\\}" date))
+             (match (string-match "[[:digit:]]\\{4\\}" date))
              (year (match-string 0 date)))
     year))
 
@@ -1209,7 +1209,7 @@ The format can be changed by customizing
   "Return the first line of note in ENTRY."
   (when-let ((note (zotero-lib-plist-get* entry :data :note))
              (text (replace-regexp-in-string "<[^>]+>" "" note)) ; Remove all HTML tags
-             (_ (string-match "^.+$" text)) ; Match first non-empty line
+             (match (string-match "^.+$" text)) ; Match first non-empty line
              (first-line (match-string-no-properties 0 text)))
     first-line))
 
