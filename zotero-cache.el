@@ -159,11 +159,10 @@ argument."
 FIELD is the prop of the object plist to be sorted. FLIP, if
 non-nil, means to invert the resulting sort."
   (let ((pred (pcase field
-                ;; REVIEW: is this necessary? The sorting function already ignores type errors.
                 ;; The :tags, :collections, and :relations fields are vectors and not suitable for sorting
                 ((or :tags :collections :relations)
                  (user-error "The %S field is not suitable for sorting" field))
-                ;; The :creators field is a vector, and sorted by :lastName of the first creator
+                ;; The :creators field is a vector, and sorted by :lastName or :name of the first creator
                 (:creators
                  (lambda (a b) (cond ((seq-empty-p a)
                                       t)
