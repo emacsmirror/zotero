@@ -1236,18 +1236,43 @@ The format can be changed by customizing
          (pos (max zotero-browser-padding 0))
          (prefix (make-string pos ?\s))
          (padding-right 1)
+         (props `(line-prefix ,prefix
+                              wrap-prefix ,prefix))
          (button-props `(help-echo "Click to sort by column"
 			           mouse-face header-line-highlight
 			           keymap ,zotero-browser-header-keymap
                                    line-prefix ,prefix
-                                   wrap-prefix ,prefix))
+                                   wrap-prefix ,prefix
+                                   rear-nonsticky t))
+         (count (length zotero-browser-item-columns))
          columns)
-    (push (propertize " " 'display `(space :align-to ,pos)) columns)
     (when (and (display-graphic-p) zotero-browser-icons)
-      (setq pos (+ pos 2 padding-right))
-      (push (propertize " " 'display `(space :align-to ,pos)) columns))
-    (dolist (column zotero-browser-item-columns)
-      (let* ((field (car column))
+      (let ((field :itemType))
+        (setq pos (+ pos 2))
+        (push
+         (cond
+          ((eq field sort-field)
+           ;; The selected sort column
+           (apply #'propertize (if flip "▴" "▾")
+                  'face '(header-line bold)
+                  'zotero-browser-field field
+                  button-props))
+          ;; Unselected sortable column.
+	  (t
+           (apply #'propertize " "
+                  'face 'header-line
+                  'zotero-browser-field field
+                  button-props)))
+         columns))
+      (setq pos (+ pos padding-right))
+      (push (apply #'propertize " "
+                   'display `(space :align-to ,pos)
+                   'face 'header-line
+                   props)
+            columns))
+    (dotimes (i count)
+      (let* ((column (nth i zotero-browser-item-columns))
+             (field (car column))
              (width (cdr column))
              (label (s-capitalized-words (zotero-lib-keyword->string field)))
              (label (truncate-string-to-width label width nil nil t t)))
@@ -1260,17 +1285,30 @@ The format can be changed by customizing
 			                ((> (+ 2 (length label)) width) "")
 			                (flip " ▴")
 			                (t " ▾")))
-                  'face 'bold
+                  'face '(header-line bold)
                   'zotero-browser-field field
                   button-props))
           ;; Unselected sortable column.
 	  (t
            (apply #'propertize label
+                  'face 'header-line
                   'zotero-browser-field field
                   button-props)))
          columns)
-        (setq pos (+ pos width padding-right))
-        (push (propertize " " 'display `(space :align-to ,pos)) columns)))
+        (setq pos (+ pos width))
+        (push (apply #'propertize " "
+                     'display `(space :align-to ,pos)
+                     'face 'header-line
+                     'zotero-browser-field field
+                     button-props)
+              columns)
+        (unless (eq i (1- count))
+          (setq pos (+ pos padding-right))
+          (push (apply #'propertize " "
+                       'display `(space :align-to ,pos)
+                       'face 'header-line
+                       props)
+                columns))))
     (apply #'concat (nreverse columns))))
 
 (defun zotero-browser--print-library (key)
