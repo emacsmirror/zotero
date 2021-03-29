@@ -1323,7 +1323,8 @@ The format can be changed by customizing
                               wrap-prefix ,prefix
                               mouse-face highlight
                               help-echo "mouse-1: open library; mouse-3: popup menu"
-                              keymap ,zotero-browser-library-keymap)))
+                              keymap ,zotero-browser-library-keymap))
+         (count (length zotero-browser-collection-columns)))
     (when (and (display-graphic-p) zotero-browser-icons)
       (let* ((icon (pcase type
                      ("user" "treesource-library.png")
@@ -1339,8 +1340,9 @@ The format can be changed by customizing
         (insert (apply #'propertize " "
                        'display `(space :align-to ,pos)
                        props))))
-    (dolist (column zotero-browser-library-columns)
-      (let* ((field (car column))
+    (dotimes (i count)
+      (let* ((column (nth i zotero-browser-collection-columns))
+             (field (car column))
              (width (cdr column))
              (value (pcase field
                       (:name
