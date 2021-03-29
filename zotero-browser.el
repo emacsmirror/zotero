@@ -1337,7 +1337,7 @@ The format can be changed by customizing
          (props `(line-prefix ,prefix
                               wrap-prefix ,prefix
                               mouse-face highlight
-                              help-echo "mouse-1: open library; mouse-3: popup menu"
+                              help-echo "mouse-1: open library"
                               keymap ,zotero-browser-library-keymap))
          (count (length zotero-browser-collection-columns)))
     (when (and (display-graphic-p) zotero-browser-icons)
