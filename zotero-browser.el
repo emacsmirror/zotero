@@ -543,7 +543,7 @@ where:
                         (const :tag "File Editing" :fileEditing))
                        (integer :tag "Width of column"))))
 
-(defcustom zotero-browser-collection-columns '((:name . 10))
+(defcustom zotero-browser-collection-columns '((:name . 25))
   "Fields to show in the collections buffer.
 This should be a list of cons cells (FIELD . WIDTH),
 where:
