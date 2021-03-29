@@ -205,6 +205,7 @@ Each function is called with the item key as argument.")
 (defvar zotero-browser-collection-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map [mouse-1] #'zotero-browser-display)
+    (define-key map [mouse-3] #'zotero-browser-collection-popup-menu)
     map)
   "Keymap for mouse events on collections.")
 
@@ -359,6 +360,15 @@ tree.")
     ["Exit" zotero-browser-note-exit :help "Save note and kill buffer"]
     ["Save" zotero-browser-note-save :help "Save note"]
     ["Abort" zotero-browser-note-abort :help "Abort editing note and kill buffer"]))
+
+(easy-menu-define zotero-browser-collection-menu zotero-browser-collection-keymap
+  "Popup menu for collections."
+  `("Zotero collection"
+    "--"
+    ["Create collection" zotero-browser-create :help "Create a new collection"]
+    ["Edit collection" zotero-browser-edit :help "Edit current collection"]
+    "--"
+    ["Delete" zotero-browser-delete :help "Delete current collection"]))
 
 (easy-menu-define zotero-browser-item-menu zotero-browser-item-keymap
   "Popup menu for items."
@@ -662,6 +672,11 @@ All currently available key bindings:
   nil "ZotNote" nil)
 
 ;;;; Functions
+
+(defun zotero-browser-collection-popup-menu (event)
+  "Pop up a menu with mouse EVENT."
+  (interactive "@e")
+  (popup-menu zotero-browser-collection-menu event))
 
 (defun zotero-browser-item-popup-menu (event)
   "Pop up a menu with mouse EVENT."
