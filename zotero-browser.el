@@ -507,7 +507,7 @@ sorted. FLIP, if non-nil, means to invert the resulting sort."
                  (cons (choice
                         (const :tag "Key" :key)
                         (const :tag "Version" :version)
-                        (const :tag "Item Type" :itemtype)
+                        (const :tag "Item Type" :itemType)
                         (const :tag "Title" :title)
                         (const :tag "Creators" :creators)
                         (const :tag "Date" :date)
@@ -566,7 +566,7 @@ where:
   :type '(repeat (cons (choice
                         (const :tag "Key" :key)
                         (const :tag "Version" :version)
-                        (const :tag "Item Type" :itemtype)
+                        (const :tag "Item Type" :itemType)
                         (const :tag "Title" :title)
                         (const :tag "Creators" :creators)
                         (const :tag "Date" :date)
@@ -588,7 +588,7 @@ Join all the key values with the separator in between."
          (repeat (choice
                   (const :tag "Key" :key)
                   (const :tag "Version" :version)
-                  (const :tag "Item Type" :itemtype)
+                  (const :tag "Item Type" :itemType)
                   (const :tag "Title" :title)
                   (const :tag "Creators" :creators)
                   (const :tag "Date" :date)
