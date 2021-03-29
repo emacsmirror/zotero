@@ -1374,10 +1374,11 @@ The format can be changed by customizing
                       (t
                        value))))
         (insert (apply #'propertize string props))
-        (setq pos (+ pos width padding-right))
-        (insert (apply #'propertize " "
-                       'display `(space :align-to ,pos)
-                       props))))))
+        (unless (eq i (1- count))
+          (setq pos (+ pos width padding-right))
+          (insert (apply #'propertize " "
+                         'display `(space :align-to ,pos)
+                         props)))))))
 
 (defun zotero-browser--print-collection (key)
   "Insert collection KEY at point."
@@ -1475,10 +1476,11 @@ The format can be changed by customizing
                            (t
                             value))))
              (insert (apply #'propertize string props))
-             (setq pos (+ pos width padding-right))
-             (insert (apply #'propertize " "
-                            'display `(space :align-to ,pos)
-                            props)))))))))
+             (unless (eq i (1- count))
+               (setq pos (+ pos width padding-right))
+               (insert (apply #'propertize " "
+                              'display `(space :align-to ,pos)
+                              props))))))))))
 
 (defun zotero-browser--print-item (key)
   "Insert entry KEY at point."
@@ -1558,10 +1560,11 @@ The format can be changed by customizing
                       (t
                        value))))
         (insert (apply #'propertize string props))
-        (setq pos (+ pos width padding-right))
-        (insert (apply #'propertize " "
-                       'display `(space :align-to ,pos)
-                       props))))))
+        (unless (eq i (1- count))
+          (setq pos (+ pos width padding-right))
+          (insert (apply #'propertize " "
+                         'display `(space :align-to ,pos)
+                         props)))))))
 
 ;;;; Commands
 
