@@ -1908,11 +1908,11 @@ If NUM is omitted or nil, expand till level 1."
              (zotero-group-settings key)
            (user-error "Library %s is not a group" key))))
       ('zotero-browser-collections-mode
-       (let* ((ewoc zotero-browser-ewoc)
-              (node (ewoc-locate ewoc))
-              (key (ewoc-data node))
-              (entry (zotero-cache-synccache "collection" key type id))
-              (data (plist-get entry :data)))
+       (when-let ((ewoc zotero-browser-ewoc)
+                  (node (ewoc-locate ewoc))
+                  (key (ewoc-data node))
+                  (entry (zotero-cache-synccache "collection" key type id))
+                  (data (plist-get entry :data)))
          (pop-to-buffer (zotero-edit-collection data type id) zotero-browser-edit-buffer-action)))
       ('zotero-browser-items-mode
        (let* ((ewoc zotero-browser-ewoc)
