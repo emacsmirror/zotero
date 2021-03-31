@@ -2454,30 +2454,13 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
          ((not (equal content-type "application/pdf"))
           (user-error "Attachment is not a PDF"))
          (t
-          (let* ((response (zotero-recognize file))
-                 (metadata (zotero-response-data response))
-                 (result (cond
-                          ((not (plist-member metadata :title))
-                           (user-error "The attachment was not recognized"))
-                          ((plist-member metadata :arxiv)
-                           (zotero-arxiv (plist-get metadata :arxiv)))
-                          ((plist-member metadata :doi)
-                           (zotero-crossref (plist-get metadata :doi)))
-                          ((plist-member metadata :isbn)
-                           (zotero-openlibrary (plist-get metadata :isbn)))
-                          (t
-                           (zotero-recognize-parse-metadata metadata)))))
-            (when (and (string-empty-p (plist-get result :abstractNote))
-                       (plist-member metadata :abstract))
-              (setq result (plist-put result :abstractNote (plist-get metadata :abstract))))
-            (when (and (string-empty-p (plist-get result :language))
-                       (plist-member metadata :language))
-              (setq result (plist-put result :language (plist-get metadata :language))))
-	    ;; Put the parent item in the same collections as the attachment
-            (when (stringp collection)
-              (setq result (plist-put result :collections (vector collection))))
+          (let* ((parent-data (zotero-browser--recognize file))
+                 (parent-data (if (stringp collection)
+	                          ;; Put the parent item in the same collections as the attachment
+                                  (plist-put parent-data :collections (vector collection))
+                                parent-data)))
             ;; Create the parent item
-            (when-let ((data (zotero-cache-save result "items" type id))
+            (when-let ((data (zotero-cache-save parent-data "items" type id))
                        (parent-key (plist-get data :key)))
               (run-hook-with-args 'zotero-browser-after-change-functions parent-key)
               ;; Rename the attachment to match new metadata and make it a child
