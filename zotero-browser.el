@@ -2361,6 +2361,44 @@ item, and rename the associated file based on the metadata."
           (delete-file tempfile)
           (user-error "Failed to associate attachment with item %s" attachment-key))))))
 
+(defun zotero-browser-link-attachment ()
+  "Link to a PDF file and create a new attachment.
+Retrieve the metadata automatically and create an appropriate
+parent item."
+  (interactive)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (unless (equal zotero-browser-type "user")
+    (user-error "Linked files can only be added to user library"))
+  (let* ((inhibit-read-only t)
+         (type zotero-browser-type)
+         (id zotero-browser-id)
+         (collection zotero-browser-collection)
+         (file (expand-file-name (read-file-name "Select file: " nil nil t)))
+         (parent-data (zotero-browser--recognize file))
+         (parent-data (if (stringp collection)
+                          (plist-put parent-data :collections (vector collection))
+                        parent-data)))
+    ;; Create the parent item
+    (when-let ((data (zotero-cache-save parent-data "items" type id))
+               (parent-key (plist-get data :key)))
+      (run-hook-with-args 'zotero-browser-after-change-functions parent-key)
+      ;; Create the attachment item
+      (let* ((attributes (zotero-file-attributes file))
+             (filename (file-name-nondirectory file))
+             (content-type (plist-get attributes :content-type))
+             (accessdate (plist-get attributes :accessdate))
+             (template (copy-tree (zotero-cache-attachment-template "linked_file")))
+             (attachment-data (thread-first template
+                                (plist-put :parentItem parent-key)
+                                (plist-put :title filename)
+                                (plist-put :accessDate accessdate)
+                                (plist-put :contentType content-type)
+                                (plist-put :path file)))
+             (data (zotero-cache-save attachment-data "items" type id))
+             (attachment-key (plist-get data :key)))
+        (run-hook-with-args 'zotero-browser-after-change-functions attachment-key)))))
+
 (defun zotero-browser-add-by-identifier (string)
   "Create a new item by providing an identifier.
 
