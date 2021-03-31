@@ -2274,6 +2274,93 @@ client."
           (error "Failed to associate attachment with item %s" key))
         (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)))))
 
+(defun zotero-browser--recognize (file)
+  "Return the bibliographic metadata recognized from PDF FILE."
+  (let* ((response (zotero-recognize file))
+         (metadata (zotero-response-data response))
+         (data (cond
+                ((not (plist-member metadata :title))
+                 (user-error "The attachment was not recognized"))
+                ((plist-member metadata :arxiv)
+                 (zotero-arxiv (plist-get metadata :arxiv)))
+                ((plist-member metadata :doi)
+                 (zotero-crossref (plist-get metadata :doi)))
+                ((plist-member metadata :isbn)
+                 (zotero-openlibrary (plist-get metadata :isbn)))
+                (t
+                 (zotero-recognize-parse-metadata metadata)))))
+    (when (and (string-empty-p (plist-get data :abstractNote))
+               (plist-member metadata :abstract))
+      (setq data (plist-put data :abstractNote (plist-get metadata :abstract))))
+    (when (and (string-empty-p (plist-get data :language))
+               (plist-member metadata :language))
+      (setq data (plist-put data :language (plist-get metadata :language))))
+    data))
+
+(defun zotero-browser-import-attachment ()
+  "Import a PDF file and create a new attachment.
+Retrieve the metadata automatically, create an appropriate parent
+item, and rename the associated file based on the metadata."
+  (interactive)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (let* ((inhibit-read-only t)
+         (type zotero-browser-type)
+         (id zotero-browser-id)
+         (collection zotero-browser-collection)
+         (file (expand-file-name (read-file-name "Select file: " nil nil t)))
+         (parent-data (zotero-browser--recognize file))
+         (parent-data (if (stringp collection)
+                          (plist-put parent-data :collections (vector collection))
+                        parent-data)))
+    ;; Create the parent item
+    (when-let ((data (zotero-cache-save parent-data "items" type id))
+               (parent-key (plist-get data :key)))
+      (run-hook-with-args 'zotero-browser-after-change-functions parent-key)
+      ;; Create the attachment item
+      (let* ((attributes (zotero-file-attributes file))
+             (content-type (plist-get attributes :content-type))
+             (accessdate (plist-get attributes :accessdate))
+             (base (zotero-browser--filename-base data))
+             (dir (file-name-directory file))
+             (ext (file-name-extension file t))
+             (newname (concat base ext))
+             (tempfile (concat temporary-file-directory newname))
+             (template (copy-tree (zotero-cache-attachment-template "imported_file")))
+             (attachment-data (thread-first template
+                                (plist-put :parentItem parent-key)
+                                (plist-put :title newname)
+                                (plist-put :accessDate accessdate)
+                                (plist-put :contentType content-type)
+                                (plist-put :filename newname)
+                                ;; md5 and mtime can be edited directly in
+                                ;; personal libraries for WebDAV-based file
+                                ;; syncing. They should not be edited directly
+                                ;; when using Zotero File Storage, which provides
+                                ;; an atomic method for setting the properties
+                                ;; along with the corresponding file.
+                                (plist-put :md5 nil)
+                                (plist-put :mtime nil)))
+             (data (zotero-cache-save attachment-data "items" type id))
+             (attachment-key (plist-get data :key)))
+        (condition-case nil
+            (copy-file file tempfile 1 t)
+          (file-already-exists (user-error "File already exists: %s" tempfile)))
+        ;; Upload the attachment
+        (if-let ((response (zotero-upload-attachment attachment-key tempfile nil :type type :id id))
+                 (object (zotero-response-data response))
+                 (data (plist-get object :data)))
+            (progn
+              (zotero-cache-save data "items" type id)
+              (run-hook-with-args 'zotero-browser-after-change-functions attachment-key)
+              (let* ((dir (concat (file-name-as-directory zotero-cache-storage-dir) attachment-key))
+                     (newfile (concat (file-name-as-directory dir) newname)))
+                (unless (file-exists-p dir)
+                  (make-directory dir))
+                (rename-file tempfile newfile)))
+          (delete-file tempfile)
+          (user-error "Failed to associate attachment with item %s" attachment-key))))))
+
 (defun zotero-browser-add-by-identifier (string)
   "Create a new item by providing an identifier.
 
