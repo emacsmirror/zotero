@@ -2324,7 +2324,6 @@ item, and rename the associated file based on the metadata."
              (content-type (plist-get attributes :content-type))
              (accessdate (plist-get attributes :accessdate))
              (base (zotero-browser--filename-base data))
-             (dir (file-name-directory file))
              (ext (file-name-extension file t))
              (newname (concat base ext))
              (tempfile (concat temporary-file-directory newname))
