@@ -360,7 +360,7 @@ ID."
                         (widget-insert (concat fieldname ":\n"))
                         (widget-create 'text
                                        :size 10
-                                       :format " %v "
+                                       :format "%v "
                                        :help-echo "M-TAB: complete field; RET: enter value; C-c C-c: edit in buffer"
                                        :notify (lambda (widget &rest _ignore)
 			                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field (widget-value widget))))
