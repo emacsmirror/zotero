@@ -335,6 +335,8 @@ tree.")
      ["Create note" zotero-browser-create-note :help "Create a new note"]
      ["Create attachment" zotero-browser-create-attachment :help "Create a new attachment"]
      ["Update attachment" zotero-browser-update-attachment :help "Update current attachment"]
+     ["Import attachment" zotero-browser-import-attachment :help "Import a PDF file and create a new attachment."]
+     ["Link attachment" zotero-browser-link-attachment :help "Link to a PDF file and create a new attachment."]
      ["Add by identifier" zotero-browser-add-by-identifier :help "Add a new item by ISBN, DOI, PMID, or arXiv ID"])
     "--"
     ["Move to trash" zotero-browser-move-to-trash :help "Move current entry or entries in active region to trash"]
