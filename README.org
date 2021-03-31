@@ -649,6 +649,15 @@
 **** Command: zotero-browser-update-attachment
      Update the attachment of the current entry.
 
+**** Command: zotero-browser-import-attachment
+     Import a PDF file and create a new attachment. Retrieve the metadata
+     automatically, create an appropriate parent item, and rename the associated file
+     based on the metadata.
+
+**** Command: zotero-browser-link-attachment
+     Link to a PDF file and create a new attachment. Retrieve the metadata
+     automatically and create an appropriate xparent item.
+
 **** Command: zotero-browser-add-by-identifier STRING
      Create a new item by providing an identifier.
      Argument STRING is a ISBN, DOI, PMID, or arXiv ID.
