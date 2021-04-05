@@ -2405,8 +2405,11 @@ parent item."
 
 Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
   (interactive "sEnter a ISBN, DOI, PMID, or arXiv ID: ")
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
   (let* ((type zotero-browser-type)
          (id zotero-browser-id)
+         (collection zotero-browser-collection)
          (string (s-trim string))
          identifier
          data)
@@ -2420,6 +2423,8 @@ Argument STRING is a ISBN, DOI, PMID, or arXiv ID."
      ((setq identifier (zotero-lib-validate-arxiv string) )
       (setq data (zotero-arxiv identifier)))
      (t (user-error "Identifier \"%s\" is not a valid arXiv id, DOI, or ISBN" string)))
+    (when (and data (stringp collection))
+      (setq data (plist-put data :collections (vector collection))))
     (if data
         (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)
       (user-error "No metadata found for identifier \"%s\"" identifier))))
