@@ -165,6 +165,20 @@ Called if KEY is added, deleted, or changed."
               (delete-window (get-buffer-window buffer))
               (kill-buffer buffer)))))))
 
+(defun zotero-edit--creators-notify (widget &rest _ignore)
+  (let* ((creators-list (seq-map (lambda (elt)
+                                   (pcase elt
+                                     (`(,creator-type (,full-name) ,_fieldmode)
+                                      (list :creatorType creator-type
+                                            :name full-name))
+                                     (`(,creator-type (,first-name ,last-name) ,_fieldmode)
+                                      (list :creatorType creator-type
+                                            :firstName first-name
+                                            :lastName last-name))
+                                     (_ (error "Invalid value")))) (widget-value widget)))
+         (creators-vector (seq-into creators-list 'vector)))
+    (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy :creators creators-vector))))
+
 (defun zotero-edit--toggle-notify (widget &rest _ignore)
   "Toggle mode of name textfields in WIDGET."
   (let* ((parent (widget-get widget :parent))
@@ -305,19 +319,7 @@ ID."
                         (setq zotero-edit-creators-widget
                               (widget-create 'editable-list
                                              :entry-format "%i %d %v\n"
-                                             :notify (lambda (widget &rest _ignore)
-                                                       (let* ((creators-list (seq-map (lambda (elt)
-                                                                                        (pcase elt
-                                                                                          (`(,creator-type (,full-name) ,_fieldmode)
-                                                                                           (list :creatorType creator-type
-                                                                                                 :name full-name))
-                                                                                          (`(,creator-type (,first-name ,last-name) ,_fieldmode)
-                                                                                           (list :creatorType creator-type
-                                                                                                 :firstName first-name
-                                                                                                 :lastName last-name))
-                                                                                          (_ (error "Invalid value")))) (widget-value widget)))
-                                                              (creators-vector (seq-into creators-list 'vector)))
-                                                         (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy :creators creators-vector))))
+                                             :notify #'zotero-edit--creators-notify
                                              :value values
                                              `(group
                                                :format "%v"
