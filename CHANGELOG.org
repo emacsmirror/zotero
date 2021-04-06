@@ -1,4 +1,13 @@
 * Changelog
 
+** [0.1.1] - 2021-04-07
+
+*** Added
+  - Now available from MELPA
+
+*** Fixed
+  - Place an item added by identifier in the current collection by default
+  - Fixed initialization of new creators in edit mode
+
 ** [0.1] - 2021-03-06
    - Initial Release
