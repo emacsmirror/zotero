@@ -330,6 +330,7 @@ ID."
                                                (editable-list
                                                 :format "%v\n" ; Omit `insert-button' widget
                                                 :entry-format "%v" ; Omit `insert-button' and `delete-button' widgets
+                                                :value ("" "")
                                                 (editable-field
                                                  :size 10
                                                  :format "%v "
