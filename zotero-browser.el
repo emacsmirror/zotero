@@ -2276,6 +2276,77 @@ client."
           (error "Failed to associate attachment with item %s" key))
         (display-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action)))))
 
+(defun zotero-browser-rename-attachment ()
+  "Rename the attachment of the current entry to match the metadata."
+  (interactive)
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-ensure-item-at-point)
+  (let* ((type zotero-browser-type)
+         (id zotero-browser-id)
+         (ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node))
+         (entry (zotero-cache-synccache "item" key type id))
+         (itemtype (zotero-lib-plist-get* entry :data :itemType))
+         (linkmode (zotero-lib-plist-get* entry :data :linkMode))
+         parent attachment)
+    (if (and (equal itemtype "attachment")
+             (equal linkmode "imported_file"))
+        (let ((parent-key (zotero-browser--parent key)))
+          (setq parent (zotero-cache-synccache "item" parent-key type id))
+          (setq attachment entry))
+      (let* ((children (zotero-browser--children key))
+             (attachments (ht-find
+                           (lambda (_key value) (and (equal (zotero-lib-plist-get* value :data :itemType) "attachment")
+                                                     (equal (zotero-lib-plist-get* value :data :linkMode) "imported_file")))
+                           children)))
+        (setq parent entry)
+        (if attachments
+            (setq attachment (cadr attachments))
+          (user-error "Item has no attachments"))))
+    ;; Rename the attachment to match the metadata
+    (let* ((parent-data (plist-get parent :data))
+           (parent-key (plist-get parent-data :key))
+           (attachment-data (plist-get attachment :data))
+           (attachment-key (plist-get attachment-data :key))
+           (version (plist-get attachment-data :version))
+           (base (zotero-browser--filename-base parent-data))
+           (file (zotero-browser--find-attachment attachment))
+           (attributes (zotero-file-attributes file))
+           (dir (file-name-directory file))
+           (ext (file-name-extension file t))
+           (newname (concat dir base ext)))
+      (rename-file file newname t)
+      ;; Update the attachment item
+      (let* ((data (thread-first attachment-data
+                     (plist-put :parentItem parent-key)
+                     ;; Children don't have collections
+                     (plist-put :collections [])
+                     (plist-put :title base)
+                     (plist-put :filename (concat base ext))
+                     ;; md5 and mtime can be edited directly in
+                     ;; personal libraries for WebDAV-based file
+                     ;; syncing. They should not be edited directly
+                     ;; when using Zotero File Storage, which provides
+                     ;; an atomic method for setting the properties
+                     ;; along with the corresponding file.
+                     (plist-put :md5 nil)
+                     (plist-put :mtime nil)))
+             (response (zotero-update-item attachment-key data version :type type :id id))
+             (status-code (zotero-response-status-code response)))
+        (when (eq status-code 204)
+          (zotero-cache-save data "items" type id)
+          ;; Get upload authorization for the renamed file
+          (if-let ((md5 (plist-get attributes :md5))
+                   (response (zotero-upload-attachment attachment-key newname md5 :type type :id id))
+                   (object (zotero-response-data response))
+                   (data (plist-get object :data)))
+              (progn
+                (zotero-cache-save data "items" type id)
+                (run-hook-with-args 'zotero-browser-after-change-functions attachment-key))
+            (user-error "Failed to associate attachment with item %s" attachment-key)))))))
+
 (defun zotero-browser--recognize (file)
   "Return the bibliographic metadata recognized from PDF FILE."
   (let* ((response (zotero-recognize file))
