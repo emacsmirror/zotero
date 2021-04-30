@@ -673,6 +673,9 @@ All currently available key bindings:
   (font-lock-mode 1)
   ;; Turn on word wrap
   (visual-line-mode 1)
+  ;; Turn on highlighting of the current node
+  (hl-line-mode 1)
+  (setq-local hl-line-range-function #'zotero-browser-hl-range)
   (setq-local dnd-protocol-alist
               (append zotero-browser-dnd-protocol-alist dnd-protocol-alist)))
 
@@ -1679,6 +1682,22 @@ The format can be changed by customizing
   "Check if there is an item at point."
   (unless (ewoc-locate zotero-browser-ewoc)
     (user-error "No item at point")))
+
+(defun zotero-browser-hl-range ()
+  "Return highlight range."
+  (let ((ewoc zotero-browser-ewoc))
+    (when-let ((node (ewoc-locate ewoc)))
+      (let* ((beg (ewoc-location node))
+             (next-node (ewoc-next ewoc node))
+             (end (if next-node
+                      (save-excursion
+                        (goto-char (ewoc-location next-node))
+                        (line-end-position 0))
+                    (save-excursion
+                      (while (not (looking-at "[ \t]*$"))
+                        (forward-line)))
+                    (line-end-position))))
+        (cons beg end)))))
 
 (defun zotero-browser-revert ()
   "Reload the current buffer."
