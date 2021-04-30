@@ -31,6 +31,7 @@
 (require 'mailcap)
 (require 'seq)
 (require 'subr-x)
+(require 'url)
 (require 'zotero)
 (require 'zotero-lib)
 (require 'zotero-cache)
@@ -456,6 +457,15 @@ tree.")
   :group 'zotero-browser
   :type 'string)
 
+(defcustom zotero-browser-dnd-protocol-alist
+  '(("^file:" . zotero-browser-dnd-protocol))
+  "The functions to call when a drop in `zotero-items-mode' is made.
+See `dnd-protocol-alist' for more information.  When nil, behave
+as in other buffers."
+  :group 'zotero-browser
+  :type '(choice (repeat (cons (regexp) (function)))
+		 (const :tag "Behave as in other buffers" nil)))
+
 (defcustom zotero-browser-default-collection-level 1
   "The default expansion level for collections."
   :group 'zotero-browser
@@ -662,7 +672,9 @@ All currently available key bindings:
   ;; Turn on highlighting
   (font-lock-mode 1)
   ;; Turn on word wrap
-  (visual-line-mode 1))
+  (visual-line-mode 1)
+  (setq-local dnd-protocol-alist
+              (append zotero-browser-dnd-protocol-alist dnd-protocol-alist)))
 
 ;;;###autoload
 (define-minor-mode zotero-browser-note-mode
@@ -2370,18 +2382,14 @@ client."
       (setq data (plist-put data :language (plist-get metadata :language))))
     data))
 
-(defun zotero-browser-import-attachment ()
+(defun zotero-browser-import (file)
   "Import a PDF file and create a new attachment.
 Retrieve the metadata automatically, create an appropriate parent
 item, and rename the associated file based on the metadata."
-  (interactive)
-  (zotero-browser-ensure-items-mode)
-  (zotero-browser-ensure-write-access)
   (let* ((inhibit-read-only t)
          (type zotero-browser-type)
          (id zotero-browser-id)
          (collection zotero-browser-collection)
-         (file (expand-file-name (read-file-name "Select file: " nil nil t)))
          (parent-data (zotero-browser--recognize file))
          (parent-data (if (stringp collection)
                           (plist-put parent-data :collections (vector collection))
@@ -2433,20 +2441,14 @@ item, and rename the associated file based on the metadata."
           (delete-file tempfile)
           (user-error "Failed to associate attachment with item %s" attachment-key))))))
 
-(defun zotero-browser-link-attachment ()
+(defun zotero-browser-link (file)
   "Link to a PDF file and create a new attachment.
 Retrieve the metadata automatically and create an appropriate
 parent item."
-  (interactive)
-  (zotero-browser-ensure-items-mode)
-  (zotero-browser-ensure-write-access)
-  (unless (equal zotero-browser-type "user")
-    (user-error "Linked files can only be added to user library"))
   (let* ((inhibit-read-only t)
          (type zotero-browser-type)
          (id zotero-browser-id)
          (collection zotero-browser-collection)
-         (file (expand-file-name (read-file-name "Select file: " nil nil t)))
          (parent-data (zotero-browser--recognize file))
          (parent-data (if (stringp collection)
                           (plist-put parent-data :collections (vector collection))
@@ -2470,6 +2472,26 @@ parent item."
              (data (zotero-cache-save attachment-data "items" type id))
              (attachment-key (plist-get data :key)))
         (run-hook-with-args 'zotero-browser-after-change-functions attachment-key)))))
+
+(defun zotero-browser-import-attachment (file)
+  "Import a PDF file and create a new attachment.
+Retrieve the metadata automatically, create an appropriate parent
+item, and rename the associated file based on the metadata."
+  (interactive "f")
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (zotero-browser-import file))
+
+(defun zotero-browser-link-attachment (file)
+  "Link to a PDF file and create a new attachment.
+Retrieve the metadata automatically and create an appropriate
+parent item."
+  (interactive "f")
+  (zotero-browser-ensure-items-mode)
+  (zotero-browser-ensure-write-access)
+  (unless (equal zotero-browser-type "user")
+    (user-error "Linked files can only be added to user library"))
+  (zotero-browser-link file))
 
 (defun zotero-browser-add-by-identifier (string)
   "Create a new item by providing an identifier.
@@ -2617,6 +2639,14 @@ key."
     (unless (file-exists-p dir)
       (make-directory dir t))
     (zotero-download-file key filename dir t :type type :id id)))
+
+(defun zotero-browser-dnd-protocol (uri action)
+  "Drag-n-drop protocol.
+PDF will be a string like file:path.
+ACTION is what to do. It is required for `dnd-protocol-alist'."
+  (let* ((url (url-generic-parse-url uri))
+         (filename (url-filename url)))
+    (zotero-browser-import filename)))
 
 (defun zotero-browser-libraries ()
   "Create a libraries browser buffer."
