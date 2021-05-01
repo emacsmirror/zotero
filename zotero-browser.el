@@ -2093,10 +2093,32 @@ Optional argument ARG is the prefix argument."
          (table (zotero-cache-synccache "collections" nil type id))
          (choices (zotero-cache-parentcollections table))
          (name (completing-read "Select collection:" choices nil t))
-         (new (cdr (assoc name choices)))
-         (old zotero-browser-collection))
-    (zotero-cache-substitute-collection key new old type id)
-    (run-hook-with-args 'zotero-browser-after-change-functions key)))
+         (collection (cdr (assoc name choices))))
+    (pcase zotero-browser-collection
+      ((pred stringp)
+       (zotero-cache-substitute-collection key collection zotero-browser-collection type id))
+      ('unfiled
+       (zotero-cache-add-to-collection key
+                                       collection
+                                       zotero-browser-type
+                                       zotero-browser-id))
+      ('trash
+       (zotero-cache-restore key
+                             zotero-browser-type
+                             zotero-browser-id)
+       (zotero-cache-add-to-collection key
+                                       collection
+                                       zotero-browser-type
+                                       zotero-browser-id)
+       ;; Restore all children from trash as well
+       (ht-each (lambda (key _value)
+                  (zotero-cache-restore key zotero-browser-type zotero-browser-id)
+                  (run-hook-with-args 'zotero-browser-after-change-functions key))
+                (zotero-browser--children key))))
+    (run-hook-with-args 'zotero-browser-after-change-functions key)
+    (ht-each (lambda (key _value)
+               (run-hook-with-args 'zotero-browser-after-change-functions key))
+             (zotero-browser--children key))))
 
 (defun zotero-browser-copy-to-collection ()
   "Copy current entry to another collection."
