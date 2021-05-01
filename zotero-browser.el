@@ -2515,7 +2515,7 @@ client."
     data))
 
 (defun zotero-browser-import (file)
-  "Import a PDF file and create a new attachment.
+  "Import PDF FILE and create a new attachment.
 Retrieve the metadata automatically, create an appropriate parent
 item, and rename the associated file based on the metadata."
   (let* ((inhibit-read-only t)
@@ -2574,7 +2574,7 @@ item, and rename the associated file based on the metadata."
           (user-error "Failed to associate attachment with item %s" attachment-key))))))
 
 (defun zotero-browser-link (file)
-  "Link to a PDF file and create a new attachment.
+  "Link to PDF FILE and create a new attachment.
 Retrieve the metadata automatically and create an appropriate
 parent item."
   (let* ((inhibit-read-only t)
@@ -2606,7 +2606,7 @@ parent item."
         (run-hook-with-args 'zotero-browser-after-change-functions attachment-key)))))
 
 (defun zotero-browser-import-attachment (file)
-  "Import a PDF file and create a new attachment.
+  "Import PDF FILE and create a new attachment.
 Retrieve the metadata automatically, create an appropriate parent
 item, and rename the associated file based on the metadata."
   (interactive "f")
@@ -2615,7 +2615,7 @@ item, and rename the associated file based on the metadata."
   (zotero-browser-import file))
 
 (defun zotero-browser-link-attachment (file)
-  "Link to a PDF file and create a new attachment.
+  "Link to PDF FILE and create a new attachment.
 Retrieve the metadata automatically and create an appropriate
 parent item."
   (interactive "f")
@@ -2772,10 +2772,9 @@ key."
       (make-directory dir t))
     (zotero-download-file key filename dir t :type type :id id)))
 
-(defun zotero-browser-dnd-protocol (uri action)
-  "Drag-n-drop protocol.
-PDF will be a string like file:path.
-ACTION is what to do. It is required for `dnd-protocol-alist'."
+(defun zotero-browser-dnd-protocol (uri _action)
+  "Drag-n-drop protocol for files.
+For PDF files URI will be a string like \"file:path\"."
   (let* ((url (url-generic-parse-url uri))
          (filename (url-filename url)))
     (zotero-browser-import filename)))
