@@ -959,16 +959,16 @@ item, without affecting the display of other items like
     (when-let ((node (zotero-browser--find ewoc key)))
       (ewoc-delete ewoc node))
     ;; If key is in table, place it in the buffer
-    (let ((sort-fn (pcase major-mode
-                     ('zotero-browser-collections-mode
-                      (let ((field (car zotero-browser-collections-sort-field))
-                            (flip (cdr zotero-browser-collections-sort-field)))
-                        (apply-partially #'zotero-cache-sort-by field flip)))
-                     ('zotero-browser-items-mode
-                      (let ((field (car zotero-browser-items-sort-field))
-                            (flip (cdr zotero-browser-items-sort-field)))
-                        (apply-partially #'zotero-cache-sort-by field flip))))))
-      (when (or (ht-contains-p table key) (ht-contains-p table parent))
+    (when (or (ht-contains-p table key) (ht-contains-p table parent))
+      (let ((sort-fn (pcase major-mode
+                       ('zotero-browser-collections-mode
+                        (let ((field (car zotero-browser-collections-sort-field))
+                              (flip (cdr zotero-browser-collections-sort-field)))
+                          (apply-partially #'zotero-cache-sort-by field flip)))
+                       ('zotero-browser-items-mode
+                        (let ((field (car zotero-browser-items-sort-field))
+                              (flip (cdr zotero-browser-items-sort-field)))
+                          (apply-partially #'zotero-cache-sort-by field flip))))))
         (if parent
             ;; Item is a child
             (let ((parent-node (zotero-browser--find ewoc parent)))
