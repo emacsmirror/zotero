@@ -27,6 +27,7 @@
 
 (require 'cl-lib)
 (require 'ewoc)
+(require 'hl-line)
 (require 'ht)
 (require 'mailcap)
 (require 'seq)
