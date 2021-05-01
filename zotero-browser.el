@@ -214,6 +214,7 @@ Each function is called with the item key as argument.")
   (let ((map (make-sparse-keymap)))
     (define-key map [mouse-1] #'zotero-browser-edit)
     (define-key map [mouse-3] #'zotero-browser-item-popup-menu)
+    (define-key map [drag-mouse-1] #'zotero-browser-drag)
     map)
   "Keymap for mouse events on items.")
 
@@ -1924,34 +1925,132 @@ If NUM is omitted or nil, expand till level 1."
                   (ewoc-next ewoc node)
                 (ewoc-goto-next ewoc 1))))))))
 
+(defun zotero-browser-drag (event)
+  "Drag an item with the mouse.
+EVENT is the starting mouse event of the drag action."
+  (interactive "e")
+  (let* ((start-pos (event-start event))
+         (start-point (posn-point start-pos))
+         (start-window (posn-window start-pos))
+         (start-buffer (window-buffer start-window))
+         (start-mode (with-current-buffer start-buffer major-mode))
+         (end-pos (event-end event))
+         (end-point (posn-point end-pos))
+         (end-window (posn-window end-pos))
+         (end-buffer (window-buffer end-window))
+         (end-mode (with-current-buffer end-buffer major-mode)))
+    (cond
+     ;; Drag within items buffer
+     ((and (eq start-mode 'zotero-browser-items-mode)
+           (eq end-mode 'zotero-browser-items-mode))
+      (let* ((start-ewoc (with-current-buffer start-buffer zotero-browser-ewoc))
+             (start-node (ewoc-locate start-ewoc start-point))
+             (start-key (ewoc-data start-node))
+             (end-ewoc (with-current-buffer end-buffer zotero-browser-ewoc))
+             (end-node (ewoc-locate end-ewoc end-point))
+             (end-key (ewoc-data end-node)))
+        (zotero-cache-move-to-parent start-key
+                                     end-key
+                                     zotero-browser-type
+                                     zotero-browser-id)))
+     ;; Drag from items buffer to collections buffer
+     ((and (eq start-mode 'zotero-browser-items-mode)
+           (eq end-mode 'zotero-browser-collections-mode))
+      (let* ((start-ewoc (with-current-buffer start-buffer zotero-browser-ewoc))
+             (start-node (ewoc-locate start-ewoc start-point))
+             (start-key (ewoc-data start-node))
+             (end-ewoc (with-current-buffer end-buffer zotero-browser-ewoc))
+             (end-node (ewoc-locate end-ewoc end-point))
+             (end-key (ewoc-data end-node)))
+        (cond
+         ;; Drag item from one collection to another
+         ((and (stringp zotero-browser-collection)
+               (stringp start-key)
+               (stringp end-key))
+          (zotero-cache-substitute-collection start-key
+                                              end-key
+                                              zotero-browser-collection
+                                              zotero-browser-type
+                                              zotero-browser-id)
+          (run-hook-with-args 'zotero-browser-after-change-functions start-key)
+          (ht-each (lambda (key _value)
+                     (run-hook-with-args 'zotero-browser-after-change-functions key))
+                   (zotero-browser--children start-key)))
+         ;; Drag unfiled item to collection
+         ((and (eq zotero-browser-collection 'unfiled)
+               (stringp start-key)
+               (stringp end-key))
+          (zotero-cache-add-to-collection start-key
+                                          end-key
+                                          zotero-browser-type
+                                          zotero-browser-id)
+          (run-hook-with-args 'zotero-browser-after-change-functions start-key)
+          (ht-each (lambda (key _value)
+                     (run-hook-with-args 'zotero-browser-after-change-functions key))
+                   (zotero-browser--children start-key)))
+         ;; Drag trashed item to collection
+         ((and (eq zotero-browser-collection 'trash)
+               (stringp start-key)
+               (stringp end-key))
+          (zotero-cache-restore start-key
+                                zotero-browser-type
+                                zotero-browser-id)
+          (zotero-cache-add-to-collection start-key
+                                          end-key
+                                          zotero-browser-type
+                                          zotero-browser-id)
+          (run-hook-with-args 'zotero-browser-after-change-functions start-key)
+          ;; Restore all children from trash as well
+          (ht-each (lambda (key _value)
+                     (zotero-cache-restore key zotero-browser-type zotero-browser-id)
+                     (run-hook-with-args 'zotero-browser-after-change-functions key))
+                   (zotero-browser--children start-key)))
+         ;; Drag item to unfiled
+         ((and (stringp start-key)
+               (eq end-key 'unfiled))
+          (zotero-cache-remove-item-from-collection start-key
+                                                    zotero-browser-collection
+                                                    zotero-browser-type
+                                                    zotero-browser-id)
+          (run-hook-with-args 'zotero-browser-after-change-functions start-key)
+          (ht-each (lambda (key _value)
+                     (run-hook-with-args 'zotero-browser-after-change-functions key))
+                   (zotero-browser--children start-key)))
+         ;; Drag item to trash
+         ((and (stringp start-key)
+               (eq end-key 'trash))
+          (zotero-cache-trash start-key
+                              zotero-browser-type
+                              zotero-browser-id)
+          (run-hook-with-args 'zotero-browser-after-change-functions start-key)
+          ;; Move all children to trash as well
+          (ht-each (lambda (key _value)
+                     (zotero-cache-trash key zotero-browser-type zotero-browser-id)
+                     (run-hook-with-args 'zotero-browser-after-change-functions key))
+                   (zotero-browser--children start-key)))))))))
+
 (defun zotero-browser-edit ()
   "Edit current entry."
   (interactive)
   (zotero-browser-ensure-browser-buffer)
   (zotero-browser-ensure-write-access)
-  (zotero-browser-ensure-item-at-point)
+  ;; (zotero-browser-ensure-item-at-point)
   (let* ((type zotero-browser-type)
-         (id zotero-browser-id))
+         (id zotero-browser-id)
+         (ewoc zotero-browser-ewoc)
+         (node (ewoc-locate ewoc))
+         (key (ewoc-data node)))
     (pcase major-mode
       ('zotero-browser-libraries-mode
-       (let* ((ewoc zotero-browser-ewoc)
-              (node (ewoc-locate ewoc))
-              (key (ewoc-data node)))
-         (if (zotero-cache-group key)
-             (zotero-group-settings key)
-           (user-error "Library %s is not a group" key))))
+       (if (zotero-cache-group key)
+           (zotero-group-settings key)
+         (user-error "Library %s is not a group" key)))
       ('zotero-browser-collections-mode
-       (when-let ((ewoc zotero-browser-ewoc)
-                  (node (ewoc-locate ewoc))
-                  (key (ewoc-data node))
-                  (entry (zotero-cache-synccache "collection" key type id))
-                  (data (plist-get entry :data)))
+       (let* ((entry (zotero-cache-synccache "collection" key type id))
+              (data (plist-get entry :data)))
          (pop-to-buffer (zotero-edit-collection data type id) zotero-browser-edit-buffer-action)))
       ('zotero-browser-items-mode
-       (let* ((ewoc zotero-browser-ewoc)
-              (node (ewoc-locate ewoc))
-              (key (ewoc-data node))
-              (entry (zotero-cache-synccache "item" key type id))
+       (let* ((entry (zotero-cache-synccache "item" key type id))
               (data (plist-get entry :data)))
          (pop-to-buffer (zotero-edit-item data type id) zotero-browser-edit-buffer-action))))))
 
