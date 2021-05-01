@@ -1620,8 +1620,9 @@ The format can be changed by customizing
      ((equal itemtype "attachment")
       (zotero-browser--open-attachment entry))
      (t
-      (let ((children (zotero-browser--children key)))
-        (ht-each (lambda (_key value) (zotero-browser--open-attachment value)) children))))))
+      (ht-each (lambda (_key value)
+                 (zotero-browser--open-attachment value))
+               (zotero-browser--children key))))))
 
 (defun zotero-browser-open-directory ()
   "Open directory of the attachment of the current entry."
@@ -2137,7 +2138,10 @@ Optional argument ARG is the prefix argument."
          (name (completing-read "Select collection:" choices nil t))
          (collection (cdr (assoc name choices))))
     (zotero-cache-add-to-collection key collection type id)
-    (run-hook-with-args 'zotero-browser-after-change-functions key)))
+    (run-hook-with-args 'zotero-browser-after-change-functions key)
+    (ht-each (lambda (key _value)
+               (run-hook-with-args 'zotero-browser-after-change-functions key))
+             (zotero-browser--children key))))
 
 (defun zotero-browser-remove-from-collection ()
   "Remove current entry from the collection."
@@ -2154,9 +2158,9 @@ Optional argument ARG is the prefix argument."
          (collection zotero-browser-collection))
     (zotero-cache-remove-item-from-collection key collection type id)
     (run-hook-with-args 'zotero-browser-after-change-functions key)
-    (let ((children (zotero-browser--children key)))
-      (ht-each (lambda (key _value) (run-hook-with-args 'zotero-browser-after-change-functions key))
-               children))))
+    (ht-each (lambda (key _value)
+               (run-hook-with-args 'zotero-browser-after-change-functions key))
+             (zotero-browser--children key))))
 
 (defun zotero-browser-move-to-trash ()
   "Move current entry to trash.
@@ -2180,10 +2184,9 @@ If region is active, trash entries in active region instead."
       (zotero-cache-trash key type id)
       (run-hook-with-args 'zotero-browser-after-change-functions key)
       ;; Move all children to trash as well
-      (let ((children (zotero-browser--children key)))
-        (ht-each (lambda (key _value) (zotero-cache-trash key type id)
-                   (run-hook-with-args 'zotero-browser-after-change-functions key))
-                 children)))))
+      (ht-each (lambda (key _value) (zotero-cache-trash key type id)
+                 (run-hook-with-args 'zotero-browser-after-change-functions key))
+               (zotero-browser--children key)))))
 
 (defun zotero-browser-restore-from-trash ()
   "Restore current entry from trash.
@@ -2203,10 +2206,9 @@ If region is active, restore entries in active region instead."
       (zotero-cache-restore key type id)
       (run-hook-with-args 'zotero-browser-after-change-functions key)
       ;; Restore all children from trash as well
-      (let ((children (zotero-browser--children key)))
-        (ht-each (lambda (key _value) (zotero-cache-restore key type id)
-                   (run-hook-with-args 'zotero-browser-after-change-functions key))
-                 children)))))
+      (ht-each (lambda (key _value) (zotero-cache-restore key type id)
+                 (run-hook-with-args 'zotero-browser-after-change-functions key))
+               (zotero-browser--children key)))))
 
 (defun zotero-browser-delete ()
   "Delete current entry.
@@ -2225,10 +2227,11 @@ If region is active, delete entries in active region instead."
          (ewoc zotero-browser-ewoc)
          (keys (zotero-browser--keys ewoc)))
     (dolist (key keys)
-      (let ((children (ht-keys (zotero-browser--children key))))
-        (zotero-cache-delete resource key type id)
-        (run-hook-with-args 'zotero-browser-after-change-functions key)
-        (mapc (lambda (child) (run-hook-with-args 'zotero-browser-after-change-functions child)) children)))))
+      (zotero-cache-delete resource key type id)
+      (run-hook-with-args 'zotero-browser-after-change-functions key)
+      (ht-each (lambda (key _value)
+                 (run-hook-with-args 'zotero-browser-after-change-functions key))
+               (zotero-browser--children key)))))
 
 (defun zotero-browser-create ()
   "Create a new collection or item."
