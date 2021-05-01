@@ -813,6 +813,28 @@ cells whose CAR is the name and the CDR is the key, and is to be
 used in completion functions."
   (ht-map (lambda (key value) (cons (zotero-lib-plist-get* value :data :name) key)) table))
 
+(defun zotero-cache-move-to-parent (key parent type id)
+  "Move KEY to PARENT.
+
+Argument TYPE is \"user\" for your personal library, and
+\"group\" for the group libraries. ID is the ID of the personal
+or group library you want to access, that is the user ID or group
+ID."
+  (let* ((entry (zotero-cache-synccache "item" key type id))
+         (data (plist-get entry :data))
+         (itemtype (plist-get data :itemType))
+         updated-data)
+    (unless (or (equal itemtype "attachment") (equal itemtype "note"))
+      (user-error "Item type %s cannot be moved to a parent"))
+    (if parent
+        (let* ((parent-entry (zotero-cache-synccache "item" parent type id))
+               (parent-itemtype (zotero-lib-plist-get* parent-entry :data :itemType)))
+          (if (or (equal parent-itemtype "attachment") (equal parent-itemtype "note"))
+              (user-error "Parent item cannot be a note or attachment")
+            (setq updated-data (plist-put data :parentItem parent))))
+      (setq updated-data (zotero-lib-plist-delete data :parentItem)))
+    (zotero-cache-save updated-data "items" type id)))
+
 (defun zotero-cache-add-to-collection (key collection type id)
   "Add item KEY to COLLECTION.
 
