@@ -190,7 +190,7 @@
 **** Multi-object JSON response: top-level items in a collection
 
 ***** Web API request
-      https://api.zotero.org/users/475425/collections/9KH9TNSJ/items/top?v=3
+      [[https://api.zotero.org/users/475425/collections/9KH9TNSJ/items/top?v=3][https://api.zotero.org/users/475425/collections/9KH9TNSJ/items/top?v=3]]
 
 ***** Emacs-zotero request
       #+BEGIN_SRC emacs-lisp
@@ -204,7 +204,7 @@
 **** Single-object JSON response: individual item
 
 ***** Web API Request
-      https://api.zotero.org/users/475425/items/X42A7DEE?v=3
+      [[https://api.zotero.org/users/475425/items/X42A7DEE?v=3][https://api.zotero.org/users/475425/items/X42A7DEE?v=3]]
 
 ***** Emacs-zotero request
       #+BEGIN_SRC emacs-lisp
@@ -217,7 +217,7 @@
 
 **** Multi-object JSON response: collections for a user
 ***** Web API request
-      https://api.zotero.org/users/475425/collections?v=3
+      [[https://api.zotero.org/users/475425/collections?v=3][https://api.zotero.org/users/475425/collections?v=3]]
 
 ***** Emacs-zotero request
       #+BEGIN_SRC emacs-lisp
@@ -230,7 +230,7 @@
 
 **** Atom feed: items in a library
 ***** Web API request
-      https://api.zotero.org/users/475425/items?format=atom&v=3
+      [[https://api.zotero.org/users/475425/items?format=atom&v=3][https://api.zotero.org/users/475425/items?format=atom&v=3]]
 
 ***** Emacs-zotero request
       #+BEGIN_SRC emacs-lisp
@@ -244,7 +244,7 @@
 
 **** Formatted bibliography: items in a collection
 ***** Web API request
-      https://api.zotero.org/users/475425/collections/9KH9TNSJ/items?format=bib
+      [[https://api.zotero.org/users/475425/collections/9KH9TNSJ/items?format=bib][https://api.zotero.org/users/475425/collections/9KH9TNSJ/items?format=bib]]
 
 ***** Emacs-zotero request
       #+BEGIN_SRC emacs-lisp
@@ -272,11 +272,9 @@
 
 **** Example
      Given a =zotero-response= object =response=, you can access the slots by
-     calling src_emacs-lisp{zotero-response-status-code response},
-     src_emacs-lisp{zotero-response-headers response},
-     src_emacs-lisp{zotero-response-version response},
-     src_emacs-lisp{zotero-response-etag response}, and
-     src_emacs-lisp{zotero-response-data response}. For example:
+     calling =(zotero-response-status-code response)=, =(zotero-response-headers
+     response)=, =(zotero-response-version response)=, =(zotero-response-etag
+     response)=, and =(zotero-response-data response)=. For example:
 
      #+BEGIN_SRC emacs-lisp
      (setq response (zotero-request "GET"
