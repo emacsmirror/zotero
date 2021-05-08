@@ -1,13 +1,28 @@
 * Changelog
 
+** [0.2] - 2021-05-08
+
+*** Added
+    - Added drag and drop for pdf files
+    - Added dragging of items with the mouse
+    - Added highlighting of the current node
+    - Added function to rename an attachment
+
+*** Changed
+    - Show top level items instead of all items in browser by default to speed
+      things up a bit
+
+*** Fixed
+    - Fixed moving items to collection from unfiled and trash
+
 ** [0.1.1] - 2021-04-07
 
 *** Added
-  - Now available from MELPA
+    - Now available from MELPA
 
 *** Fixed
-  - Place an item added by identifier in the current collection by default
-  - Fixed initialization of new creators in edit mode
+    - Place an item added by identifier in the current collection by default
+    - Fixed initialization of new creators in edit mode
 
 ** [0.1] - 2021-03-06
    - Initial Release
