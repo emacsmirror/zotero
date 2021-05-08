@@ -184,10 +184,9 @@ locale and cannot be localized."
                :documentation "Status code of the response.")
   (headers nil
            :read-only nil
-           :documentation "An alist of extra headers. The CAR of
-           each cons cell is the field name and the CDR is the
-           field value. HEADERS has the form:
-((\"Content-Type\" . \"application/x-www-form-urlencoded\"))")
+           :documentation "An alist of response headers. The CAR
+           of each cons cell is the field name and the CDR is the
+           field value.")
   (version nil
            :read-only nil
            :documentation "Current library version, as returned
