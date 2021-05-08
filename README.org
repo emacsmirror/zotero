@@ -267,7 +267,7 @@
     - =etag=: attachment item's md5 value, as returned by the "ETag" header in the
       response.
     - =data=: data returned in the response. The data is returned as a property
-      list, converted from JSON. The value =:json-empty= (instead of =nil)= is used
+      list, converted from JSON. The value =:json-empty= (instead of =nil=) is used
       for an empty object to differentiate an empty value and an empty object.
 
 **** Example
