@@ -950,7 +950,7 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (zotero-request "GET" "collections-top" :type type :id id :api-key api-key))
+  (zotero-request "GET" "collections-top" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-collection (key &key type id api-key)
   "Return collection KEY.
@@ -1063,7 +1063,7 @@ Keyword TYPE is \"user\" for your personal library, and \"group\"
 for the group libraries. ID is the ID of the personal or group
 library you want to access, that is the \"user ID\" or \"group
 ID\". API-KEY is the Zotero API key."
-  (zotero-request "GET" "tags" :type type :id id :api-key api-key))
+  (zotero-request "GET" "tags" nil :type type :id id :api-key api-key))
 
 (cl-defun zotero-item-tags (key &key type id api-key)
   "Return tags associated with KEY.
