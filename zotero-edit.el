@@ -207,6 +207,15 @@ Called if KEY is added, deleted, or changed."
     (widget-setup)
     (widget-apply parent :notify parent)))
 
+(defun zotero-edit--tags-notify (widget &rest _ignore)
+  "Update tags in WIDGET."
+  (let ((tags (widget-value widget))
+        value)
+    (seq-doseq (tag tags)
+      (unless (string-empty-p tag)
+        (push (list :tag tag) value)))
+    (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy :tags (seq-into value 'vector)))))
+
 (defun zotero-edit-item (data type id)
   "Create an item edit buffer with DATA.
 
@@ -405,15 +414,11 @@ ID."
                      ((and :tags field)
                       (let* ((fieldname "Tags")
                              (value (plist-get data field))
-                             (values (unless (eq value :json-empty) (seq-map (lambda (elt) elt) value))))
+                             (values (unless (eq value :json-empty) (seq-map (lambda (elt) (plist-get elt :tag)) value))))
                         (widget-insert (format "%d %s:\n" (length values) fieldname))
                         (widget-create 'editable-list
                                        :entry-format "%d %v"
-                                       :notify (lambda (widget &rest _ignore)
-                                                 (let* ((value (if-let ((values (widget-value widget)))
-                                                                   (seq-into values'vector)
-                                                                 :json-empty)))
-                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field value))))
+                                       :notify #'zotero-edit--tags-notify
                                        :value values
                                        '(editable-field ""))))
                      ;; Collections
