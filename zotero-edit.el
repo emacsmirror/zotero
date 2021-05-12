@@ -166,6 +166,7 @@ Called if KEY is added, deleted, or changed."
               (kill-buffer buffer)))))))
 
 (defun zotero-edit--creators-notify (widget &rest _ignore)
+  "Update creators in WIDGET."
   (let* ((creators-list (seq-map (lambda (elt)
                                    (pcase elt
                                      (`(,creator-type (,full-name) ,_fieldmode)
