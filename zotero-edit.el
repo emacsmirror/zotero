@@ -342,7 +342,7 @@ ID."
                                                 :format "Switch to %[%v%]"
                                                 :on "Dual field"
                                                 :off "Single field"
-                                                :notify zotero-edit--toggle-notify))))))
+                                                :notify #'zotero-edit--toggle-notify))))))
                      ;; Abstract
                      ((and :abstractNote field)
                       (let* ((fieldname (zotero-cache-itemfield-locale field))
