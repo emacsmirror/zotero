@@ -443,20 +443,23 @@ ID."
                                          :void (item :format "%t" :value "" :tag "None")
                                          :args ,choices))))
                      ;; Relations
+                     ;; Editing of relations is not supported
                      ((and :relations field)
                       (let* ((fieldname "Related")
+                             ;; (related-item :dc:relation)
+                             ;; (linked-object :owl:sameAs)
+                             ;; (replaced-item :dc:replaces)
                              (value (plist-get data field))
-                             (values (unless value :json-empty (seq-map (lambda (elt) elt) value))))
-                        (widget-insert (format "%d %s:\n" (length values) fieldname))
-                        (widget-create 'editable-list
-                                       :entry-format "%d %v"
-                                       :notify (lambda (widget &rest _ignore)
-                                                 (let* ((value (if-let ((values (widget-value widget)))
-                                                                   (seq-into values'vector)
-                                                                 :json-empty)))
-                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field value))))
-                                       :value values
-                                       '(editable-field ""))))
+                             (values (unless (eq value :json-empty) value)))
+                        (widget-insert (concat fieldname ":\n"))
+                        (cl-loop for (type items) on values by #'cddr do
+                                 (widget-insert (format "%s:\n" (zotero-lib-keyword->string type)))
+                                 (pcase items
+                                   ((pred stringp)
+                                    (widget-insert (format "%s:\n" items)))
+                                   ((pred vectorp)
+                                    (seq-doseq (item items)
+                                      (widget-insert (format "%s:\n" item))))))))
                      ;; Rest
                      (field
                       (let* ((fieldname (or (zotero-cache-itemfield-locale field) (capitalize (zotero-lib-keyword->string field))))
@@ -561,20 +564,20 @@ ID."
                                        :value value
                                        :args choices)))
                      ;; Relations
+                     ;; Editing of relations is not supported
                      ((and :relations field)
                       (let* ((fieldname "Related")
                              (value (plist-get data field))
-                             (values (unless value :json-empty (seq-map (lambda (elt) elt) value))))
-                        (widget-insert (format "%d %s:\n" (length values) fieldname))
-                        (widget-create 'editable-list
-                                       :entry-format "%d %v"
-                                       :notify (lambda (widget &rest _ignore)
-                                                 (let* ((value (if-let ((values (widget-value widget)))
-                                                                   (seq-into values'vector)
-                                                                 :json-empty)))
-                                                   (setq zotero-edit-data-copy (plist-put zotero-edit-data-copy field value))))
-                                       :value values
-                                       '(editable-field ""))))))
+                             (values (unless (eq value :json-empty) value)))
+                        (widget-insert (concat fieldname ":\n"))
+                        (cl-loop for (type items) on values by #'cddr do
+                                 (widget-insert (format "%s:\n" (zotero-lib-keyword->string type)))
+                                 (pcase items
+                                   ((pred stringp)
+                                    (widget-insert (format "%s:\n" items)))
+                                   ((pred vectorp)
+                                    (seq-doseq (item items)
+                                      (widget-insert (format "%s:\n" item))))))))))
           ;; Save button
           (widget-insert "\n")
           (widget-create 'push-button

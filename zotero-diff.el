@@ -179,9 +179,15 @@ in translations."
                        (:relations
                         (let* ((fieldname "Related")
                                (value (plist-get data key))
-                               (values (unless (eq value :json-empty) (seq-into value 'list))))
-                          (widget-insert (format "%d %s:\n" (length values) fieldname))
-                          (widget-insert (s-join "\n" values))))
+                               (values (unless (eq value :json-empty) value)))
+                          (cl-loop for (type items) on values by #'cddr do
+                                   (widget-insert (format "%s:\n" (zotero-lib-keyword->string type)))
+                                   (pcase items
+                                     ((pred stringp)
+                                      (widget-insert (format "%s:\n" items)))
+                                     ((pred vectorp)
+                                      (seq-doseq (item items)
+                                        (widget-insert (format "%s:\n" item))))))))
                        ;; Rest
                        (_
                         (let* ((fieldname (or (zotero-cache-itemfield-locale key locale) (capitalize (zotero-lib-keyword->string key))))
