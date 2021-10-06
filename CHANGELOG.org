@@ -1,5 +1,11 @@
 * Changelog
 
+** [0.2.3] - 2021-10-06
+
+*** Fixed
+    - Fixed display of relations in zotero-edit mode
+    - Fixed pagination in =zotero-request=
+
 ** [0.2.2] - 2021-05-12
 
 *** Fixed
