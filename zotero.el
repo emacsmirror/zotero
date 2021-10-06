@@ -361,7 +361,7 @@ This will return an alist
 (defun zotero--next-url (response)
   "Return the next pagination link of the \"Link\" headers in RESPONSE."
   (when-let ((header (zotero-response-headers response))
-             (links (cdr (assoc "links" header #'cl-equalp)))
+             (links (cdr (assoc "link" header #'cl-equalp)))
              (next (cdr (assoc "next" (zotero--parse-links links) #'cl-equalp))))
     next))
 
@@ -457,17 +457,17 @@ and passed as optional argument RESULT."
        ;; If the response is paginated, it will contain a "Links" header with
        ;; link relations. Then, `zotero-dispatch' is called again with a
        ;; request to the next url and the concatenated data.
-       (let ((new-result (zotero--data response result)))
+       (let ((total (vconcat result (zotero--data response result))))
          (if-let ((next-url (zotero--next-url response))
                   (params (zotero--parse-query-string (cdr (url-path-and-query (url-generic-parse-url next-url))))))
              (progn
                (setf (zotero-request-params request) params)
-               (zotero-dispatch request result))
+               (zotero-dispatch request total))
            (zotero-response-create :status-code status-code
                                    :headers (zotero-response-headers response)
                                    :version (zotero--last-modified-version response)
                                    :etag (zotero--etag response)
-                                   :data new-result))))
+                                   :data total))))
       ;; No Content
       (204
        (zotero-response-create :status-code status-code
