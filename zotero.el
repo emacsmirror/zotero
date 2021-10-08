@@ -457,7 +457,7 @@ and passed as optional argument RESULT."
        ;; If the response is paginated, it will contain a "Links" header with
        ;; link relations. Then, `zotero-dispatch' is called again with a
        ;; request to the next url and the concatenated data.
-       (let ((total (vconcat result (zotero--data response result))))
+       (let ((total (zotero--data response result)))
          (if-let ((next-url (zotero--next-url response))
                   (params (zotero--parse-query-string (cdr (url-path-and-query (url-generic-parse-url next-url))))))
              (progn
