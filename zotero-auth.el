@@ -131,7 +131,7 @@ Fetch an access token, secret, user ID and username from the
 service provider. The original function only fetches the access
 token and secret.
 Argument ARG is the request object passed to `oauth-do-request'."
-  (with-current-buffer (oauth-do-request arg)
+  (with-current-buffer (oauth--do-request arg)
     ;; Move beyond blank line at end of headers.
     (goto-char (point-min))
     (while (progn
@@ -154,11 +154,11 @@ Argument ARG is the request object passed to `oauth-do-request'."
 
 (defun zotero-auth--before-authorize-function ()
   "Function to be run before an OAuth authorization request."
-  (advice-add #'oauth-fetch-token :override #'zotero-auth--fetch-token))
+  (advice-add #'oauth--fetch-token :override #'zotero-auth--fetch-token))
 
 (defun zotero-auth--after-authorize-function ()
   "Function to be run after an OAuth authorization request."
-  (advice-remove #'oauth-fetch-token #'zotero-auth--fetch-token))
+  (advice-remove #'oauth--fetch-token #'zotero-auth--fetch-token))
 
 (defun zotero-auth--save-token (token)
   "Save the TOKEN for future sessions and return it."
