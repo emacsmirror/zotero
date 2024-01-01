@@ -43,8 +43,9 @@
    #+BEGIN_SRC emacs-lisp
    (use-package zotero
      :ensure t
-     :defer t
-     :commands (zotero-browser zotero-sync)
+     :commands (zotero-browser)
+     :init
+     (require 'zotero-browser))
    #+END_SRC
 
 *** Authentication
