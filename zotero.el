@@ -2,7 +2,7 @@
 
 ;; Author: Folkert van der Beek <folkertvanderbeek@gmail.com>
 ;; Created: 2020-03-27
-;; Version: 0.2.4
+;; Version: 0.2.5
 ;; Keywords: zotero, hypermedia
 ;; Package-Requires: ((emacs "27.1") (ht "2.2") (oauth "1.11") (s "1.12.0"))
 ;; URL: https://gitlab.com/fvdbeek/emacs-zotero

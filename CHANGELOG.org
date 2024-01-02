@@ -1,5 +1,10 @@
 * Changelog
 
+** [0.2.5] - 2024-01-02
+
+*** Fixed
+    - Fixed `hl-range' error with empty zotero-browser
+
 ** [0.2.4] - 2024-01-01
 
 *** Fixed
