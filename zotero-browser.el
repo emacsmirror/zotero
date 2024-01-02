@@ -1688,19 +1688,19 @@ The format can be changed by customizing
 
 (defun zotero-browser-hl-range ()
   "Return highlight range."
-  (let ((ewoc zotero-browser-ewoc))
-    (when-let ((node (ewoc-locate ewoc)))
-      (let* ((beg (ewoc-location node))
-             (next-node (ewoc-next ewoc node))
-             (end (if next-node
-                      (save-excursion
-                        (goto-char (ewoc-location next-node))
-                        (line-end-position 0))
+  (when-let ((ewoc zotero-browser-ewoc)
+             (node (ewoc-locate ewoc)))
+    (let* ((beg (ewoc-location node))
+           (next-node (ewoc-next ewoc node))
+           (end (if next-node
                     (save-excursion
-                      (while (not (looking-at "[ \t]*$"))
-                        (forward-line)))
-                    (line-end-position))))
-        (cons beg end)))))
+                      (goto-char (ewoc-location next-node))
+                      (line-end-position 0))
+                  (save-excursion
+                    (while (not (looking-at "[ \t]*$"))
+                      (forward-line)))
+                  (line-end-position))))
+      (cons beg end))))
 
 (defun zotero-browser-revert ()
   "Reload the current buffer."
