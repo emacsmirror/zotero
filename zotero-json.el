@@ -23,7 +23,7 @@
 ;; \"null\" and \"{}\" as nil, there's no convenient way to differentiate
 ;; between an empty value or an empty object. However, a \"null\" instead of
 ;; \"{}\" for an empty object will return a \"400 Bad Request\" error.
-;; Therefore, `json-read-object' and `json-encode' are advised to use the value
+;; Therefore, `json-read-object' and `json-encode-keyword' are advised to use the value
 ;; `:json-empty' when reading or writing a JSON empty object.
 
 ;;; Code:
@@ -43,7 +43,7 @@ Both \"null\" and \"{}\" are parsed as nil, so there's no
 convenient way to differentiate between an empty value or an
 empty object. However, a \"null\" instead of \"{}\" for an empty
 object will return a \"400 Bad Request\" error. The advices
-around `json-read-object' and `json-encode' use the value
+around `json-read-object' and `json-encode-keyword' use the value
 `:json-empty' when reading or writing a JSON empty object.
 
 Argument ORIG-FUN is the original function `zotero-read-object'."
@@ -59,22 +59,24 @@ Argument ORIG-FUN is the original function `zotero-read-object'."
       (goto-char beg)
       (funcall orig-fun))))
 
-(defun zotero-json--encode (orig-fun arg)
-  "Advice around `json-encode'.
+(defun zotero-json-encode-keyword (orig-fun arg)
+  "Advice around `json-encode-keyword'.
 
 This function writes `:json-empty' as JSON empty object (\"{}\").
 Both \"null\" and \"{}\" are parsed as nil, so there's no
 convenient way to differentiate between an empty value or an
 empty object. However, a \"null\" instead of \"{}\" for an empty
 object will return a \"400 Bad Request\" error. The advices
-around `json-read-object' and `json-encode' use the value
+around `json-read-object' and `json-encode-keyword' use the value
 `:json-empty' when reading or writing a JSON empty object.
 
-Argument ORIG-FUN is the original function `json-encode'. ARG is
-the object passed to `json-encode'."
-  (if (eq arg :json-empty)
-      "{}"
-    (funcall orig-fun arg)))
+Argument ORIG-FUN is the original function `json-encode-keyword'. ARG is
+the keyword passed to `json-encode-keyword'."
+  (declare (side-effect-free t))
+  (cond ((eq arg t) "true")
+        ((eq arg json-false) "false")
+        ((eq arg json-null) "null")
+        ((eq arg :json-empty) "{}")))
 
 (defun zotero-json--before-read-function ()
   "Function to be run before a JSON read."
@@ -86,11 +88,11 @@ the object passed to `json-encode'."
 
 (defun zotero-json--before-write-function ()
   "Function to be run before a JSON write."
-  (advice-add #'json-encode :around #'zotero-json--encode))
+  (advice-add #'json-encode-keyword :around #'zotero-json-encode-keyword))
 
 (defun zotero-json--after-write-function ()
   "Function to be run after a JSON write."
-  (advice-remove #'json-encode #'zotero-json--encode))
+  (advice-remove #'json-encode-keyword #'zotero-json-encode-keyword))
 
 (defun zotero-json-read (object)
   "Convert the JSON OBJECT to Lisp data, else return nil.
