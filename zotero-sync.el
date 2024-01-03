@@ -230,7 +230,8 @@ ID of the personal or group library you want to access, that is the
   ;; First, retrieve a plist of the user's groups with the group as keyword and
   ;; the version as value.
   (let* ((response (zotero-request "GET" "groups" nil :type "user" :id id :api-key api-key :params '(("format" "versions"))))
-         (remote-groups (zotero-response-data response))
+         (response-data (zotero-response-data response))
+         (remote-groups (unless (eq response-data :json-empty) response-data))
          (libraries (ht-get cache "libraries"))
          (groups (ht-get cache "groups")))
     (cl-loop for id being the hash-keys of groups do
