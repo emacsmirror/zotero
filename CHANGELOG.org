@@ -1,5 +1,11 @@
 * Changelog
 
+** [0.2.6] - 2024-01-04
+
+*** Fixed
+    - Fixed sync error
+    - Fixed JSON encoding
+
 ** [0.2.5] - 2024-01-02
 
 *** Fixed
