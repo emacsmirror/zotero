@@ -1,5 +1,10 @@
 * Changelog
 
+** [0.2.7] - 2024-01-12
+
+*** Fixed
+    - Fixed syncing of item templates
+
 ** [0.2.6] - 2024-01-04
 
 *** Fixed
