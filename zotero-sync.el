@@ -694,8 +694,10 @@ Argument CACHE is the hash table containing the cache."
   "Sync the item and attachment templates.
 
 Argument CACHE is the hash table containing the cache."
-  (let ((itemtypes (seq-map (lambda (elt) (plist-get elt :itemType)) (zotero-item-types)))
-        (linkmodes (zotero-attachment-linkmodes)))
+  (let* ((response (zotero-item-types))
+         (data (zotero-response-data response))
+         (itemtypes (seq-map (lambda (elt) (plist-get elt :itemType)) data))
+         (linkmodes (zotero-attachment-linkmodes)))
     (dolist (itemtype itemtypes)
       (zotero-sync-item-template cache itemtype))
     (dolist (linkmode linkmodes)
